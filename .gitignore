@@ -1,0 +1,7 @@
+node_modules/
+# Built dashboard and wrangler config; published, never committed.
+.axia/
+.env
+.env.*
+.DS_Store
+_site/

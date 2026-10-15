@@ -1,0 +1,53 @@
+# Your resume, relative to this file.
+resume: cv.md
+
+# Step 1, free: keep roles whose title contains one of these words or phrases.
+titles:
+  include:
+    - Engineering Manager
+    - Head of Engineering
+    - Staff Engineer
+    - Principal Engineer
+    - Architect
+  # ...unless the title also has one of these (whole words).
+  exclude:
+    - Intern
+    - Junior
+    - Sales
+    - Recruiter
+
+# Step 2, free: keep roles in these places. Whole words, so "India" never matches "Indianapolis".
+locations:
+  include:
+    - London
+    - Remote
+  # Keep roles whose board gives no location (checked again when the posting is read).
+  keep_unknown: true
+
+# Step 3, AI: Claude reads each remaining posting against your resume and criteria.md.
+scoring:
+  provider: auto           # auto (from the secrets you set), claude-code, anthropic, openrouter or openai-compatible
+  model: sonnet            # Claude: sonnet, opus or haiku. OpenRouter: a model id from openrouter.ai/models, like provider/model
+  effort: medium           # low, medium or high
+  # base_url: https://api.openai.com/v1   # only for openai-compatible (OpenAI, Groq, a local Ollama…)
+  criteria: criteria.md
+  max_ai_scores_per_run: 40
+  batch_size: 8
+  # Words that make a role more promising; used to decide what gets an AI score first.
+  keywords:
+    - platform
+    - payments
+    - distributed systems
+
+report:
+  timezone: Europe/London  # dates and times on the dashboard and in messages
+  good_match: 65           # the "good match" band on the dashboard
+  show_from: 50            # the "worth a look" band starts here
+
+notify:
+  min_score: 65            # message me when a role first scores this or more (the NOTIFY_MIN_SCORE variable overrides it)
+  weekly: monday           # a short "still running" note on this day; false to turn it off
+
+dashboard:
+  domain: jobs.example.com # the address you protected with Cloudflare Access; empty publishes to workers.dev
+  worker: axia             # Cloudflare Worker name

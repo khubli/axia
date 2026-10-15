@@ -1,0 +1,23 @@
+{
+ "items": [
+  {
+   "TotalJobsCount": 2,
+   "requisitionList": [
+    {
+     "Id": "3123",
+     "Title": "Business Development Officer, Retail Banking",
+     "PostedDate": "2026-10-14",
+     "PrimaryLocation": "Singapore",
+     "secondaryLocations": []
+    },
+    {
+     "Id": "4471",
+     "Title": "Relationship Banker, Retail Banking",
+     "PostedDate": "2026-10-13",
+     "PrimaryLocation": "United Kingdom",
+     "secondaryLocations": []
+    }
+   ]
+  }
+ ]
+}

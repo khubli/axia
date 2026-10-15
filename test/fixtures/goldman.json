@@ -1,0 +1,47 @@
+{
+ "data": {
+  "roleSearch": {
+   "totalCount": 2,
+   "items": [
+    {
+     "roleId": "171064_GS_MID_CAREER",
+     "jobTitle": "Core Engineering, Data Reconciliation, Dallas, Vice President, Software Engineering",
+     "corporateTitle": "Vice President",
+     "status": "POSTED",
+     "lastPostedDate": "2026-10-14T15:04:39.871Z",
+     "descriptionHtml": "<p>Sample description used only in tests: the team builds and operates reconciliation platforms used across the firm, with a focus on reliability and clear controls (1)</p><p>Sample description used only in tests: the team builds and operates reconciliation platforms used across the firm, with a focus on reliability and clear controls (2)</p>",
+     "locations": [
+      {
+       "primary": true,
+       "city": "Dallas",
+       "state": "TX",
+       "country": "United States"
+      }
+     ],
+     "externalSource": {
+      "sourceId": "171064"
+     }
+    },
+    {
+     "roleId": "168550_GS_MID_CAREER",
+     "jobTitle": "Engineering - Security Engineering - Warsaw - Associate - IAM",
+     "corporateTitle": "Associate",
+     "status": "POSTED",
+     "lastPostedDate": "2026-10-14T09:30:37.685Z",
+     "descriptionHtml": "<p>Sample description used only in tests: identity and access engineering for internal platforms (1)</p><p>Sample description used only in tests: identity and access engineering for internal platforms (2)</p>",
+     "locations": [
+      {
+       "primary": true,
+       "city": "Warsaw",
+       "state": "Mazowieckie",
+       "country": "Poland"
+      }
+     ],
+     "externalSource": {
+      "sourceId": "168550"
+     }
+    }
+   ]
+  }
+ }
+}

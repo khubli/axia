@@ -1,0 +1,32 @@
+{
+ "total": 3,
+ "jobPostings": [
+  {
+   "title": "Senior Managing Consultant, Payments Advisory",
+   "externalPath": "/job/Mexico-City-Mexico/Senior-Managing-Consultant--Payments-Advisory_R-292877",
+   "locationsText": "Mexico City, Mexico",
+   "postedOn": "Posted Today",
+   "bulletFields": [
+    "R-292877"
+   ]
+  },
+  {
+   "title": "Senior Software Engineer",
+   "externalPath": "/job/Mexico-City-Mexico/Senior-Software-Engineer_R-281205",
+   "locationsText": "Mexico City, Mexico",
+   "postedOn": "Posted Today",
+   "bulletFields": [
+    "R-281205"
+   ]
+  },
+  {
+   "title": "Senior Software Engineer",
+   "externalPath": "/job/St-Louis-Missouri/Senior-Software-Engineer_R-291613",
+   "locationsText": "St. Louis, Missouri",
+   "postedOn": "Posted Today",
+   "bulletFields": [
+    "R-291613"
+   ]
+  }
+ ]
+}

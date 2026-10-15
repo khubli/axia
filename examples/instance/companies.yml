@@ -1,0 +1,22 @@
+# The companies to watch: a name and the address of its careers page.
+# Axia recognises Workday, Greenhouse, Lever, Ashby, SmartRecruiters and
+# Oracle Recruiting Cloud addresses (see docs/configuration.md). Any other
+# address is listed as "check by hand", never silently skipped.
+#
+# A company with several boards takes a list of URLs.
+# Pause one without deleting it with `enabled: false`.
+
+companies:
+  - name: Stripe
+    url: https://job-boards.greenhouse.io/stripe
+  - name: Monzo
+    url: https://job-boards.greenhouse.io/monzo
+  - name: Ramp
+    url: https://jobs.ashbyhq.com/ramp
+  - name: Wealthfront
+    url: https://jobs.lever.co/wealthfront
+  - name: Salesforce
+    url: https://salesforce.wd12.myworkdayjobs.com/External_Career_Site
+  - name: Bosch
+    url: https://jobs.smartrecruiters.com/BoschGroup
+    enabled: false

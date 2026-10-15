@@ -1,0 +1,35 @@
+{
+ "totalFound": 2,
+ "content": [
+  {
+   "id": "1000000000004131",
+   "name": "Lead Product Designer",
+   "releasedDate": "2026-10-14T11:17:37.073Z",
+   "location": {
+    "city": "Bengaluru",
+    "region": "Karnataka",
+    "country": "in",
+    "address": "1 Example Tech Park",
+    "postalCode": "560103",
+    "remote": false,
+    "hybrid": false,
+    "fullLocation": "Bengaluru, Karnataka, India"
+   }
+  },
+  {
+   "id": "1000000000004102",
+   "name": "Manager, Category Operations",
+   "releasedDate": "2026-10-14T09:44:54.022Z",
+   "location": {
+    "city": "Bengaluru",
+    "region": "Karnataka",
+    "country": "in",
+    "address": "1 Example Tech Park",
+    "postalCode": "560103",
+    "remote": false,
+    "hybrid": false,
+    "fullLocation": "Bengaluru, Karnataka, India"
+   }
+  }
+ ]
+}

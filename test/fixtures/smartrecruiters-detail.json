@@ -1,0 +1,22 @@
+{
+ "jobAd": {
+  "sections": {
+   "companyDescription": {
+    "title": "Company Description",
+    "text": "<p>Fabrikam Capital is a fictional company used in these test samples.</p>"
+   },
+   "jobDescription": {
+    "title": "Job Description",
+    "text": "<ul><li><p>Lead the design of clear, accessible interfaces for investors on web and mobile.</p></li><li><p>Work with product and engineering from first sketch to release.</p></li></ul>"
+   },
+   "qualifications": {
+    "title": "Qualifications",
+    "text": "<ul><li><p>6+ years of experience in a product design role, ideally in financial services.</p></li><li><p>A portfolio that shows your process.</p></li></ul>"
+   },
+   "additionalInformation": {
+    "title": "Additional Information",
+    "text": ""
+   }
+  }
+ }
+}

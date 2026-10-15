@@ -1,0 +1,46 @@
+# Runs Axia every morning on your own private repository.
+# Secrets and the optional NOTIFY_MIN_SCORE variable: see docs/setup.md in krishnatejh/axia.
+
+name: Axia
+
+on:
+  schedule:
+    # 02:17 UTC every day (07:47 in India). Pick any minute that isn't :00;
+    # GitHub delays jobs queued exactly on the hour.
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+    inputs:
+      rescore:
+        description: Re-score every open role with AI (for example after editing your resume). Still capped per run.
+        type: boolean
+        default: false
+
+concurrency:
+  group: axia
+  cancel-in-progress: false
+
+permissions:
+  contents: write # saves data/ and dashboard/ back to this repository
+
+jobs:
+  axia:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: krishnatejh/axia@v1
+        with:
+          config-dir: .
+          rescore: ${{ inputs.rescore || false }}
+          notify-min-score: ${{ vars.NOTIFY_MIN_SCORE }}
+          claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          llm-api-key: ${{ secrets.LLM_API_KEY }}
+          telegram-bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          telegram-chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          smtp-user: ${{ secrets.SMTP_USER }}
+          smtp-password: ${{ secrets.SMTP_PASSWORD }}
+          email-to: ${{ secrets.EMAIL_TO }}
+          cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

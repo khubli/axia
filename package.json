@@ -1,0 +1,27 @@
+{
+  "name": "axia",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A private job radar for the companies you'd actually join: reads their careers sites daily, scores each role against your resume with Claude, keeps an installable private dashboard and messages you only when a role clears your bar.",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/krishnatejh/axia.git"
+  },
+  "bin": {
+    "axia": "src/cli.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\"",
+    "demo": "node scripts/build-demo.mjs _site"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.130.0",
+    "nodemailer": "10.0.13",
+    "yaml": "2.9.1"
+  }
+}

@@ -1,0 +1,12 @@
+# Optional: roles you have already judged, to check the scorer agrees with you.
+# Save each job description as a text file in this folder, then run
+#   axia calibrate --dir .
+# your_score is 1 to 5; decision is Apply or Skip.
+#
+# - company: Example Bank
+#   title: Head of Platform Engineering
+#   location: London
+#   file: example-head-of-platform.md
+#   your_score: 4
+#   decision: Apply
+[]

@@ -1,0 +1,107 @@
+#!/usr/bin/env node
+// Builds the public demo dashboard from made-up data: fictional companies,
+// fictional roles, a fictional candidate. Nothing here comes from a real run.
+//   node scripts/build-demo.mjs <out-dir>
+
+import { resolve } from 'node:path';
+import { buildSite } from '../src/site.mjs';
+import { isoDate } from '../src/text.mjs';
+
+const out = resolve(process.argv[2] ?? '_site');
+const TZ = 'Europe/London';
+const now = new Date();
+const today = isoDate(now, TZ);
+
+// Deterministic "randomness", so the demo looks the same on every build.
+let seed = 20261015;
+const rand = () => ((seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296);
+const pick = (list) => list[Math.floor(rand() * list.length)];
+const daysAgo = (n) => isoDate(new Date(now.getTime() - n * 864e5), TZ);
+
+const COMPANIES = [
+  { name: 'Woodgrove Bank', url: 'https://woodgrove.wd3.myworkdayjobs.com/Careers', source: 'workday', listed: 1240 },
+  { name: 'Contoso Pay', url: 'https://job-boards.greenhouse.io/contosopay', source: 'greenhouse', listed: 312 },
+  { name: 'Fabrikam Capital', url: 'https://jobs.smartrecruiters.com/FabrikamCapital', source: 'smartrecruiters', listed: 488 },
+  { name: 'Northwind Fintech', url: 'https://jobs.lever.co/northwind', source: 'lever', listed: 96 },
+  { name: 'Tailspin Wealth', url: 'https://jobs.ashbyhq.com/tailspin', source: 'ashby', listed: 74 },
+  { name: 'Litware Insurance', url: 'https://litware.wd5.myworkdayjobs.com/External', source: 'workday', listed: 655 },
+  { name: 'Proseware Payments', url: 'https://job-boards.greenhouse.io/proseware', source: 'greenhouse', listed: 141 },
+  { name: 'Adventure Works Bank', url: 'https://abcd.fa.em2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1', source: 'oracle', listed: 402 },
+  { name: 'Alpine Exchange', url: 'https://careers.example.com/alpine', source: null, listed: 0 },
+];
+const CITIES = ['London, United Kingdom', 'Manchester, United Kingdom', 'Edinburgh, United Kingdom', 'Dublin, Ireland', 'Amsterdam, Netherlands', 'Remote, United Kingdom', 'London, United Kingdom; Manchester, United Kingdom'];
+
+// The fictional candidate: a platform engineering leader in payments.
+const SCORED = [
+  [86, 'Woodgrove Bank', 'Head of Payments Platform Engineering', 'A payments platform leadership role at the level you work at now, with a clear modernisation mandate.', ['Led a payments platform team of similar size', 'ISO 20022 and real-time payments depth', 'Design authority experience'], ['Expects card-scheme certification experience']],
+  [81, 'Contoso Pay', 'Principal Architect, Real-Time Payments', 'Architecture ownership for instant payments, close to the work you have done on account-to-account rails.', ['Real-time payments architecture', 'Integration and event-driven design', 'Regulatory delivery'], ['Kafka at very high volume is named; yours is moderate']],
+  [74, 'Northwind Fintech', 'Engineering Director, Core Platform', 'Director-level platform role at a growing fintech; the scope fits, the company is smaller than you are used to.', ['Platform ownership and roadmap', 'Leading managers of teams'], ['Startup pace and hands-on expectations', 'Equity-heavy compensation']],
+  [68, 'Proseware Payments', 'Lead Solution Architect, ISO 20022 Migration', 'A focused migration role where your ISO 20022 work is the core requirement.', ['ISO 20022 migration end to end', 'Vendor and stakeholder management'], ['Narrower than your current scope', 'Contract-to-permanent']],
+  [62, 'Fabrikam Capital', 'Platform Product Lead, Payments APIs', 'A technical product role on the payments API platform; product ownership rather than engineering leadership.', ['API platform depth', 'Works closely with engineering'], ['Formal product management experience is expected']],
+  [58, 'Woodgrove Bank', 'Senior Engineering Manager, Card Issuing', 'Engineering management in card issuing; the level fits but card processing is a soft gap.', ['Team leadership', 'Regulated delivery'], ['No card issuing processor experience', 'One level below your current scope']],
+  [56, 'Litware Insurance', 'Enterprise Architect, Finance Systems', 'Enterprise architecture in insurance finance systems; transferable governance, outside payments.', ['Architecture governance', 'Target-state roadmaps'], ['Insurance domain is new to you', 'General ledger depth expected']],
+  [54, 'Tailspin Wealth', 'Delivery Lead, Open Banking', 'Delivery leadership for open banking integrations in wealth management.', ['Open banking APIs', 'Delivery leadership'], ['Agile coaching emphasis', 'Smaller team than you lead today']],
+  [52, 'Adventure Works Bank', 'Engineering Manager, Fraud Platform', 'Fraud platform engineering management; good level fit, but fraud analytics is the core.', ['Platform leadership'], ['Fraud models and data science are central']],
+  [51, 'Contoso Pay', 'Staff Engineer, Settlement Services', 'A senior individual-contributor role in settlement; strong domain fit, less leadership scope.', ['Settlement and reconciliation knowledge'], ['Hands-on Go development every day']],
+  [47, 'Litware Insurance', 'Platform Architect, Cloud Landing Zones', 'Infrastructure platform architecture; the title matches, the platform is cloud infrastructure.', ['Architecture governance'], ['Terraform and landing zones are the core', 'No insurance or payments platform']],
+  [44, 'Fabrikam Capital', 'Vice President, Treasury Operations', 'A treasury operations leadership role rather than technology.', ['Banking domain'], ['Operations management, not engineering', 'Treasury products are the core']],
+  [41, 'Northwind Fintech', 'Senior Software Engineer, Payments', 'An individual engineering role, two levels below your scope.', ['Payments domain'], ['Mostly hands-on coding', 'Level mismatch']],
+  [38, 'Woodgrove Bank', 'Data Platform Engineer', 'Data engineering on the analytics platform; outside your background.', ['Banking domain'], ['Spark and streaming pipelines are the core']],
+  [34, 'Proseware Payments', 'Solutions Consultant (Pre-sales)', 'A customer-facing pre-sales role, which your criteria rule out.', ['Payments knowledge'], ['Pre-sales and quota']],
+  [31, 'Tailspin Wealth', 'QA Automation Lead', 'Test automation leadership; your criteria rule out QA roles.', ['Delivery experience'], ['Test automation is the core']],
+  [29, 'Adventure Works Bank', 'Network Security Architect', 'Security engineering for networks; not your function.', ['Architecture practice'], ['Network security is the core']],
+  [26, 'Litware Insurance', 'Product Designer, Claims', 'A design role outside your field.', [], ['Design function', 'Insurance claims domain']],
+  [22, 'Contoso Pay', 'Sales Engineer, Enterprise', 'A sales role; your criteria rule these out.', [], ['Sales function']],
+];
+const WAITING = [
+  ['Woodgrove Bank', 'Head of Integration Architecture', 63],
+  ['Fabrikam Capital', 'Director, Platform Engineering', 60],
+  ['Litware Insurance', 'Solution Architect, Payments Modernisation', 58],
+  ['Proseware Payments', 'Engineering Manager, Payments Gateway', 55],
+  ['Adventure Works Bank', 'Lead Architect, Core Banking', 53],
+  ['Tailspin Wealth', 'Platform Owner, Client Portal', 48],
+  ['Northwind Fintech', 'Technical Product Manager, Ledger', 45],
+  ['Contoso Pay', 'Architect, Merchant Onboarding', 42],
+];
+
+const jobs = {};
+let n = 1000;
+for (const [score, company, title, summary, strengths, gaps] of SCORED) {
+  const key = `${company.toLowerCase().replace(/\W+/g, '')}:${n++}`;
+  const posted = pick([1, 2, 3, 5, 8, 12, 15, 21, 28, 35, 44, 220]);
+  jobs[key] = {
+    key, company, title, location: pick(CITIES), url: `https://careers.example.com/${key.replace(':', '/')}`,
+    postedAt: daysAgo(posted), firstSeen: daysAgo(Math.min(posted, 1 + Math.floor(rand() * 10))), status: 'open',
+    score: { value: score, scorer: 'ai', summary, strengths, gaps, model: 'claude-sonnet-5-5', resumeHash: 'a1b2c3d4e5f6', scoredOn: daysAgo(Math.floor(rand() * 5)) },
+  };
+}
+for (const [company, title, value] of WAITING) {
+  const key = `${company.toLowerCase().replace(/\W+/g, '')}:${n++}`;
+  jobs[key] = {
+    key, company, title, location: pick(CITIES), url: `https://careers.example.com/${key.replace(':', '/')}`,
+    postedAt: daysAgo(Math.floor(rand() * 4)), firstSeen: today, status: 'open',
+    score: { value, scorer: 'keyword', summary: 'Keyword estimate', strengths: [], gaps: [], scoredOn: today },
+  };
+}
+// Two roles closed this week, to show the count.
+for (const title of ['Platform Lead, Payments Hub', 'Engineering Manager, Payouts']) {
+  const key = `contosopay:${n++}`;
+  jobs[key] = { key, company: 'Contoso Pay', title, location: CITIES[0], url: 'https://careers.example.com/', postedAt: daysAgo(30), firstSeen: daysAgo(20), status: 'closed', closedOn: daysAgo(2), score: { value: 70, scorer: 'ai', summary: '', strengths: [], gaps: [] } };
+}
+
+const settings = {
+  report: { timezone: TZ, good_match: 65, show_from: 50 },
+  scoring: { max_ai_scores_per_run: 40 },
+  dashboard: { url: '' },
+};
+const companies = Object.fromEntries(COMPANIES.filter((c) => c.source).map((c) => [c.name, { lastReadOk: today }]));
+const summary = {
+  runAt: now.toISOString(),
+  today,
+  companies: COMPANIES.map((c) => ({ company: c.name, url: c.url, source: c.source, status: c.source ? 'ok' : 'manual', error: null, listed: c.listed })),
+  counts: { listed: COMPANIES.reduce((s, c) => s + c.listed, 0) },
+  ai: { enabled: true, pending: WAITING.length, stoppedBecause: null },
+};
+
+buildSite({ state: { jobs, companies }, summary, settings }, out, { minScore: 65, demo: true });
+console.log(`Demo dashboard written to ${out}`);

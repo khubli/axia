@@ -1,0 +1,4 @@
+# Axia builds the dashboard here before publishing it. Never commit it.
+.axia/
+node_modules/
+.env

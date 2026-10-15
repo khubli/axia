@@ -1,0 +1,151 @@
+name: Axia
+description: A private job radar for the companies you'd actually join. Reads their careers sites, scores each role against your resume with Claude, publishes your private dashboard and messages you only when a role clears your bar.
+author: Krishna Tej Hubli
+branding:
+  icon: briefcase
+  color: blue
+
+# Used from your own private repository (the one holding your resume and settings):
+#   - uses: actions/checkout@v5
+#   - uses: krishnatejh/axia@v1
+#     with: { claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}, ... }
+# Full example: examples/instance/.github/workflows/axia.yml
+
+inputs:
+  config-dir:
+    description: Folder in your repository that holds settings.yml, companies.yml, criteria.md and your resume.
+    default: '.'
+  rescore:
+    description: "'true' re-scores every open role with AI (still capped per run), for example after you change your resume."
+    default: 'false'
+  notify-min-score:
+    description: Send a message when a role first scores this or more. Empty uses notify.min_score from settings.yml (default 65).
+    default: ''
+  claude-code-oauth-token:
+    description: From `claude setup-token` (Claude Pro or Max subscription). Scores roles with no API billing.
+    default: ''
+  anthropic-api-key:
+    description: Optional alternative to the subscription token, billed per use.
+    default: ''
+  openrouter-api-key:
+    description: Score with any model on OpenRouter instead of Claude directly (set scoring.model to an OpenRouter model id).
+    default: ''
+  llm-api-key:
+    description: Key for any other OpenAI-compatible API (with scoring.provider openai-compatible and scoring.base_url).
+    default: ''
+  telegram-bot-token:
+    description: Telegram bot token for messages.
+    default: ''
+  telegram-chat-id:
+    description: Your Telegram chat id.
+    default: ''
+  smtp-user:
+    description: Optional email delivery (for example a Gmail address).
+    default: ''
+  smtp-password:
+    description: App password for smtp-user.
+    default: ''
+  email-to:
+    description: Where email goes (defaults to smtp-user).
+    default: ''
+  cloudflare-api-token:
+    description: Publishes the dashboard to Cloudflare. Leave empty to skip publishing.
+    default: ''
+  cloudflare-account-id:
+    description: Your Cloudflare account id.
+    default: ''
+  commit:
+    description: "'true' commits data/ and dashboard/ back to your repository after each run (needs contents: write)."
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v5
+      with:
+        node-version: '22'
+
+    # A run that waited behind another was checked out at the commit it was queued on,
+    # before the earlier run saved its memory. Catch up first, so nothing is scored twice
+    # and the save at the end can't conflict.
+    - name: Start from the latest saved memory
+      if: inputs.commit == 'true'
+      shell: bash
+      run: |
+        git fetch -q origin "${GITHUB_REF_NAME}"
+        git merge -q --ff-only FETCH_HEAD || echo "::warning::Could not fast-forward to the latest ${GITHUB_REF_NAME}; using the checked-out commit."
+
+    - name: Install Axia
+      shell: bash
+      run: npm ci --omit=dev --no-audit --no-fund --prefix "$GITHUB_ACTION_PATH"
+
+    # Pinned so an update can't change tomorrow's run; bump deliberately.
+    - name: Install Claude Code
+      if: inputs.claude-code-oauth-token != '' && inputs.anthropic-api-key == ''
+      shell: bash
+      run: npm install -g --no-audit --no-fund @anthropic-ai/claude-code@2.1.286
+
+    - name: Find, score and notify
+      shell: bash
+      env:
+        AXIA_DIR: ${{ inputs.config-dir }}
+        AXIA_RESCORE: ${{ inputs.rescore }}
+        NOTIFY_MIN_SCORE: ${{ inputs.notify-min-score }}
+        CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude-code-oauth-token }}
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        OPENROUTER_API_KEY: ${{ inputs.openrouter-api-key }}
+        LLM_API_KEY: ${{ inputs.llm-api-key }}
+        TELEGRAM_BOT_TOKEN: ${{ inputs.telegram-bot-token }}
+        TELEGRAM_CHAT_ID: ${{ inputs.telegram-chat-id }}
+        SMTP_USER: ${{ inputs.smtp-user }}
+        SMTP_PASSWORD: ${{ inputs.smtp-password }}
+        EMAIL_TO: ${{ inputs.email-to }}
+      run: |
+        args=(run --dir "$AXIA_DIR")
+        if [ "$AXIA_RESCORE" = "true" ]; then args+=(--rescore); fi
+        node "$GITHUB_ACTION_PATH/src/cli.mjs" "${args[@]}"
+
+    # Runs even if the step above failed part-way, so whatever was learned is kept.
+    - name: Save memory
+      if: always() && inputs.commit == 'true'
+      shell: bash
+      working-directory: ${{ inputs.config-dir }}
+      run: |
+        git config user.name  "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git add -A data dashboard 2>/dev/null || true
+        if git diff --cached --quiet; then echo "Nothing new to save."; exit 0; fi
+        git commit -q -m "axia: run $(date -u +%Y-%m-%d)"
+        for i in 1 2 3; do
+          git pull -q --rebase origin "${GITHUB_REF_NAME}" && git push -q origin "HEAD:${GITHUB_REF_NAME}" && exit 0
+          sleep $((i * 5))
+        done
+        echo "Could not push the run's memory." >&2
+        exit 1
+
+    - name: Publish the dashboard
+      if: inputs.cloudflare-api-token != ''
+      shell: bash
+      env:
+        AXIA_DIR: ${{ inputs.config-dir }}
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+        TELEGRAM_BOT_TOKEN: ${{ inputs.telegram-bot-token }}
+        TELEGRAM_CHAT_ID: ${{ inputs.telegram-chat-id }}
+        SMTP_USER: ${{ inputs.smtp-user }}
+        SMTP_PASSWORD: ${{ inputs.smtp-password }}
+        EMAIL_TO: ${{ inputs.email-to }}
+      run: node "$GITHUB_ACTION_PATH/src/cli.mjs" deploy --dir "$AXIA_DIR"
+
+    - name: Tell you the run broke
+      if: failure()
+      shell: bash
+      env:
+        AXIA_DIR: ${{ inputs.config-dir }}
+        RUN_LINK: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        TELEGRAM_BOT_TOKEN: ${{ inputs.telegram-bot-token }}
+        TELEGRAM_CHAT_ID: ${{ inputs.telegram-chat-id }}
+        SMTP_USER: ${{ inputs.smtp-user }}
+        SMTP_PASSWORD: ${{ inputs.smtp-password }}
+        EMAIL_TO: ${{ inputs.email-to }}
+      run: node "$GITHUB_ACTION_PATH/src/cli.mjs" alert --dir "$AXIA_DIR" --link "$RUN_LINK"
