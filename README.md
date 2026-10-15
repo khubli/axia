@@ -94,6 +94,10 @@ Bug reports, new job sites and fixes are welcome: see [CONTRIBUTING.md](CONTRIBU
 
 Icon, colours, type and the share image: [docs/brand](docs/brand/).
 
+## How Axia was built
+
+Krishna Tej Hubli designed and directed Axia: the problem, the requirements and constraints (privacy, cost, quiet messages), the product and architecture decisions, and the judged roles the scorer is calibrated against. The code, tests and docs were written by [Claude Code](https://claude.com/claude-code), Anthropic's coding agent, working from that direction. Every change was reviewed before it was merged, and every commit credits Claude as co-author.
+
 ## License
 
 [MIT](LICENSE). The dashboard's fonts (Geist, Geist Mono, Schibsted Grotesk) are under the SIL Open Font License; see [src/dashboard/fonts](src/dashboard/fonts/).
