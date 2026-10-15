@@ -1,5 +1,5 @@
 # Runs Axia every morning on your own private repository.
-# Secrets and the optional NOTIFY_MIN_SCORE variable: see docs/setup.md in krishnatejh/axia.
+# Secrets and the optional NOTIFY_MIN_SCORE variable: see docs/setup.md in khubli/axia.
 
 name: Axia
 
@@ -28,7 +28,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
-      - uses: krishnatejh/axia@v1
+      - uses: khubli/axia@v1
         with:
           config-dir: .
           rescore: ${{ inputs.rescore || false }}

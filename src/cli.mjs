@@ -12,7 +12,7 @@ import { parseArgs } from 'node:util';
 import { ConfigError, loadSettings } from './config.mjs';
 
 const HELP = `Usage: axia <run|deploy|calibrate|alert> [--dir <folder>] [options]
-Docs: https://github.com/krishnatejh/axia#readme`;
+Docs: https://github.com/khubli/axia#readme`;
 
 /** Pull --dir out of the arguments; everything else goes to the command. */
 export function splitDir(argv) {

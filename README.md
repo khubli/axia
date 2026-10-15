@@ -2,13 +2,13 @@
 
 # Axia
 
-[![Tests](https://github.com/krishnatejh/axia/actions/workflows/test.yml/badge.svg)](https://github.com/krishnatejh/axia/actions/workflows/test.yml) [![MIT](https://img.shields.io/badge/license-MIT-2346C8)](LICENSE)
+[![Tests](https://github.com/khubli/axia/actions/workflows/test.yml/badge.svg)](https://github.com/khubli/axia/actions/workflows/test.yml) [![MIT](https://img.shields.io/badge/license-MIT-2346C8)](LICENSE)
 
 **A private job radar for the companies you'd actually join.**
 
 You list the employers you want to work for. Every morning Axia reads their own careers sites, has an AI model (Claude by default) read each role that fits against your resume and the criteria you wrote in your own words, and keeps the results on a dashboard only you can open. It messages you only when a role newly clears your bar.
 
-**[Live demo](https://krishnatejh.github.io/axia/)** (made-up companies, roles and candidate) · **[Set it up](docs/setup.md)** in about 30 minutes
+**[Live demo](https://khubli.github.io/axia/)** (made-up companies, roles and candidate) · **[Set it up](docs/setup.md)** in about 30 minutes
 
 <img src="docs/screenshots/desktop.png" alt="The Axia dashboard: a one-line verdict, where the AI scores fall, filters, and a ranked list with the reasons for each score" width="100%">
 
@@ -47,14 +47,14 @@ Axia's code (this repository) and your data live apart:
 
 | | Holds | Visibility |
 |---|---|---|
-| **krishnatejh/axia** | the engine, the dashboard, the GitHub Action, these docs | public |
+| **khubli/axia** | the engine, the dashboard, the GitHub Action, these docs | public |
 | **your private repository** | `cv.md`, `criteria.md`, `companies.yml`, `settings.yml`, Axia's memory, the daily workflow | private |
 
 Your repository's workflow is a few lines:
 
 ```yaml
 - uses: actions/checkout@v5
-- uses: krishnatejh/axia@v1
+- uses: khubli/axia@v1
   with:
     claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
     telegram-bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}

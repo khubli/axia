@@ -87,7 +87,7 @@ export function renderMarkdown(view) {
 
   for (const c of v.failed) lines.push(`> ⚠️ **${c.company}** could not be read today (${c.error}). ${keptNote(c)}`, '');
   if (summary.ai.stoppedBecause) lines.push(`> ⚠️ AI scoring stopped early today: ${summary.ai.stoppedBecause}. Affected roles show a keyword estimate (≈).`, '');
-  if (!summary.ai.enabled) lines.push(`> ℹ️ AI scoring is off (no Claude token, Anthropic key or OpenRouter key), so scores are keyword estimates (≈). See the setup guide: https://github.com/krishnatejh/axia/blob/main/docs/setup.md`, '');
+  if (!summary.ai.enabled) lines.push(`> ℹ️ AI scoring is off (no Claude token, Anthropic key or OpenRouter key), so scores are keyword estimates (≈). See the setup guide: https://github.com/khubli/axia/blob/main/docs/setup.md`, '');
   else if (summary.ai.pending) lines.push(`> ℹ️ ${summary.ai.pending} role(s) still show a keyword estimate (≈); up to ${settings.scoring.max_ai_scores_per_run} get an AI score each day.`, '');
 
   lines.push(`## New since the last run (${v.fresh.length})`, '');

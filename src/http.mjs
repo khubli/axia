@@ -24,7 +24,7 @@ export async function fetchJson(url, { method = 'GET', body, headers = {}, timeo
     method,
     headers: {
       Accept: 'application/json',
-      'User-Agent': 'axia/1.0 (+https://github.com/krishnatejh/axia; personal job search, one read a day)',
+      'User-Agent': 'axia/1.0 (+https://github.com/khubli/axia; personal job search, one read a day)',
       ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
       ...headers,
     },

@@ -14,4 +14,4 @@ First public release.
   - a silent weekly check-in.
 - **Dashboard** on your own domain behind a Cloudflare Access login, checked after every publish. Installable as an app: works offline, refreshes itself, follows a light/dark switch.
 - **Calibrate** with `axia calibrate`, which compares Claude's verdicts with roles you judged yourself.
-- **GitHub Action** (`krishnatejh/axia@v1`), docs for the two-repository setup, and a starter private repository in `examples/instance/`.
+- **GitHub Action** (`khubli/axia@v1`), docs for the two-repository setup, and a starter private repository in `examples/instance/`.

@@ -256,7 +256,7 @@ function openAIScorer({ name, baseUrl, apiKey, settings, resume, criteria, fetch
           headers: {
             'Content-Type': 'application/json',
             ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
-            ...(openrouter ? { 'HTTP-Referer': 'https://github.com/krishnatejh/axia', 'X-Title': 'Axia' } : {}),
+            ...(openrouter ? { 'HTTP-Referer': 'https://github.com/khubli/axia', 'X-Title': 'Axia' } : {}),
           },
           body: JSON.stringify(body),
           signal: AbortSignal.timeout(180000),

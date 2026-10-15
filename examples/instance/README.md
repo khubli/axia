@@ -1,6 +1,6 @@
 # My Axia
 
-My private settings and memory for [Axia](https://github.com/krishnatejh/axia).
+My private settings and memory for [Axia](https://github.com/khubli/axia).
 Keep this repository **private**: it holds my resume, the companies I'm
 watching and how every role scored against me.
 
@@ -15,4 +15,4 @@ watching and how every role scored against me.
 | `dashboard/README.md` | Written by Axia: the plain list, readable on GitHub |
 | `.github/workflows/axia.yml` | Runs Axia every morning |
 
-Setup: https://github.com/krishnatejh/axia/blob/main/docs/setup.md
+Setup: https://github.com/khubli/axia/blob/main/docs/setup.md

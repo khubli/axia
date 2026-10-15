@@ -11,7 +11,7 @@ flowchart LR
   end
   sites[["Employers' careers sites<br/>Workday · Greenhouse · Lever · Ashby · SmartRecruiters · Oracle"]]
   model[["Your model<br/>Claude · OpenRouter · OpenAI-compatible"]]
-  subgraph run["Every morning: GitHub Actions running krishnatejh/axia"]
+  subgraph run["Every morning: GitHub Actions running khubli/axia"]
     read["1 Read"] --> filter["2 Filter<br/>titles and places"] --> score["3 Score<br/>0–100, fits, gaps"] --> remember["4 Remember<br/>new · closed · reopened"]
   end
   cfg --> read

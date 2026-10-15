@@ -7,7 +7,7 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/krishnatejh/axia.git"
+    "url": "https://github.com/khubli/axia.git"
   },
   "bin": {
     "axia": "src/cli.mjs"

@@ -25,7 +25,7 @@ Without an AI model, Axia still works with title-and-keyword estimates. Without 
 1. On GitHub, create a new repository, for example `my-axia`, and set it to **Private**.
 2. Copy everything in [`examples/instance/`](../examples/instance/) into it, including the hidden `.github/` and `.gitignore`. From a terminal:
    ```sh
-   npx degit krishnatejh/axia/examples/instance my-axia
+   npx degit khubli/axia/examples/instance my-axia
    cd my-axia && git init && git add -A && git commit -m "Axia settings"
    git remote add origin https://github.com/<you>/my-axia.git && git push -u origin main
    ```
@@ -121,7 +121,7 @@ To re-score everything after changing your resume a lot, run the workflow with *
 
 ## Keeping Axia up to date
 
-The workflow uses `krishnatejh/axia@v1`: you get fixes and improvements within version 1, never a breaking change. To stay on an exact release, use for example `@v1.0.0` instead.
+The workflow uses `khubli/axia@v1`: you get fixes and improvements within version 1, never a breaking change. To stay on an exact release, use for example `@v1.0.0` instead.
 
 If you keep your own copy of Axia in a **private** repository, allow your other repositories to use it: in that copy, **Settings → Actions → General → Access → Accessible from repositories owned by you**, and point `uses:` at your copy.
 
@@ -130,7 +130,7 @@ If you keep your own copy of Axia in a **private** repository, allow your other 
 Useful to try settings before committing them, or to check the scorer against roles you have judged.
 
 ```sh
-git clone https://github.com/krishnatejh/axia && cd axia && npm ci
+git clone https://github.com/khubli/axia && cd axia && npm ci
 node src/cli.mjs run --dir ../my-axia --dry-run            # read and filter only; writes and sends nothing
 AXIA_SCORER=claude-code node src/cli.mjs calibrate --dir ../my-axia   # uses your logged-in Claude Code
 ```

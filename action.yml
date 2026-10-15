@@ -7,7 +7,7 @@ branding:
 
 # Used from your own private repository (the one holding your resume and settings):
 #   - uses: actions/checkout@v5
-#   - uses: krishnatejh/axia@v1
+#   - uses: khubli/axia@v1
 #     with: { claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}, ... }
 # Full example: examples/instance/.github/workflows/axia.yml
 
