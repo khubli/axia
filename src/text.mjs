@@ -33,6 +33,20 @@ export function htmlToText(html) {
 
 export const normalize = (s) => String(s ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
 
+/**
+ * Share of distinct words two texts have in common, from 0 to 1. Two copies of one job ad score
+ * close to 1; different jobs from the same employer, which share its boilerplate, stay far below.
+ */
+export function similarity(a, b) {
+  const words = (s) => new Set(normalize(s).replace(/[^\p{L}\p{N}]+/gu, ' ').split(' ').filter((w) => w.length > 2));
+  const A = words(a);
+  const B = words(b);
+  if (!A.size || !B.size) return 0;
+  let both = 0;
+  for (const w of A) if (B.has(w)) both++;
+  return both / (A.size + B.size - both);
+}
+
 export function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 }

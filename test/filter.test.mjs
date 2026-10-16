@@ -17,6 +17,11 @@ test('title include: start of a word, longest match reported', () => {
   assert.equal(f.title('Doctor Octopus').ok, false, 'short terms are whole words');
 });
 
+test('title words joined by underscores still match', () => {
+  const f = makeFilters(settings());
+  assert.deepEqual(f.title('Java Development Lead _Vice President _Software Engineering'), { ok: true, matched: 'Vice President' });
+});
+
 test('title exclude: whole words only', () => {
   const f = makeFilters(settings());
   assert.equal(f.title('Architect Intern').ok, false);

@@ -21,9 +21,10 @@ import { makeScorer, keywordScore, resumeHash } from './score.mjs';
 import { renderMarkdown } from './render.mjs';
 import { buildSite } from './site.mjs';
 import { notifyMinScore, seedNotified, trackProblems, planMessages, deliver, applyDelivery } from './notify.mjs';
-import { isoDate, normalize } from './text.mjs';
+import { isoDate, normalize, similarity } from './text.mjs';
 
 const KEYWORD_DETAIL_BUDGET = 150; // detail fetches for keyword scoring when AI is off
+const SAME_JOB = 0.9; // description similarity above which two lookalike postings are one job (copies measure ~1, different jobs ~0.2-0.5)
 
 // `scorerOverrides` lets tests stand in for the Claude API client or the `claude` CLI.
 export async function run(argv = process.argv.slice(2), env = process.env, { dir = ROOT, now = new Date(), log = console.log, scorerOverrides = {} } = {}) {
@@ -100,9 +101,22 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
       delete state.jobs[job.key];
     }
   }
-  // The same title posted several times in the same place (some boards do this) is one role to you.
+  // One job posted more than once (some boards do this) is one role to you: same title, same place
+  // and the same description. Postings that share a title and place but describe different jobs
+  // (one bank's three "Engineering Manager" openings in one city) are separate roles, and when the
+  // descriptions can't be compared both are kept: a duplicate costs a glance, a hidden role an opportunity.
   const signature = (company, title, location) => `${company}|${normalize(title)}|${normalize(location)}`;
-  const openBySignature = new Map(Object.values(state.jobs).filter((j) => j.status === 'open').map((j) => [signature(j.company, j.title, j.location), j.key]));
+  const openBySignature = new Map();
+  for (const j of Object.values(state.jobs)) {
+    if (j.status !== 'open') continue;
+    const sig = signature(j.company, j.title, j.location);
+    openBySignature.set(sig, [...(openBySignature.get(sig) ?? []), j.key]);
+  }
+  const sameJob = async (a, b) => {
+    if (!a || !b) return false;
+    await Promise.all([enrich(a, ctx), enrich(b, ctx)]);
+    return Boolean(a.job.description && b.job.description) && similarity(a.job.description, b.job.description) >= SAME_JOB;
+  };
 
   const newKeys = new Set();
   let duplicates = 0;
@@ -125,22 +139,39 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
       continue;
     }
     const sig = signature(c.company, c.job.title, location);
-    const twin = openBySignature.get(sig);
-    if (twin && listedKeys.has(twin)) {
+    const lookalikes = openBySignature.get(sig) ?? [];
+    // A copy found on an earlier run stays a copy while the kept posting is listed.
+    const original = lookalikes.find((k) => state.jobs[k]?.copies?.includes(c.key));
+    if (original && listedKeys.has(original)) {
       duplicates++;
       candidates.delete(c.key);
       continue;
     }
-    if (twin) {
-      // The posting we remembered is gone but its duplicate is still listed: the role
-      // carries on under the duplicate's id, with its score and history.
-      const job = state.jobs[twin];
-      delete state.jobs[twin];
-      state.jobs[c.key] = Object.assign(job, { key: c.key, title: c.job.title, url: c.job.url, location, status: 'open', titleMatch: c.titleMatch });
-      openBySignature.set(sig, c.key);
+    if (original) {
+      // The kept posting was taken down but a copy is still listed: the role carries on under the
+      // copy's id, with its score and history.
+      const job = state.jobs[original];
+      delete state.jobs[original];
+      const copies = job.copies.filter((k) => k !== c.key);
+      state.jobs[c.key] = Object.assign(job, { key: c.key, title: c.job.title, url: c.job.url, location, status: 'open', titleMatch: c.titleMatch, copies });
+      if (!copies.length) delete state.jobs[c.key].copies;
+      lookalikes[lookalikes.indexOf(original)] = c.key;
       continue;
     }
-    openBySignature.set(sig, c.key);
+    let copyOf = null;
+    for (const k of lookalikes) {
+      if (listedKeys.has(k) && (await sameJob(candidates.get(k), c))) {
+        copyOf = k;
+        break;
+      }
+    }
+    if (copyOf) {
+      state.jobs[copyOf].copies = [...(state.jobs[copyOf].copies ?? []), c.key];
+      duplicates++;
+      candidates.delete(c.key);
+      continue;
+    }
+    openBySignature.set(sig, [...lookalikes, c.key]);
     state.jobs[c.key] = {
       key: c.key,
       company: c.company,

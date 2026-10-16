@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1
+
+- **Fixed: different jobs merged as duplicates.** Postings with the same title and place were counted once even when they described different jobs (one bank's three "Engineering Manager" openings in one city), so all but one were never scored or shown. Now two postings count as one job only when their descriptions are essentially the same; otherwise both are kept.
+- **Fixed: titles joined by underscores** ("Lead _Vice President _Software Engineering") did not match your title words.
+- **Fixed: the dashboard said "Read today"** the morning after an evening run. Read status, warnings and posting ages now count from your own date.
+
 ## 1.0.0
 
 First public release.

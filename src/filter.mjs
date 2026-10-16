@@ -36,7 +36,8 @@ export function makeFilters(settings) {
   return {
     /** @returns {{ok: boolean, matched?: string, reason?: string}} */
     title(title) {
-      const t = String(title ?? '');
+      // Some boards join title parts with underscores ("Java Lead _Vice President _Software Engineering").
+      const t = String(title ?? '').replace(/_+/g, ' ');
       const bad = exclude.find((x) => x.test(t));
       if (bad) return { ok: false, reason: `title contains "${bad.term}"` };
       const hits = include.filter((x) => x.test(t));
