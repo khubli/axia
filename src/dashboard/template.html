@@ -355,13 +355,21 @@ footer a { color: var(--muted); }
 
   // ── dates ──
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const todayYear = +D.today.slice(0, 4);
+  // The viewer's today, in the dashboard's time zone. The last run can be from yesterday or earlier,
+  // so "today" must come from the clock, not from the run.
+  const isoDay = (date) => {
+    const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: D.timeZone, year: 'numeric', month: '2-digit', day: '2-digit' })
+      .formatToParts(date).map((x) => [x.type, x.value]));
+    return p.year + '-' + p.month + '-' + p.day;
+  };
+  const nowDay = isoDay(new Date());
+  const todayYear = +nowDay.slice(0, 4);
   function day(iso) {
     if (!iso) return '';
     const [y, m, d] = iso.split('-').map(Number);
     return d + ' ' + MONTHS[m - 1] + (y !== todayYear ? ' ' + y : '');
   }
-  const daysSince = (iso) => Math.round((Date.parse(D.today) - Date.parse(iso)) / 864e5);
+  const daysSince = (iso) => Math.round((Date.parse(nowDay) - Date.parse(iso)) / 864e5);
   function age(iso) {
     const n = daysSince(iso);
     if (n <= 0) return 'today';
@@ -371,12 +379,14 @@ footer a { color: var(--muted); }
     return Math.round(n / 365) + ' years ago';
   }
   const local = (date, opts) => new Intl.DateTimeFormat('en-GB', Object.assign({ timeZone: D.timeZone }, opts)).format(date);
+  // "today" or "on 15 Oct": when the last run happened, as seen from now.
+  const lastRun = isoDay(new Date(D.runAt)) === nowDay ? 'today' : 'on ' + day(isoDay(new Date(D.runAt)));
 
   // ── header: how fresh is this? ──
   (function fresh() {
     const ran = new Date(D.runAt), now = new Date();
     const hours = (now - ran) / 36e5;
-    const sameDay = local(ran, { year: 'numeric', month: 'numeric', day: 'numeric' }) === local(now, { year: 'numeric', month: 'numeric', day: 'numeric' });
+    const sameDay = isoDay(ran) === isoDay(now);
     const time = local(ran, { hour: '2-digit', minute: '2-digit', hour12: false }) + ' ' + D.tz;
     const when = sameDay ? 'today, ' + time : local(ran, { day: 'numeric', month: 'short' }) + ', ' + time;
     const ok = D.companies.filter((c) => c.status === 'ok').length;
@@ -396,9 +406,9 @@ footer a { color: var(--muted); }
   (function warnings() {
     const items = [];
     for (const c of D.companies.filter((c) => c.status === 'failed')) {
-      items.push('<b>' + esc(c.name) + '</b> could not be read this morning' + (c.lastReadOk ? ' (last read ' + esc(day(c.lastReadOk)) + ')' : '') + '. Its roles stay listed as they were; they close after 7 days without a read.');
+      items.push('<b>' + esc(c.name) + '</b> could not be read ' + lastRun + (c.lastReadOk ? ' (last read ' + esc(day(c.lastReadOk)) + ')' : '') + '. Its roles stay listed as they were; they close after 7 days without a read.');
     }
-    if (D.ai.stoppedBecause) items.push('AI scoring stopped early this morning: ' + esc(D.ai.stoppedBecause) + '. Roles it missed show a title estimate for now.');
+    if (D.ai.stoppedBecause) items.push('AI scoring stopped early ' + lastRun + ': ' + esc(D.ai.stoppedBecause) + '. Roles it missed show a title estimate for now.');
     if (!D.ai.enabled) items.push('AI scoring is off, so every score here is an estimate from the title. Add a Claude token, an Anthropic key or an OpenRouter key to turn it on.');
     if (items.length) { $('#warn').innerHTML = items.map((t) => '<li><span>' + t + '</span></li>').join(''); $('#warn').hidden = false; }
   })();
@@ -622,9 +632,9 @@ footer a { color: var(--muted); }
       const scored = mine.filter((j) => j.ai);
       return { c, matching: mine.length, worth: scored.filter((j) => j.score >= FROM).length, best: scored.length ? Math.max(...scored.map((j) => j.score)) : null, waiting: mine.length - scored.length };
     }).sort((a, b) => (b.best == null ? -1 : b.best) - (a.best == null ? -1 : a.best) || b.matching - a.matching || a.c.name.localeCompare(b.c.name));
-    const state = (c) => c.status === 'ok' ? '<span class="state"><i></i>Read today</span>'
+    const state = (c) => c.status === 'ok' ? '<span class="state"><i></i>Read ' + lastRun + '</span>'
       : c.status === 'manual' ? '<span class="state manual"><i></i>Check by hand</span>'
-      : '<span class="state fail"><i></i>Not read today</span>';
+      : '<span class="state fail"><i></i>Not read ' + lastRun + '</span>';
     const best = (r) => {
       if (r.best == null) return '<span class="muted">' + (r.waiting ? 'waiting' : '–') + '</span>';
       const t = r.best >= GOOD ? 'good' : r.best >= FROM ? 'look' : 'low';
