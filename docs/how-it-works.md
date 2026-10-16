@@ -29,7 +29,7 @@ Each company's board is read through the JSON feed its own careers page uses: Wo
 
 ## 2. Filter (free)
 
-A role is kept when its title contains one of your `titles.include` words and none of the `titles.exclude` words, and its location matches `locations.include`. Matching is by whole words, so "Intern" never removes "International" and "India" never matches "Indianapolis". When a board lists a role as "3 Locations", the posting is read to learn where it is. The same title posted twice in the same city counts once. Typically this keeps about 2% of everything listed.
+A role is kept when its title contains one of your `titles.include` words and none of the `titles.exclude` words, and its location matches `locations.include`. Matching is by whole words, so "Intern" never removes "International" and "India" never matches "Indianapolis". When a board lists a role as "3 Locations", the posting is read to learn where it is. A job posted twice (same title, same place, same description) counts once; postings that share a title and place but describe different jobs stay separate, and if the descriptions can't be compared both are kept. Typically this keeps about 2% of everything listed.
 
 ## 3. Score (AI)
 

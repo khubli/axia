@@ -260,6 +260,31 @@ test('when the kept copy of a twice-posted role is taken down, the role carries 
   assert.equal(jobs['greenhouse:acme:4'].url, 'https://job-boards.greenhouse.io/acme/jobs/4');
 });
 
+test('postings with the same title and place but different descriptions are different roles', async () => {
+  const dir = tempProject({ companies: COMPANIES.slice(0, 1), settings: { titles: { include: ['Engineering Manager'], exclude: [] } } });
+  const boilerplate = '<p>About Acme Bank: a bank for everyone, with flexible working, a great culture and equal opportunity for all.</p>';
+  const stub = stubFetch([
+    ['boards-api.greenhouse.io/v1/boards/acme', () => ({
+      jobs: [
+        gh(1, 'Engineering Manager', 'Pune', `<p>Lead the team building our case-management platform on Pega.</p>${boilerplate}`),
+        gh(2, 'Engineering Manager', 'Pune', `<p>Lead enterprise storage engineering: SAN, backup and recovery.</p>${boilerplate}`),
+        gh(3, 'Engineering Manager', 'Pune', `<p>Lead the team building our case-management platform on Pega.</p>${boilerplate}`),
+      ],
+    })],
+  ]);
+  let out;
+  try {
+    out = await run(['--no-notify'], {}, { dir, now: new Date('2026-10-15T03:00:00Z'), log: quiet });
+  } finally {
+    stub.restore();
+  }
+  assert.equal(out.summary.counts.new, 2, 'the storage role is its own role');
+  assert.equal(out.summary.counts.duplicates, 1, 'the repost of the Pega role is not');
+  const jobs = JSON.parse(readFileSync(join(dir, 'data/jobs.json'), 'utf8')).jobs;
+  assert.deepEqual(Object.keys(jobs).sort(), ['greenhouse:acme:1', 'greenhouse:acme:2']);
+  assert.deepEqual(jobs['greenhouse:acme:1'].copies, ['greenhouse:acme:3']);
+});
+
 test('upgrading memory marks only matches scored before this run; a match scored today is still sent', async () => {
   const dir = tempProject({ companies: COMPANIES.slice(0, 1) });
   const { mkdirSync, writeFileSync } = await import('node:fs');
