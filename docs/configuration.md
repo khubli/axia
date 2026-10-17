@@ -41,6 +41,7 @@ resume: cv.md                    # [cv.md] your resume in Markdown
 titles:
   include: [Architect, Engineering Manager]   # a role is kept when its title has one of these
   exclude: [Intern, Sales]                    # ...and none of these (whole words)
+  second_look: true                           # [true] titles in your places that miss your words get a look from the model; it can only let roles in
 
 locations:
   include: [London, Remote]      # whole words, matched against the role's location

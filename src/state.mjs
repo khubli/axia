@@ -15,19 +15,20 @@ export const UNREAD_CLOSE_DAYS = 7;
 export const STATE_VERSION = 2;
 
 export function emptyState() {
-  return { version: STATE_VERSION, lastRun: null, jobs: {}, skipped: {}, companies: {}, problems: {}, lastWeekly: null };
+  // titleChecks: the second look's verdict per employer + title, so each title is asked about once.
+  return { version: STATE_VERSION, lastRun: null, jobs: {}, skipped: {}, companies: {}, problems: {}, lastWeekly: null, titleChecks: {} };
 }
 
 export function loadState(path) {
   if (!existsSync(path)) return emptyState();
   const s = JSON.parse(readFileSync(path, 'utf8'));
-  return { ...emptyState(), ...s, version: s.version ?? 1, jobs: s.jobs ?? {}, skipped: s.skipped ?? {}, companies: s.companies ?? {}, problems: s.problems ?? {} };
+  return { ...emptyState(), ...s, version: s.version ?? 1, jobs: s.jobs ?? {}, skipped: s.skipped ?? {}, companies: s.companies ?? {}, problems: s.problems ?? {}, titleChecks: s.titleChecks ?? {} };
 }
 
 export function saveState(path, state) {
   mkdirSync(dirname(path), { recursive: true });
   // Sorted keys keep the git diff small and stable from day to day.
-  const sorted = { ...state, jobs: sortKeys(state.jobs), skipped: sortKeys(state.skipped) };
+  const sorted = { ...state, jobs: sortKeys(state.jobs), skipped: sortKeys(state.skipped), titleChecks: sortKeys(state.titleChecks ?? {}) };
   const tmp = `${path}.tmp`;
   writeFileSync(tmp, JSON.stringify(sorted, null, 1) + '\n');
   renameSync(tmp, path); // never leave a half-written file behind

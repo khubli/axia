@@ -115,7 +115,9 @@ function jobText(job, maxChars) {
 /**
  * Pick the scorer from the secrets present. Returns null when there is none.
  * Every scorer has the same shape:
- *   { engine, model, scoreAll(jobs, {log}) → { scores: Map<key, score>, failed, stoppedBecause } }
+ *   { engine, model,
+ *     scoreAll(jobs, {log}) → { scores: Map<key, score>, failed, stoppedBecause },
+ *     ask({ system, instruction, input, schema, example }) → { data, model } }   (any JSON answer; used by the second look)
  */
 export const PROVIDERS = ['auto', 'anthropic', 'claude-code', 'openrouter', 'openai-compatible', 'keyword'];
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1';
@@ -162,32 +164,48 @@ function apiScorer({ apiKey, settings, resume, criteria, client }) {
   const system = [{ type: 'text', text: systemText({ resume, criteria }, false), cache_control: { type: 'ephemeral' } }];
   const useFallbacks = FALLBACK_MODELS.has(model);
 
-  async function scoreOne(job) {
-    const params = {
-      model,
-      max_tokens: 4000,
-      system,
-      output_config: { ...(effort ? { effort } : {}), format: { type: 'json_schema', schema: SCHEMA } },
-      messages: [{ role: 'user', content: jobText(job, MAX_JD_CHARS) }],
-    };
+  async function send(params) {
     const response = useFallbacks
       ? await anthropic.beta.messages.create({ ...params, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' })
       : await anthropic.messages.create(params);
     if (response.stop_reason === 'refusal') throw new ScoreError(`model declined (${response.stop_details?.category ?? 'no category'})`);
     if (response.stop_reason === 'max_tokens') throw new ScoreError('model ran out of output tokens');
     const text = response.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
-    let out;
     try {
-      out = JSON.parse(text);
+      return { data: JSON.parse(text), model: response.model ?? model };
     } catch {
       throw new ScoreError(`unreadable model output: ${truncate(text, 80)}`);
     }
-    return clean(out, response.model ?? model, 'ai');
+  }
+
+  async function scoreOne(job) {
+    const { data, model: used } = await send({
+      model,
+      max_tokens: 4000,
+      system,
+      output_config: { ...(effort ? { effort } : {}), format: { type: 'json_schema', schema: SCHEMA } },
+      messages: [{ role: 'user', content: jobText(job, MAX_JD_CHARS) }],
+    });
+    return clean(data, used, 'ai');
   }
 
   return {
     engine: 'Claude API',
     model,
+    async ask({ system: text, instruction, input, schema }) {
+      try {
+        return await send({
+          model,
+          max_tokens: 8000,
+          system: [{ type: 'text', text, cache_control: { type: 'ephemeral' } }],
+          output_config: { ...(effort ? { effort } : {}), format: { type: 'json_schema', schema } },
+          messages: [{ role: 'user', content: `${instruction}\n\n${input}` }],
+        });
+      } catch (err) {
+        if (isFatalApiError(err)) throw new ScoreError(err.message, { fatal: true });
+        throw err;
+      }
+    },
     async scoreAll(jobs, { log = () => {} } = {}) {
       const scores = new Map();
       let failed = 0;
@@ -281,15 +299,15 @@ function openAIScorer({ name, baseUrl, apiKey, settings, resume, criteria, fetch
     throw last;
   }
 
-  async function scoreBatch(batch) {
-    const ids = batch.map((_, i) => String(i + 1));
-    const jobsXml = batch.map((job, i) => `<job id="${ids[i]}">\n${jobText(job, MAX_JD_CHARS_BATCH)}\n</job>`).join('\n\n');
-    const instruction = `Score all ${batch.length} jobs below. Return exactly one result for each id: ${ids.join(', ')}.` +
-      (FORMATS[format] === 'json_schema' ? '' : ` Answer with JSON only, in this shape: {"results":[{"id":"1","score":0,"summary":"","strengths":[],"gaps":[]}]}`);
+  /** One JSON answer, in the best format the model supports (remembered once found). */
+  async function ask({ system: sys, instruction, input, schema, example }) {
     const body = {
       model,
-      messages: [{ role: 'system', content: system }, { role: 'user', content: `${instruction}\n\n${jobsXml}` }],
-      ...(FORMATS[format] === 'json_schema' ? { response_format: { type: 'json_schema', json_schema: { name: 'axia_scores', strict: true, schema: BATCH_SCHEMA } } } : {}),
+      messages: [
+        { role: 'system', content: sys },
+        { role: 'user', content: `${instruction}${FORMATS[format] === 'json_schema' ? '' : ` Answer with JSON only, in this shape: ${example}`}\n\n${input}` },
+      ],
+      ...(FORMATS[format] === 'json_schema' ? { response_format: { type: 'json_schema', json_schema: { name: 'axia_answer', strict: true, schema } } } : {}),
       ...(FORMATS[format] === 'json_object' ? { response_format: { type: 'json_object' } } : {}),
       ...(openrouter && effort ? { reasoning: { effort } } : {}),
     };
@@ -300,15 +318,27 @@ function openAIScorer({ name, baseUrl, apiKey, settings, resume, criteria, fetch
       // The model doesn't do this answer format: step down once and try again.
       if (err.status === 400 && format < FORMATS.length - 1 && /response_format|json_schema|json_object|structured|schema/i.test(err.detail ?? '')) {
         format++;
-        return scoreBatch(batch);
+        return ask({ system: sys, instruction, input, schema, example });
       }
       throw err;
     }
     const content = String(data.choices?.[0]?.message?.content ?? '').replace(/^\s*```(?:json)?\s*|\s*```\s*$/g, '');
     const parsed = safeParse(content) ?? safeParse(content.slice(content.indexOf('{'), content.lastIndexOf('}') + 1));
-    if (!parsed?.results) throw new ScoreError(`${name}: unreadable answer: ${truncate(content, 120)}`);
+    if (!parsed) throw new ScoreError(`${name}: unreadable answer: ${truncate(content, 120)}`);
+    return { data: parsed, model: data.model ?? model };
+  }
+
+  async function scoreBatch(batch) {
+    const ids = batch.map((_, i) => String(i + 1));
+    const { data: parsed, model: usedModel } = await ask({
+      system,
+      instruction: `Score all ${batch.length} jobs below. Return exactly one result for each id: ${ids.join(', ')}.`,
+      input: batch.map((job, i) => `<job id="${ids[i]}">\n${jobText(job, MAX_JD_CHARS_BATCH)}\n</job>`).join('\n\n'),
+      schema: BATCH_SCHEMA,
+      example: '{"results":[{"id":"1","score":0,"summary":"","strengths":[],"gaps":[]}]}',
+    });
+    if (!parsed?.results) throw new ScoreError(`${name}: unreadable answer: ${truncate(JSON.stringify(parsed), 120)}`);
     const results = new Map(parsed.results.map((r) => [String(r.id), r]));
-    const usedModel = data.model ?? model;
     return batch.map((job, i) => {
       const r = results.get(ids[i]);
       try {
@@ -322,6 +352,7 @@ function openAIScorer({ name, baseUrl, apiKey, settings, resume, criteria, fetch
   return {
     engine: name,
     model,
+    ask,
     async scoreAll(jobs, { log = () => {} } = {}) {
       const scores = new Map();
       let failed = 0;
@@ -356,17 +387,16 @@ function claudeCodeScorer({ env, settings, resume, criteria, runClaude = spawnCl
   const { model, effort } = settings.scoring;
   const batchSize = Math.max(1, Number(settings.scoring.batch_size) || 8);
 
-  async function scoreBatch(batch, workdir) {
-    const ids = batch.map((_, i) => String(i + 1));
-    const input = batch.map((job, i) => `<job id="${ids[i]}">\n${jobText(job, MAX_JD_CHARS_BATCH)}\n</job>`).join('\n\n');
+  /** One `claude -p` call: system prompt from workdir/<systemFile>, a JSON-schema answer. */
+  async function call({ workdir, systemFile, instruction, input, schema }) {
     const args = [
       '-p',
-      `Score all ${batch.length} jobs in the input. Return exactly one result for each id: ${ids.join(', ')}.`,
-      '--system-prompt-file', join(workdir, 'system.txt'),
+      instruction,
+      '--system-prompt-file', join(workdir, systemFile),
       '--tools', '',
       '--strict-mcp-config',
       '--output-format', 'json',
-      '--json-schema', JSON.stringify(BATCH_SCHEMA),
+      '--json-schema', JSON.stringify(schema),
       '--no-session-persistence',
       '--max-turns', '4',
       ...(model ? ['--model', model] : []),
@@ -383,9 +413,19 @@ function claudeCodeScorer({ env, settings, resume, criteria, runClaude = spawnCl
       // Login, plan and usage-limit problems fail the same way for every batch.
       throw new ScoreError(`Claude Code: ${truncate(String(out.result ?? out.subtype ?? `exit ${code}`), 200)}`, { fatal: true });
     }
-    const structured = out.structured_output ?? safeParse(out.result);
+    return { data: out.structured_output ?? safeParse(out.result), model: Object.keys(out.modelUsage ?? {})[0] ?? model ?? 'claude-code' };
+  }
+
+  async function scoreBatch(batch, workdir) {
+    const ids = batch.map((_, i) => String(i + 1));
+    const { data: structured, model: usedModel } = await call({
+      workdir,
+      systemFile: 'system.txt',
+      instruction: `Score all ${batch.length} jobs in the input. Return exactly one result for each id: ${ids.join(', ')}.`,
+      input: batch.map((job, i) => `<job id="${ids[i]}">\n${jobText(job, MAX_JD_CHARS_BATCH)}\n</job>`).join('\n\n'),
+      schema: BATCH_SCHEMA,
+    });
     const results = new Map((structured?.results ?? []).map((r) => [String(r.id), r]));
-    const usedModel = Object.keys(out.modelUsage ?? {})[0] ?? model ?? 'claude-code';
     return batch.map((job, i) => {
       const r = results.get(ids[i]);
       try {
@@ -399,6 +439,15 @@ function claudeCodeScorer({ env, settings, resume, criteria, runClaude = spawnCl
   return {
     engine: 'Claude Code (your subscription)',
     model: model || 'default',
+    async ask({ system: text, instruction, input, schema }) {
+      const workdir = mkdtempSync(join(tmpdir(), 'axia-claude-'));
+      try {
+        writeFileSync(join(workdir, 'ask.txt'), text);
+        return await call({ workdir, systemFile: 'ask.txt', instruction, input, schema });
+      } finally {
+        rmSync(workdir, { recursive: true, force: true });
+      }
+    },
     async scoreAll(jobs, { log = () => {} } = {}) {
       const scores = new Map();
       let failed = 0;
@@ -479,6 +528,9 @@ export function keywordScore(job, settings, titleMatch) {
   if (titleMatch) {
     score += titleMatch.trim().includes(' ') && !/^vice president$/i.test(titleMatch.trim()) ? 35 : 20;
     strengths.push(`title matches "${titleMatch}"`);
+  } else if (job.secondLook) {
+    score += 20;
+    strengths.push('title judged in scope by the second look');
   }
   if (SENIOR.test(job.title)) score += 5;
 

@@ -39,7 +39,7 @@ export function makeFilters(settings) {
       // Some boards join title parts with underscores ("Java Lead _Vice President _Software Engineering").
       const t = String(title ?? '').replace(/_+/g, ' ');
       const bad = exclude.find((x) => x.test(t));
-      if (bad) return { ok: false, reason: `title contains "${bad.term}"` };
+      if (bad) return { ok: false, excluded: true, reason: `title contains "${bad.term}"` };
       const hits = include.filter((x) => x.test(t));
       if (hits.length === 0) return { ok: false, reason: 'title matches none of your target titles' };
       // Report the most specific term that matched (longest), e.g. "Solution Architect" over "Architect".

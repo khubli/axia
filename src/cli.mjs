@@ -4,6 +4,7 @@
 //   run        read the boards, score, message you, write memory + dashboard   (--dry-run, --no-notify, --rescore, --company X, --max-ai N)
 //   deploy     publish the dashboard to Cloudflare and check that it asks for a login
 //   calibrate  score the roles in calibration/roles.yml and compare with your own verdicts
+//   second-look  show which titles your title words reject today that the second look would let through (writes nothing)
 //   alert      tell you a run broke (used by the GitHub Action)                (--link URL)
 
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
@@ -11,7 +12,7 @@ import { resolve, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { ConfigError, loadSettings } from './config.mjs';
 
-const HELP = `Usage: axia <run|deploy|calibrate|alert> [--dir <folder>] [options]
+const HELP = `Usage: axia <run|deploy|calibrate|second-look|alert> [--dir <folder>] [options]
 Docs: https://github.com/khubli/axia#readme`;
 
 /** Pull --dir out of the arguments; everything else goes to the command. */
@@ -41,6 +42,12 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
       case 'run': {
         const { run } = await import('./run.mjs');
         const out = await run(rest, env, { dir });
+        if (out.reason) throw new Error(out.reason);
+        return out.exitCode;
+      }
+      case 'second-look': {
+        const { run } = await import('./run.mjs');
+        const out = await run(['--second-look-preview', ...rest], env, { dir });
         if (out.reason) throw new Error(out.reason);
         return out.exitCode;
       }

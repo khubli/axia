@@ -12,7 +12,8 @@ export const ROOT = process.cwd();
 export class ConfigError extends Error {}
 
 const DEFAULTS = {
-  titles: { include: [], exclude: [] },
+  // second_look: titles in your places that your words reject get a look from the model (it can only let roles in).
+  titles: { include: [], exclude: [], second_look: true },
   locations: { include: [], keep_unknown: true },
   scoring: { provider: 'auto', model: 'sonnet', effort: 'medium', base_url: '', max_ai_scores_per_run: 40, batch_size: 8, criteria: 'criteria.md', keywords: [] },
   report: { timezone: 'UTC', good_match: 65, show_from: 50 },
@@ -44,6 +45,7 @@ export function loadSettings(dir = ROOT) {
   const weekly = s.notify.weekly;
   if (weekly !== false && !WEEKDAYS.includes(String(weekly).toLowerCase())) throw new ConfigError(`settings.yml: notify.weekly must be a weekday (for example monday) or false, not "${weekly}"`);
   s.notify.weekly = weekly === false ? false : String(weekly).toLowerCase();
+  if (typeof s.titles.second_look !== 'boolean') throw new ConfigError(`settings.yml: titles.second_look must be true or false without quotes, not "${s.titles.second_look}"`);
   if (typeof s.dashboard.public !== 'boolean') throw new ConfigError(`settings.yml: dashboard.public must be true or false without quotes, not "${s.dashboard.public}"`);
   for (const key of ['min_score']) {
     const n = Number(s.notify[key]);
