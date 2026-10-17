@@ -196,7 +196,7 @@ function apiScorer({ apiKey, settings, resume, criteria, client }) {
       try {
         return await send({
           model,
-          max_tokens: 8000,
+          max_tokens: 16000, // the weekly review returns your whole criteria file
           system: [{ type: 'text', text, cache_control: { type: 'ephemeral' } }],
           output_config: { ...(effort ? { effort } : {}), format: { type: 'json_schema', schema } },
           messages: [{ role: 'user', content: `${instruction}\n\n${input}` }],

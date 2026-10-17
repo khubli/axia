@@ -200,6 +200,10 @@ li.sel .rt { color: var(--accent); }
 .pill.old { background: var(--low-soft); color: var(--muted); }
 .pill.second { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
 .pill.closed { background: var(--bad-soft); color: var(--bad); }
+.pill.applied { background: var(--good-soft); color: var(--good); }
+.pill.shortlist { background: var(--accent-soft); color: var(--accent); }
+.pill.nfm { background: var(--low-soft); color: var(--muted); }
+.chip.nfm i { background: var(--faint); }
 .empty { padding: 28px 20px; color: var(--muted); display: grid; gap: 10px; justify-items: start; }
 
 .pane { display: none; }
@@ -245,6 +249,12 @@ li.sel > .inline { display: block; }
 .btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; padding: 9px 14px; font-weight: 600; font-size: 14px; text-decoration: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .prov { margin: 0; font-size: 12px; color: var(--faint); }
+.yours { display: grid; gap: 8px; }
+.yours .opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.yours .opts button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 7px 13px; font-size: 14px; cursor: pointer; }
+.yours .opts button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.yours .why { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; width: 100%; box-sizing: border-box; }
+.yours .st { margin: 0; font-size: 12px; color: var(--faint); }
 .pane .placeholder { padding: 28px 22px; color: var(--muted); }
 
 /* companies */
@@ -369,6 +379,19 @@ footer a { color: var(--muted); }
   const byId = Object.fromEntries(open.map((j) => [j.id, j]));
   const lastVisit = store.get('lastVisit', null);
   const isNew = (j) => lastVisit && j.firstSeen > lastVisit;
+
+  // ── your calls: Applied / Shortlist / Not for me ──
+  // Saved to your Cloudflare account through the dashboard Worker; a call that can't be sent yet
+  // waits on this device and is sent the next time the dashboard opens online.
+  const FBK = D.feedback || { api: false, entries: {} };
+  const FB = Object.assign({}, FBK.entries);
+  const fbPending = store.get('fbPending', {});
+  Object.assign(FB, fbPending);
+  const fbStatus = {};
+  const CALLS = ['applied', 'shortlist', 'not-for-me'];
+  const CALL = { applied: 'Applied', shortlist: 'Shortlist', 'not-for-me': 'Not for me' };
+  const CALL_PILL = { applied: 'applied', shortlist: 'shortlist', 'not-for-me': 'nfm' };
+  const callOf = (j) => (FB[j.id] && FB[j.id].v) || null;
 
   // ── dates ──
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -497,11 +520,18 @@ footer a { color: var(--muted); }
   const F = {
     tiers: new Set(saved && saved.tiers && saved.tiers.length ? saved.tiers : defaultTiers),
     q: '', company: (saved && saved.company) || '', city: (saved && saved.city) || '', sort: (saved && saved.sort) || 'score',
+    showNfm: Boolean(saved && saved.showNfm),
   };
   let sel = null;
 
   const tiersShown = TIERS.filter((t) => count(t.id) || F.tiers.has(t.id) || t.id !== 'wait');
-  $('#chips').innerHTML = tiersShown.map((t) => '<button class="chip ' + t.id + '" data-t="' + t.id + '" aria-pressed="' + F.tiers.has(t.id) + '" title="' + esc(t.range) + '"><i></i>' + t.label + ' <span class="num">' + count(t.id) + '</span></button>').join('');
+  $('#chips').innerHTML = tiersShown.map((t) => '<button class="chip ' + t.id + '" data-t="' + t.id + '" aria-pressed="' + F.tiers.has(t.id) + '" title="' + esc(t.range) + '"><i></i>' + t.label + ' <span class="num">' + count(t.id) + '</span></button>').join('') +
+    '<button class="chip nfm" id="nfm" title="Roles you marked Not for me" hidden><i></i>Not for me <span class="num"></span></button>';
+  function paintNfm() {
+    const n = open.filter((j) => callOf(j) === 'not-for-me').length;
+    const b = $('#nfm'); b.hidden = !n; b.setAttribute('aria-pressed', F.showNfm); b.querySelector('.num').textContent = n;
+  }
+  paintNfm();
   const companies = [...new Set(open.map((j) => j.company))].sort();
   $('#company').innerHTML = '<option value="">All companies</option>' + companies.map((c) => '<option>' + esc(c) + '</option>').join('');
   const cityCount = {};
@@ -514,6 +544,7 @@ footer a { color: var(--muted); }
 
   $('#chips').addEventListener('click', (e) => {
     const b = e.target.closest('.chip'); if (!b) return;
+    if (b.id === 'nfm') { F.showNfm = !F.showNfm; paintNfm(); render(); return; }
     const t = b.dataset.t;
     F.tiers.has(t) ? F.tiers.delete(t) : F.tiers.add(t);
     b.setAttribute('aria-pressed', F.tiers.has(t));
@@ -527,6 +558,7 @@ footer a { color: var(--muted); }
   function visible() {
     const rows = open.filter((j) => {
       if (!F.tiers.has(tierOf(j))) return false;
+      if (!F.showNfm && callOf(j) === 'not-for-me') return false;
       if (F.company && j.company !== F.company) return false;
       if (F.city && !(j.cities.length ? j.cities : ['Not stated']).includes(F.city)) return false;
       if (F.q) {
@@ -551,7 +583,8 @@ footer a { color: var(--muted); }
   function rowHtml(j) {
     const meta = [esc(j.company), esc(place(j)), j.postedAt ? 'posted ' + esc(day(j.postedAt)) : 'no posting date'];
     const pills = (isNew(j) ? '<span class="pill new">New</span>' : '') + (j.postedAt && daysSince(j.postedAt) > 180 ? '<span class="pill old">Long open</span>' : '') +
-      (j.secondLook ? '<span class="pill second" title="Your title words missed this title; the second look let it through">Second look</span>' : '');
+      (j.secondLook ? '<span class="pill second" title="Your title words missed this title; the second look let it through">Second look</span>' : '') +
+      (callOf(j) ? '<span class="pill ' + CALL_PILL[callOf(j)] + '">' + CALL[callOf(j)] + '</span>' : '');
     return '<li data-id="' + j.id + '"' + (j.id === sel ? ' class="sel"' : '') + '>' +
       '<button class="row" aria-expanded="' + (j.id === sel) + '">' + scoreCell(j) +
       '<span class="rb"><span class="rt">' + esc(j.title) + pills + '</span>' +
@@ -589,19 +622,69 @@ footer a { color: var(--muted); }
       '<dl class="facts">' + facts.map((f) => '<dt>' + f[0] + '</dt><dd>' + f[1] + '</dd>').join('') + '</dl>' +
       gauge + body +
       '<div class="actions"><a class="btn primary" href="' + esc(j.url) + '" target="_blank" rel="noopener noreferrer">Open the posting ↗</a></div>' +
+      yoursHtml(j) +
       (j.ai ? '<p class="prov">Scored ' + esc(day(j.scoredOn)) + ' by Claude ' + esc(j.model || '') + ' against your resume (version ' + esc(j.resumeRev) + '). Scored again only when your resume or criteria change.</p>' : '') +
       '</div>';
   }
 
+  function yoursHtml(j) {
+    const v = callOf(j), e = FB[j.id] || {}, st = fbStatus[j.id];
+    const note = st === 'saving' ? 'Saving…'
+      : st === 'saved' ? 'Saved. The next run takes it in.'
+      : st === 'local' ? (FBK.api ? 'Not saved yet: kept on this device, and sent the next time the dashboard opens online.' : 'Saved in this browser only (demo).')
+      : 'Each week Axia checks its scores against your calls, and proposes a change to your criteria when they disagree.';
+    return '<section class="yours" data-id="' + j.id + '"><h3>Your call</h3><div class="opts" role="group" aria-label="Your call">' +
+      CALLS.map((k) => '<button type="button" data-call="' + k + '" aria-pressed="' + (v === k) + '">' + CALL[k] + '</button>').join('') + '</div>' +
+      (v ? '<input class="why" type="text" maxlength="240" placeholder="Why? One line helps the weekly review" aria-label="Why (optional)" value="' + esc(e.r || '') + '">' : '') +
+      '<p class="st">' + note + '</p></section>';
+  }
+  function refreshRole(id) {
+    const j = byId[id]; if (!j) return;
+    const li = document.querySelector('#list > li[data-id="' + id + '"]');
+    if (li) { const tmp = document.createElement('div'); tmp.innerHTML = rowHtml(j); li.replaceWith(tmp.firstChild); }
+    if (sel === id && wide()) $('#pane').innerHTML = detailHtml(j);
+  }
+  async function sendCall(id) {
+    const e = FB[id];
+    if (!FBK.api) { fbPending[id] = e; store.set('fbPending', fbPending); fbStatus[id] = 'local'; refreshRole(id); return; }
+    fbStatus[id] = 'saving';
+    try {
+      const r = await fetch('api/feedback', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id, verdict: e.v, reason: e.r }) });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      delete fbPending[id]; fbStatus[id] = 'saved';
+    } catch (err) { fbPending[id] = e; fbStatus[id] = 'local'; }
+    store.set('fbPending', fbPending);
+    refreshRole(id);
+  }
+  function setCall(id, v, reason) {
+    const prev = FB[id] || {};
+    FB[id] = { v: v, r: reason != null ? reason : v ? prev.r || '' : '', t: new Date().toISOString() };
+    paintNfm();
+    refreshRole(id);
+    sendCall(id);
+  }
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('.yours [data-call]'); if (!b) return;
+    const id = b.closest('.yours').dataset.id;
+    setCall(id, callOf(byId[id]) === b.dataset.call ? null : b.dataset.call);
+  });
+  document.addEventListener('change', (e) => {
+    const inp = e.target.closest('.yours .why'); if (!inp) return;
+    const id = inp.closest('.yours').dataset.id, cur = FB[id];
+    const reason = inp.value.replace(/\s+/g, ' ').trim().slice(0, 240);
+    if (cur && cur.v && reason !== (cur.r || '')) setCall(id, cur.v, reason);
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.closest('.yours .why')) e.target.blur(); });
+
   function render() {
-    store.set('filters', { tiers: [...F.tiers], company: F.company, city: F.city, sort: F.sort });
+    store.set('filters', { tiers: [...F.tiers], company: F.company, city: F.city, sort: F.sort, showNfm: F.showNfm });
     const rows = visible();
     if (!rows.some((j) => j.id === sel)) sel = rows.length && wide() ? rows[0].id : null;
     $('#list').innerHTML = rows.length ? rows.map(rowHtml).join('') :
       '<li class="empty"><span>No roles match these filters.</span><button class="btn" id="reset">Show every open role</button></li>';
     const r = $('#reset');
     if (r) r.onclick = () => {
-      F.tiers = new Set(TIERS.map((t) => t.id)); F.q = ''; F.company = ''; F.city = '';
+      F.tiers = new Set(TIERS.map((t) => t.id)); F.q = ''; F.company = ''; F.city = ''; F.showNfm = true; paintNfm();
       $('#q').value = ''; $('#company').value = ''; $('#city').value = '';
       document.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', 'true'));
       render();
@@ -633,6 +716,7 @@ footer a { color: var(--muted); }
     if (F.company && F.company !== j.company) { F.company = ''; $('#company').value = ''; }
     if (F.city) { F.city = ''; $('#city').value = ''; }
     if (F.q) { F.q = ''; $('#q').value = ''; }
+    if (callOf(j) === 'not-for-me' && !F.showNfm) { F.showNfm = true; paintNfm(); }
     showTab('roles');
     sel = null; render(); select(id, true);
   }
@@ -738,6 +822,9 @@ footer a { color: var(--muted); }
     '<p>Scores move by about 5 to 10 points between runs, so treat anything within 5 of ' + GOOD + ' as on the line.</p>' +
     '<h2 class="install-tip">Use it as an app</h2>' +
     '<p class="install-tip">On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen. On Android or a computer, use Install app at the top, or Install in the browser menu. The app opens straight to your results, and works offline with the last results it loaded.</p>' +
+    '<h2>Your calls tune the scoring</h2>' +
+    '<p>Open a role and mark it Applied, Shortlist or Not for me, with a one-line reason if you like. Roles you mark Not for me leave the list (the Not for me chip brings them back). Each run saves your calls, with the posting, in your private repository.</p>' +
+    '<p>Once a week Axia looks for calls the scores disagree with: a role you skipped that scored ' + GOOD + ' or more, or one you wanted that scored below. When there are some, the model suggests a change to your criteria.md, and Axia scores your judged roles again with and without it. Only if the change agrees with you more often does it open a pull request in your repository, with the numbers, for you to merge or close. Nothing changes until you merge it.</p>' +
     '<h2>When a role leaves this list</h2>' +
     '<p>When the company takes the posting down, when its site cannot be read for 7 days in a row, or when you remove the company from your list. A role that comes back keeps its old score.</p>' +
     '</div>';
@@ -756,6 +843,23 @@ footer a { color: var(--muted); }
   if (D.demo) $('#foot').textContent = 'Demo data: every company, role and score on this page is made up.';
   drawStrip();
   showTab(store.get('tab', 'roles'));
+
+  // Calls made on another device, or waiting on this one: send what waits, then take the saved ones.
+  (async function syncCalls() {
+    if (!FBK.api) return;
+    for (const id of Object.keys(fbPending)) await sendCall(id);
+    try {
+      const r = await fetch('api/feedback', { credentials: 'same-origin', cache: 'no-store' });
+      if (!r.ok) return;
+      const data = await r.json();
+      let changed = false;
+      for (const [id, e] of Object.entries(data.entries || {})) {
+        if (fbPending[id] || !byId[id] || JSON.stringify(FB[id]) === JSON.stringify(e)) continue;
+        FB[id] = e; changed = true;
+      }
+      if (changed) { paintNfm(); render(); }
+    } catch (e) {}
+  })();
   render();
   // A link from a message (…/#role-id) opens that role; #companies and #about open those tabs.
   const fromHash = () => {

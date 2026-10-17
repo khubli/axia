@@ -50,6 +50,7 @@ test('a private dashboard is published once and checked', async () => {
     log: quiet,
     wrangler: fakeWrangler(calls),
     check: async (url) => (checked.push(url), 'private'),
+    cfFetch: async () => Response.json({ success: true, result: [{ id: 'kv1', title: 'axia-feedback' }] }),
   });
   assert.equal(calls.length, 1);
   assert.deepEqual(calls[0].env, { CLOUDFLARE_API_TOKEN: 'cf', CLOUDFLARE_ACCOUNT_ID: 'acc' });

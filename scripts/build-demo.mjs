@@ -125,5 +125,10 @@ const summary = {
   },
 };
 
-buildSite({ state: { jobs, companies }, summary, settings }, out, { minScore: 65, demo: true });
+// A few calls on roles, as if made on the dashboard's buttons.
+const byTitle = (t) => Object.values(jobs).find((j) => j.title === t);
+const calls = [['Head of Payments Platform Engineering', 'applied'], ['Engineering Director, Core Platform', 'shortlist'], ['Vice President, Treasury Operations', 'not-for-me', 'Operations, not technology']];
+const feedback = { roles: Object.fromEntries(calls.map(([t, verdict, reason = '']) => { const j = byTitle(t); return [j.key, { id: j.key.replace(/[^A-Za-z0-9]+/g, '-'), verdict, reason, at: now.toISOString() }]; })) };
+
+buildSite({ state: { jobs, companies }, summary, settings, feedback }, out, { minScore: 65, demo: true });
 console.log(`Demo dashboard written to ${out}`);

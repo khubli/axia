@@ -285,8 +285,8 @@ async function sendEmail(m, env) {
  * A one-off alert (a broken run, an unprotected dashboard). Best effort on every configured channel.
  * @param {{title: string, detail?: string, link?: string}} alert
  */
-export async function sendAlert({ title, detail = '', link = '' }, env, { log = console.log } = {}) {
-  const html = [`<b>Axia</b> · ${escapeHtml(title)}`, detail ? escapeHtml(detail) : null, link ? `<a href="${escapeHtml(link)}">Open the log</a>` : null].filter(Boolean).join('\n');
+export async function sendAlert({ title, detail = '', link = '', linkText = 'Open the log' }, env, { log = console.log } = {}) {
+  const html = [`<b>Axia</b> · ${escapeHtml(title)}`, detail ? escapeHtml(detail) : null, link ? `<a href="${escapeHtml(link)}">${escapeHtml(linkText)}</a>` : null].filter(Boolean).join('\n');
   const m = { kind: 'alert', subject: `Axia: ${title}`, html };
   const list = channels(env);
   if (list.length === 0) log(`Alert not sent (no delivery configured): ${title} ${detail}`);

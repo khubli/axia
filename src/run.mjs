@@ -23,6 +23,7 @@ import { renderMarkdown } from './render.mjs';
 import { buildSite } from './site.mjs';
 import { notifyMinScore, seedNotified, trackProblems, planMessages, deliver, applyDelivery } from './notify.mjs';
 import { isoDate, normalize, similarity } from './text.mjs';
+import { loadFeedback, saveFeedback, pullFeedback, applyFeedback, snapshotFeedback } from './feedback.mjs';
 
 const KEYWORD_DETAIL_BUDGET = 150; // detail fetches for keyword scoring when AI is off
 const SECOND_LOOK_MAX = 1500; // new titles the second look asks about per run; the rest wait for the next run
@@ -263,6 +264,14 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     state.version = STATE_VERSION;
   }
 
+  // ── 4b. Your calls from the dashboard's buttons ────────────────────────────
+  // Copied into data/feedback.json with the posting text, so they outlive the role.
+  const feedback = loadFeedback(dir);
+  const pulled = dryRun ? null : await pullFeedback({ env, settings, log });
+  const fb = applyFeedback(feedback, pulled, state);
+  if (fb.added || fb.changed || fb.cleared) log(`Your calls from the dashboard: ${fb.added} new, ${fb.changed} changed, ${fb.cleared} cleared.`);
+  await mapLimit(fb.needText.map((k) => candidates.get(k)).filter(Boolean), 4, (c) => enrich(c, ctx));
+
   // ── 5. Score ──────────────────────────────────────────────────────────────
   const open = Object.values(state.jobs).filter((j) => j.status === 'open');
   const ai = { enabled: Boolean(aiScorer), engine: aiScorer?.engine ?? null, model: aiScorer?.model ?? null, scored: 0, failed: 0, stoppedBecause: null, pending: 0 };
@@ -300,6 +309,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     }
   }
   ai.pending = open.filter((j) => j.score?.scorer !== 'ai').length;
+  snapshotFeedback(feedback, state, (key) => candidates.get(key)?.job.description);
 
   // ── 6. Report ─────────────────────────────────────────────────────────────
   const summary = {
@@ -317,6 +327,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     },
     secondLook: second,
     ai,
+    feedback: { judged: Object.keys(feedback.roles).length, read: pulled !== null },
     newKeys: [...newKeys],
     nearMisses: nearMisses({ rejected, excluded, placeMisses, titleChecks: state.titleChecks, titleKey, secondLookOn }),
   };
@@ -339,9 +350,10 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     applyDelivery(state, messages, delivery, today);
   }
 
-  const view = { state, summary, settings };
+  const view = { state, summary, settings, feedback };
   if (!dryRun) {
     saveState(statePath, state);
+    saveFeedback(dir, feedback);
     mkdirSync(resolve(dir, 'dashboard'), { recursive: true });
     writeFileSync(resolve(dir, 'dashboard/README.md'), renderMarkdown(view));
     buildSite(view, resolve(dir, '.axia/site'), { minScore });

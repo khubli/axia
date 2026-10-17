@@ -48,6 +48,14 @@ notify:
   min_score: 65            # message me when a role first scores this or more (the NOTIFY_MIN_SCORE variable overrides it)
   weekly: monday           # a short "still running" note on this day; false to turn it off
 
+# Once a week, your calls on the dashboard are checked against the scores. If a change to criteria.md
+# agrees with them more often, it is proposed as a pull request in this repository.
+review:
+  day: sunday              # false turns it off
+  max_roles: 60            # your most recent calls it checks against
+
 dashboard:
   domain: jobs.example.com # the address you protected with Cloudflare Access; empty publishes to workers.dev
   worker: axia             # Cloudflare Worker name
+  feedback: true           # Applied / Shortlist / Not for me buttons on each role, saved to your Cloudflare account
+

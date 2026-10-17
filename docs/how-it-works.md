@@ -70,8 +70,20 @@ The dashboard is a single page with your data embedded: no server, no database, 
 
 It is also an installable app (PWA): add it to your phone's home screen or install it on a computer. A service worker keeps the last results you loaded on your device, so the app opens instantly and works offline. Online, the page is always fetched fresh, and when newer results are published while the app is open it offers a refresh.
 
+## 7. Learn from your calls
+
+Each role on the dashboard has three buttons: **Applied**, **Shortlist** and **Not for me**, with a one-line reason if you like. They save to a Workers KV store in your Cloudflare account through the dashboard's own Worker, behind your login. Each run copies them into `data/feedback.json` in your repository, with the posting text, so they outlive the role.
+
+Once a week (`review.day`) Axia checks whether its scores still agree with your calls. A call disagrees when you skipped a role that scored a good match, or wanted one that scored below. When some do:
+
+1. The model reads every judged role (your call, your reason, its score, the posting) with your resume and `criteria.md`, and proposes the smallest edit to `criteria.md` that would fix the disagreements: general rules, in your own words and structure, never touching your resume.
+2. Every judged role is scored twice in the same run, with today's criteria and with the proposal, so the comparison isn't thrown by the usual 5–10 point wobble between runs.
+3. Only if the proposal agrees with your calls more often, and loses none of your `calibration/roles.yml` roles, is it opened as a pull request in your repository, with the edit, the roles whose score moves and the before/after numbers. You get a message with the link.
+
+Nothing changes until you merge it. Merging re-scores your open roles over the next runs. Closing it turns the proposal down. One proposal is open at a time.
+
 ## Privacy
 
-- Your resume, criteria, company list and scores live only in your private repository, your Cloudflare account and the requests to the AI provider you chose, which score each role.
+- Your resume, criteria, company list, scores and calls live only in your private repository, your Cloudflare account and the requests to the AI provider you chose, which score each role.
 - Run logs list role titles and scores, which is why the workflow runs in your private repository and not in Axia's.
 - Secrets are passed to the action as inputs and never printed.

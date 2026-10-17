@@ -4,19 +4,28 @@
 // run fails so you hear about it.
 
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { placeholderHtml, writeSite } from './site.mjs';
+import { feedbackEnabled, findNamespace } from './feedback.mjs';
+
+const WORKER_SOURCE = join(dirname(fileURLToPath(import.meta.url)), 'dashboard', 'worker.js');
 
 export const WRANGLER = 'wrangler@4.144.0'; // pinned; bump deliberately
 const COMPATIBILITY_DATE = '2026-09-01';
 const MARKER = '<meta name="axia" content="private-dashboard">';
 
-export function wranglerConfig(dashboard, assetsDir) {
+/**
+ * With `feedback` ({ main, kvId }) the Worker also runs worker.js, which saves your calls from the
+ * dashboard's buttons to that KV namespace. Without it, the Worker only serves the page.
+ */
+export function wranglerConfig(dashboard, assetsDir, feedback = null) {
   const config = {
     name: dashboard.worker || 'axia',
     compatibility_date: COMPATIBILITY_DATE,
-    assets: { directory: assetsDir },
+    ...(feedback ? { main: feedback.main, kv_namespaces: [{ binding: 'FEEDBACK', id: feedback.kvId }] } : {}),
+    assets: { directory: assetsDir, ...(feedback ? { binding: 'ASSETS' } : {}) },
     // Version preview URLs would be a second, unprotected way in.
     preview_urls: false,
     workers_dev: !dashboard.domain,
@@ -70,7 +79,7 @@ export async function privacyCheck(url, { fetchImpl = fetch, attempts = 12, wait
 /**
  * @returns {{ skipped?: true, urls?: string[], privacy?: 'private'|'not checked' }}
  */
-export async function deploy({ dir, env = process.env, settings, log = console.log, wrangler = runWrangler, check = privacyCheck }) {
+export async function deploy({ dir, env = process.env, settings, log = console.log, wrangler = runWrangler, check = privacyCheck, cfFetch = fetch }) {
   const dashboard = settings.dashboard;
   if (!env.CLOUDFLARE_API_TOKEN) {
     log('Dashboard not published: add the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets to publish it (docs/setup.md).');
@@ -80,14 +89,30 @@ export async function deploy({ dir, env = process.env, settings, log = console.l
   const siteDir = join(work, 'site');
   if (!existsSync(join(siteDir, 'index.html'))) throw new Error('Nothing to publish yet: `axia run` writes the dashboard to .axia/site first.');
 
-  const publish = async (assetsDir, label) => {
+  const publish = async (assetsDir, label, feedback = null) => {
     const configPath = join(work, `wrangler.${label}.json`);
-    writeFileSync(configPath, JSON.stringify(wranglerConfig(dashboard, assetsDir), null, 2));
+    writeFileSync(configPath, JSON.stringify(wranglerConfig(dashboard, assetsDir, feedback), null, 2));
     return wrangler(['deploy', '--config', configPath], { CLOUDFLARE_API_TOKEN: env.CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID: env.CLOUDFLARE_ACCOUNT_ID ?? '' }, { cwd: work });
   };
 
+  // Where the dashboard's buttons save your calls. If it can't be set up, the page is still published;
+  // the buttons then keep your calls on your device until it can.
+  let feedback = null;
+  if (feedbackEnabled(settings)) {
+    if (!env.CLOUDFLARE_ACCOUNT_ID) log('Feedback buttons not connected: add the CLOUDFLARE_ACCOUNT_ID secret (docs/setup.md, step 5).');
+    else {
+      try {
+        const kvId = await findNamespace({ env, settings, create: true, fetchImpl: cfFetch });
+        copyFileSync(WORKER_SOURCE, join(work, 'worker.js'));
+        feedback = { main: 'worker.js', kvId };
+      } catch (err) {
+        log(`Feedback buttons not connected: ${err.message}. Check that the Cloudflare token can edit Workers KV Storage (docs/setup.md, step 5).`);
+      }
+    }
+  }
+
   log(`Publishing the dashboard to Cloudflare (Worker "${dashboard.worker}")…`);
-  const output = await publish(siteDir, 'site');
+  const output = await publish(siteDir, 'site', feedback);
   const urls = dashboard.domain ? [`https://${dashboard.domain}/`] : [...new Set(output.match(/https:\/\/[a-z0-9.-]+\.workers\.dev/gi) ?? [])].map((u) => `${u}/`);
   if (urls.length === 0) throw new Error('Published, but could not tell the address: set dashboard.domain in settings.yml.');
   log(`Published: ${urls.join(', ')}`);

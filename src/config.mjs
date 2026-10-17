@@ -20,7 +20,11 @@ const DEFAULTS = {
   // Messages: new good matches as they are scored, problems once, and a weekly "still running" note.
   notify: { min_score: 65, weekly: 'monday' },
   // Where the private dashboard is published (Cloudflare). `url` is used for links in messages.
-  dashboard: { url: '', worker: 'axia', domain: '', public: false },
+  // feedback: the dashboard's Applied / Shortlist / Not for me buttons save to Cloudflare (needs a private dashboard).
+  dashboard: { url: '', worker: 'axia', domain: '', public: false, feedback: true },
+  // The weekly review: on this day, your calls are checked against the scores, and a criteria.md change
+  // that agrees with them better is proposed as a pull request. false turns it off.
+  review: { day: 'sunday', max_roles: 60 },
 };
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -45,6 +49,11 @@ export function loadSettings(dir = ROOT) {
   const weekly = s.notify.weekly;
   if (weekly !== false && !WEEKDAYS.includes(String(weekly).toLowerCase())) throw new ConfigError(`settings.yml: notify.weekly must be a weekday (for example monday) or false, not "${weekly}"`);
   s.notify.weekly = weekly === false ? false : String(weekly).toLowerCase();
+  const reviewDay = s.review.day;
+  if (reviewDay !== false && !WEEKDAYS.includes(String(reviewDay).toLowerCase())) throw new ConfigError(`settings.yml: review.day must be a weekday (for example sunday) or false, not "${reviewDay}"`);
+  s.review.day = reviewDay === false ? false : String(reviewDay).toLowerCase();
+  s.review.max_roles = Math.max(1, Number(s.review.max_roles) || 60);
+  if (typeof s.dashboard.feedback !== 'boolean') throw new ConfigError(`settings.yml: dashboard.feedback must be true or false without quotes, not "${s.dashboard.feedback}"`);
   if (typeof s.titles.second_look !== 'boolean') throw new ConfigError(`settings.yml: titles.second_look must be true or false without quotes, not "${s.titles.second_look}"`);
   if (typeof s.dashboard.public !== 'boolean') throw new ConfigError(`settings.yml: dashboard.public must be true or false without quotes, not "${s.dashboard.public}"`);
   for (const key of ['min_score']) {

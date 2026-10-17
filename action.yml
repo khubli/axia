@@ -57,6 +57,12 @@ inputs:
   commit:
     description: "'true' commits data/ and dashboard/ back to your repository after each run (needs contents: write)."
     default: 'true'
+  review:
+    description: "The weekly review of your dashboard calls: 'auto' runs on review.day in settings.yml, 'now' runs it on this run, 'off' skips it."
+    default: 'auto'
+  github-token:
+    description: Opens the weekly review's pull request in your repository (needs pull-requests write). The workflow's own token is enough.
+    default: ${{ github.token }}
 
 runs:
   using: composite
@@ -100,10 +106,35 @@ runs:
         SMTP_USER: ${{ inputs.smtp-user }}
         SMTP_PASSWORD: ${{ inputs.smtp-password }}
         EMAIL_TO: ${{ inputs.email-to }}
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
       run: |
         args=(run --dir "$AXIA_DIR")
         if [ "$AXIA_RESCORE" = "true" ]; then args+=(--rescore); fi
         node "$GITHUB_ACTION_PATH/src/cli.mjs" "${args[@]}"
+
+    # On review.day: are the scores still in line with your calls on the dashboard? If a change to
+    # criteria.md agrees with them more often, it is proposed as a pull request. Never fails the run.
+    - name: Weekly review of your calls
+      if: inputs.review != 'off'
+      shell: bash
+      env:
+        AXIA_DIR: ${{ inputs.config-dir }}
+        AXIA_REVIEW: ${{ inputs.review }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude-code-oauth-token }}
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        OPENROUTER_API_KEY: ${{ inputs.openrouter-api-key }}
+        LLM_API_KEY: ${{ inputs.llm-api-key }}
+        TELEGRAM_BOT_TOKEN: ${{ inputs.telegram-bot-token }}
+        TELEGRAM_CHAT_ID: ${{ inputs.telegram-chat-id }}
+        SMTP_USER: ${{ inputs.smtp-user }}
+        SMTP_PASSWORD: ${{ inputs.smtp-password }}
+        EMAIL_TO: ${{ inputs.email-to }}
+      run: |
+        args=(review --dir "$AXIA_DIR")
+        if [ "$AXIA_REVIEW" = "now" ]; then args+=(--now); fi
+        node "$GITHUB_ACTION_PATH/src/cli.mjs" "${args[@]}" || echo "::warning::The weekly review could not finish (see above). The daily run is not affected."
 
     # Runs even if the step above failed part-way, so whatever was learned is kept.
     - name: Save memory
