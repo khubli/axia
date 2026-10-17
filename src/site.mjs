@@ -87,6 +87,7 @@ export function siteData(view, { minScore, demo = false }) {
     listed: summary.counts.listed,
     companies: v.companies.map((c) => ({ name: c.company, url: c.url, status: c.status, error: c.error ?? null, listed: c.listed, lastReadOk: state.companies?.[c.company]?.lastReadOk ?? null })),
     jobs,
+    nearMisses: summary.nearMisses ?? null,
   };
 }
 

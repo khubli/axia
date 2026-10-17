@@ -141,3 +141,44 @@ test('secondLook: batches of 150, a failed batch gets no verdict, a fatal error 
   assert.equal(out.stoppedBecause, 'invalid key');
   assert.equal(out.verdicts.size, 0);
 });
+
+test('the Companies tab lists what your filters left out, and memory does not keep it', async () => {
+  const dir = tempProject({ companies: COMPANIES });
+  const jobs = [...JOBS, gh(6, 'Solution Architect', 'New York'), gh(7, 'Lead Architect', 'New York'), gh(8, 'Staff Software Engineer', 'Bengaluru')];
+  const stub = stubFetch([['boards-api.greenhouse.io/v1/boards/acme', () => ({ jobs })], claude([])]);
+  let out;
+  try {
+    out = await run(['--no-notify'], ENV, { dir, now: new Date('2026-10-15T03:00:00Z'), log: quiet });
+  } finally {
+    stub.restore();
+  }
+  const nm = out.summary.nearMisses;
+  assert.deepEqual(
+    nm.titles.map((t) => [t.title, t.why, t.roles, t.word]),
+    [
+      ['Staff Software Engineer', 'second-look', 2, undefined], // one entry per title, two roles
+      ['Sales Director', 'excluded', 1, 'Sales'],
+    ],
+    'the title the second look let in is not listed; one outside your places is not either',
+  );
+  assert.equal(nm.titles[0].url, 'https://job-boards.greenhouse.io/acme/jobs/3');
+  assert.deepEqual(nm.places, [{ place: 'New York', roles: 2, example: 'Solution Architect · Acme Bank' }]);
+  assert.equal(nm.placeRoles, 2);
+
+  const state = JSON.parse(readFileSync(join(dir, 'data/jobs.json'), 'utf8'));
+  assert.equal(state.lastRun.nearMisses, undefined, 'kept out of jobs.json, so it does not churn daily');
+  const html = readFileSync(join(dir, '.axia/site/index.html'), 'utf8');
+  assert.match(html, /"nearMisses":\{"titles":\[/);
+  assert.match(readFileSync(join(dir, 'dashboard/README.md'), 'utf8'), /Left out by your filters in this run: 2 title\(s\)/);
+});
+
+test('with the second look off, titles your words reject are still listed as left out', async () => {
+  const dir = tempProject({ companies: COMPANIES, settings: { titles: { include: ['Solution Architect'], exclude: ['Sales'], second_look: false } } });
+  const requests = [];
+  const out = await day(dir, requests, '2026-10-15');
+  assert.equal(requests.filter((r) => r.kind === 'second-look').length, 0);
+  assert.deepEqual(
+    out.summary.nearMisses.titles.map((t) => [t.title, t.why]),
+    [['Executive Manager - Technology Modernisation', 'words'], ['Staff Software Engineer', 'words'], ['Sales Director', 'excluded']],
+  );
+});

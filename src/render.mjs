@@ -111,6 +111,10 @@ export function renderMarkdown(view) {
     lines.push(`| ${mdCell(c.company)} | ${status} | ${c.status === 'manual' ? '–' : c.listed} | ${v.matchingByCompany[c.company] ?? 0} |`);
   }
   lines.push('');
+  const nm = summary.nearMisses;
+  if (nm?.titlesTotal || nm?.placesTotal) {
+    lines.push(`_Left out by your filters in this run: ${nm.titlesTotal} title(s) in your places, and ${nm.placeRoles} role(s) with a title you want in a place outside your list${settings.dashboard.url ? ' (listed on the dashboard\'s Companies tab)' : ''}._`, '');
+  }
   lines.push(`_Change the companies in \`companies.yml\` and the titles, locations or scoring in \`settings.yml\`._`, '');
   return lines.join('\n');
 }

@@ -168,7 +168,7 @@ button, a, select, input { -webkit-tap-highlight-color: transparent; }
 .chip[aria-pressed="true"] { border-color: var(--ink); color: var(--ink); }
 .chip[aria-pressed="true"] .num { color: var(--ink); }
 .controls { display: flex; flex-wrap: wrap; gap: 8px; }
-.controls input, .controls select { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; min-width: 0; }
+.controls input, .controls select, .nm .find { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; min-width: 0; }
 .controls input { flex: 1 1 240px; }
 .controls select { flex: 0 1 auto; }
 
@@ -264,6 +264,22 @@ td.co { font-weight: 600; white-space: nowrap; }
 .bestcell .meter i { display: block; height: 100%; }
 .muted { color: var(--muted); }
 .note { font-size: 13px; color: var(--muted); margin: 0; }
+
+/* left out: what never reached scoring */
+.nm { display: grid; gap: 12px; margin-top: 28px; }
+.nm h2 { margin: 0; font: 600 18px/1.3 var(--f-display); }
+.nm h3 { margin: 12px 0 0; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.nm .find { width: 100%; max-width: 360px; }
+.nm details { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.nm summary { padding: 12px 16px; cursor: pointer; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; font-weight: 600; }
+.nm summary .num { font-weight: 400; font-size: 13px; color: var(--muted); }
+.nm details details { border: 0; border-top: 1px dashed var(--line); border-radius: 0; }
+.nm details details summary { font-weight: 500; font-size: 13px; color: var(--muted); }
+.nm ul { list-style: none; margin: 0; padding: 0 16px 14px; display: grid; gap: 8px; font-size: 14px; }
+.nm li { display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; justify-content: space-between; }
+.nm li a, .nm li span.t { color: var(--ink); min-width: 0; overflow-wrap: anywhere; }
+.nm .tag { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.nm td { overflow-wrap: anywhere; }
 
 /* about */
 .prose { max-width: 68ch; display: grid; gap: 14px; }
@@ -653,7 +669,57 @@ footer a { color: var(--muted); }
         '<td class="n">' + dash(r, r.worth) + '</td>' +
         '<td class="n">' + best(r) + '</td>' +
         '<td><a href="' + esc(r.c.url) + '" target="_blank" rel="noopener noreferrer">Careers ↗</a></td></tr>').join('') +
-      '</tbody></table></div>';
+      '</tbody></table></div>' + leftOut();
+  })();
+
+  // ── left out: roles at your companies that never reached scoring, for spot checks ──
+  function leftOut() {
+    const N = D.nearMisses;
+    if (!N || (!N.titlesTotal && !N.placesTotal)) return '';
+    const TAG = { 'second-look': 'second look: not in scope', unchecked: 'second look: not asked yet', words: '' };
+    const roles = (n) => n + (n === 1 ? ' role' : ' roles');
+    const item = (t) => '<li data-q="' + esc((t.title + ' ' + t.company).toLowerCase()) + '">' +
+      (t.url ? '<a href="' + esc(t.url) + '" target="_blank" rel="noopener noreferrer">' + esc(t.title) + '</a>' : '<span class="t">' + esc(t.title) + '</span>') +
+      '<span class="tag">' + (t.roles > 1 ? '×' + t.roles + ' · ' : '') + esc(t.why === 'excluded' ? 'excluded: “' + t.word + '”' : TAG[t.why]) + '</span></li>';
+    const byCo = new Map();
+    for (const t of N.titles) { if (!byCo.has(t.company)) byCo.set(t.company, []); byCo.get(t.company).push(t); }
+    let h = '<div class="nm" id="leftout"><h2>Left out</h2>';
+    if (N.titlesTotal) {
+      h += '<h3>Titles your filters rejected</h3><p class="note">Titles in your places that never reached scoring in the last run: none of your title words' +
+        (N.titles.some((t) => t.why === 'second-look' || t.why === 'unchecked') ? ', and the second look did not let them in' : '') +
+        '. Spot-check now and then. If one should have been kept, add a word for it to <code>titles.include</code> in settings.yml (or take a word out of <code>titles.exclude</code>).' +
+        (N.titlesTotal > N.titles.length ? ' Showing the first ' + N.titles.length.toLocaleString('en-IN') + ' of ' + N.titlesTotal.toLocaleString('en-IN') + '.' : '') + '</p>' +
+        '<input class="find" id="nmq" type="search" placeholder="Find a title or company" aria-label="Find a left-out title">';
+      for (const [co, list] of byCo) {
+        const kept = list.filter((t) => t.why !== 'excluded'), excl = list.filter((t) => t.why === 'excluded');
+        const n = (l) => l.reduce((s, t) => s + t.roles, 0);
+        h += '<details data-co><summary>' + esc(co) + '<span class="num">' + list.length + ' title' + (list.length === 1 ? '' : 's') + ' · ' + roles(n(list)) + '</span></summary>' +
+          (kept.length ? '<ul>' + kept.map(item).join('') + '</ul>' : '') +
+          (excl.length ? '<details><summary>' + excl.length + ' with an excluded word<span class="num">' + roles(n(excl)) + '</span></summary><ul>' + excl.map(item).join('') + '</ul></details>' : '') +
+          '</details>';
+      }
+    }
+    if (N.placesTotal) {
+      h += '<h3>Places outside your list</h3><p class="note">' + roles(N.placeRoles) + ' had a title you want in a place outside <code>locations.include</code>. If a place below is one you would work in (or another spelling of one, like Bangalore and Bengaluru), add it.' +
+        (N.placesTotal > N.places.length ? ' Showing the ' + N.places.length + ' places with the most roles, of ' + N.placesTotal + '.' : '') + '</p>' +
+        '<div class="tablebox"><table><thead><tr><th>Place</th><th class="n">Roles</th><th>For example</th></tr></thead><tbody>' +
+        N.places.map((p) => '<tr><td>' + esc(p.place) + '</td><td class="n">' + p.roles + '</td><td class="muted">' + esc(p.example) + '</td></tr>').join('') +
+        '</tbody></table></div>';
+    }
+    return h + '</div>';
+  }
+  (function findLeftOut() {
+    const box = $('#nmq'); if (!box) return;
+    box.addEventListener('input', () => {
+      const q = box.value.trim().toLowerCase();
+      for (const d of document.querySelectorAll('#leftout details[data-co]')) {
+        let hits = 0;
+        for (const li of d.querySelectorAll('li')) { const on = !q || li.dataset.q.includes(q); li.hidden = !on; hits += on; }
+        d.hidden = !hits;
+        d.open = Boolean(q) && hits > 0;
+        for (const inner of d.querySelectorAll('details')) { const any = [...inner.querySelectorAll('li')].some((li) => !li.hidden); inner.hidden = !any; inner.open = Boolean(q) && any; }
+      }
+    });
   })();
 
   // ── how scoring works ──
