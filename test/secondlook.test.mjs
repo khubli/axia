@@ -68,6 +68,7 @@ test('the second look lets through a title your words missed, and asks about eac
   assert.doesNotMatch(list, /Executive Manager - Payments/, 'outside your places');
   assert.doesNotMatch(list, /Senior Solution Architect/, 'already matched by your words');
   assert.deepEqual(out.summary.secondLook, { titles: 2, checked: 2, letThrough: 1, roles: 1, stoppedBecause: null });
+  assert.match(asked[0].body.system[0].text, /<title_words>\nSolution Architect, Architect, Vice President\n<\/title_words>/, 'the model sees your own title words');
 
   let state = JSON.parse(readFileSync(join(dir, 'data/jobs.json'), 'utf8'));
   const kept = state.jobs['greenhouse:acme:2'];

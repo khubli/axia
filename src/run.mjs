@@ -120,7 +120,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     const ask = [...titles.values()].filter((t) => preview || state.titleChecks[t.id]?.hash !== hash).slice(0, preview ? Infinity : SECOND_LOOK_MAX);
     if (aiScorer?.ask && ask.length) {
       log(`\nSecond look: ${ask.length} title(s) your title words rejected, asked of ${aiScorer.engine}…`);
-      const { verdicts, stoppedBecause } = await secondLook(aiScorer, ask, { resume, criteria, log });
+      const { verdicts, stoppedBecause } = await secondLook(aiScorer, ask, { resume, criteria, include: settings.titles.include, exclude: settings.titles.exclude, log });
       for (const [id, v] of verdicts) state.titleChecks[id] = { keep: v.keep, ...(v.why ? { why: v.why } : {}), hash, seen: today };
       Object.assign(second, { checked: verdicts.size, stoppedBecause });
     }
