@@ -17,6 +17,7 @@ You list the employers you want to work for. Every morning Axia reads their own 
 Most job-search tools start from a job board and a keyword search, then give you a generic match percentage. Axia starts from you: the employers you'd join, and how you judge a role.
 
 - **You choose the companies.** No job-board firehose. Axia reads each employer's own careers system directly (Workday, Greenhouse, Lever, Ashby, SmartRecruiters, Oracle Recruiting Cloud) through the same public feeds their careers pages use. A site it can't read is listed as "check by hand", never silently dropped. Adding a company is one line.
+- **Your title words, plus a second look.** Exact title words and places do the cheap first cut. Titles your words miss, like an employer's "Executive Manager" or "Chief Engineer", get a second look from the model, which can only let roles in, never keep one out.
 - **Scored the way you would score it.** The model reads the full posting against your resume and `criteria.md`, where you write your hard stops, the gaps you'd accept, and the titles that fool you. `axia calibrate` measures how often it agrees with roles you have already judged, so you tune the wording until it scores like you. In the author's own use, that took agreement from 1 in 8 judged roles to 10 or 11 in 12.
 - **It remembers.** Every role is tracked: new, open, closed, reopened. Each is scored once and announced once, re-scored only when your resume or criteria change, and dropped when the employer takes it down. The same job posted twice counts once, and only when the postings really are the same job.
 - **Quiet by design.** At most one message per run: roles that newly crossed your threshold, problems that last, and a silent weekly check-in. The dashboard holds everything else, with the reasons, strengths and gaps behind every score.
@@ -79,6 +80,7 @@ The GitHub Action runs these for you. On your own computer, after `npm ci`:
 node src/cli.mjs run --dir ../my-axia [--dry-run] [--no-notify] [--rescore] [--company Name]
 node src/cli.mjs deploy --dir ../my-axia
 node src/cli.mjs calibrate --dir ../my-axia
+node src/cli.mjs second-look --dir ../my-axia   # which titles your words miss today that the model would let through
 npm test        # offline; job boards, AI models and Telegram are answered by recorded responses
 ```
 

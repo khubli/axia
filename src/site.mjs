@@ -60,6 +60,7 @@ export function siteData(view, { minScore, demo = false }) {
         url: j.url,
         postedAt: j.postedAt || null,
         firstSeen: j.firstSeen,
+        secondLook: j.secondLook || null,
         status: j.status,
         closedOn: j.closedOn || null,
         ai,

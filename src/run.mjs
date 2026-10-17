@@ -16,7 +16,8 @@ import * as http from './http.mjs';
 import { mapLimit } from './http.mjs';
 import { ROOT, ConfigError, loadSettings, loadCompanies, loadResume, loadCriteria } from './config.mjs';
 import { makeFilters } from './filter.mjs';
-import { loadState, saveState, closeAndPrune, STATE_VERSION } from './state.mjs';
+import { loadState, saveState, closeAndPrune, daysBetween, STATE_VERSION } from './state.mjs';
+import { secondLook } from './secondlook.mjs';
 import { makeScorer, keywordScore, resumeHash } from './score.mjs';
 import { renderMarkdown } from './render.mjs';
 import { buildSite } from './site.mjs';
@@ -24,6 +25,8 @@ import { notifyMinScore, seedNotified, trackProblems, planMessages, deliver, app
 import { isoDate, normalize, similarity } from './text.mjs';
 
 const KEYWORD_DETAIL_BUDGET = 150; // detail fetches for keyword scoring when AI is off
+const SECOND_LOOK_MAX = 1500; // new titles the second look asks about per run; the rest wait for the next run
+const TITLE_CHECK_KEEP_DAYS = 45; // a title not listed for this long is forgotten (and asked about again if it returns)
 const SAME_JOB = 0.9; // description similarity above which two lookalike postings are one job (copies measure ~1, different jobs ~0.2-0.5)
 
 // `scorerOverrides` lets tests stand in for the Claude API client or the `claude` CLI.
@@ -36,6 +39,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
       rescore: { type: 'boolean', default: false },
       company: { type: 'string', multiple: true, default: [] },
       'max-ai': { type: 'string' },
+      'second-look-preview': { type: 'boolean', default: false },
     },
   });
   const dryRun = args['dry-run'];
@@ -52,6 +56,17 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   const criteria = loadCriteria(settings, dir);
   const hash = resumeHash(resume, criteria);
   const ctx = { http, today };
+  const preview = args['second-look-preview'];
+  const aiScorer = dryRun ? null : makeScorer({ env, settings, resume, criteria, ...scorerOverrides });
+  if (preview && !aiScorer?.ask) throw new ConfigError('The second-look preview needs an AI provider (see docs/setup.md, step 3).');
+
+  // A title passes your title words, or the second look let it through on an earlier run.
+  const secondLookOn = settings.titles.second_look !== false;
+  const titleKey = (company, title) => `${company}|${normalize(title)}`;
+  const passesTitle = (company, title) => {
+    const t = filters.title(title);
+    return t.ok || (secondLookOn && !t.excluded && state.titleChecks[titleKey(company, title)]?.keep === true);
+  };
 
   const wanted = new Set(args.company.map((c) => c.toLowerCase()));
   const selected = companies.filter((c) => c.enabled && (wanted.size === 0 || wanted.has(c.name.toLowerCase())));
@@ -78,15 +93,48 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   // ── 2. Keep the titles you want (one entry per role, even if on two boards) ─
   const listedKeys = new Set();
   const candidates = new Map();
+  const rejected = new Map(); // in your places (or place not listed), title has none of your words
   for (const read of reads) {
     for (const job of read.jobs) {
       const key = `${read.board.source.type}:${read.board.params.scope}:${job.id}`;
       listedKeys.add(key);
-      if (candidates.has(key)) continue;
+      if (candidates.has(key) || rejected.has(key)) continue;
       const t = filters.title(job.title);
       if (t.ok) candidates.set(key, { key, company: read.company, board: read.board, job, titleMatch: t.matched, listedLocation: job.location });
+      else if (secondLookOn && !t.excluded && (!job.location || filters.location(job.location).ok)) rejected.set(key, { key, company: read.company, board: read.board, job });
     }
   }
+
+  // ── 2b. Second look: titles your words missed, judged by the model ─────────
+  // It can only let roles in. Each employer + title is asked about once (again if your resume
+  // or criteria change); what it lets through is read and scored in full like any other role.
+  const second = { titles: 0, checked: 0, letThrough: 0, roles: 0, stoppedBecause: null };
+  if (secondLookOn) {
+    const titles = new Map();
+    for (const r of rejected.values()) {
+      const id = titleKey(r.company, r.job.title);
+      if (!titles.has(id)) titles.set(id, { id, company: r.company, title: r.job.title });
+      if (state.titleChecks[id]) state.titleChecks[id].seen = today;
+    }
+    second.titles = titles.size;
+    const ask = [...titles.values()].filter((t) => preview || state.titleChecks[t.id]?.hash !== hash).slice(0, preview ? Infinity : SECOND_LOOK_MAX);
+    if (aiScorer?.ask && ask.length) {
+      log(`\nSecond look: ${ask.length} title(s) your title words rejected, asked of ${aiScorer.engine}…`);
+      const { verdicts, stoppedBecause } = await secondLook(aiScorer, ask, { resume, criteria, include: settings.titles.include, exclude: settings.titles.exclude, log });
+      for (const [id, v] of verdicts) state.titleChecks[id] = { keep: v.keep, ...(v.why ? { why: v.why } : {}), hash, seen: today };
+      Object.assign(second, { checked: verdicts.size, stoppedBecause });
+    }
+    for (const r of rejected.values()) {
+      const v = state.titleChecks[titleKey(r.company, r.job.title)];
+      if (!v?.keep) continue;
+      candidates.set(r.key, { key: r.key, company: r.company, board: r.board, job: r.job, titleMatch: null, secondLook: v.why ?? 'judged in scope', listedLocation: r.job.location });
+      second.roles++;
+    }
+    second.letThrough = [...titles.keys()].filter((id) => state.titleChecks[id]?.keep).length;
+    for (const [id, v] of Object.entries(state.titleChecks)) if (daysBetween(v.seen, today) > TITLE_CHECK_KEEP_DAYS) delete state.titleChecks[id];
+    if (second.checked || second.roles) log(`Second look: ${second.letThrough} of ${second.titles} rejected title(s) let through (${second.roles} role(s))${second.stoppedBecause ? `; stopped early: ${second.stoppedBecause}` : ''}.`);
+  }
+  if (preview) return previewSecondLook({ titles: rejected, state, titleKey, second, log });
 
   // ── 3. New roles listed without a location ("3 Locations") → read the posting ─
   const unknownLoc = [...candidates.values()].filter((c) => !c.job.location && !state.jobs[c.key] && !state.skipped[c.key]?.location && c.board.source.detail);
@@ -96,8 +144,9 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   // Settings may have changed since the last run: first drop remembered roles that no longer pass.
   for (const job of Object.values(state.jobs)) {
     const where = filters.location(job.location);
-    if (!filters.title(job.title).ok || !where.ok) {
-      if (filters.title(job.title).ok) state.skipped[job.key] = { company: job.company, title: job.title, location: job.location, reason: where.reason };
+    const titleOk = passesTitle(job.company, job.title);
+    if (!titleOk || !where.ok) {
+      if (titleOk) state.skipped[job.key] = { company: job.company, title: job.title, location: job.location, reason: where.reason };
       delete state.jobs[job.key];
     }
   }
@@ -133,6 +182,8 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     delete state.skipped[c.key];
     if (existing) {
       Object.assign(existing, { title: c.job.title, url: c.job.url, location, status: 'open', titleMatch: c.titleMatch });
+      if (c.secondLook) existing.secondLook = c.secondLook;
+      else delete existing.secondLook;
       if (!existing.postedAt && c.job.postedAt) existing.postedAt = c.job.postedAt;
       delete existing.closedOn;
       delete existing.closedReason;
@@ -183,6 +234,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
       firstSeenRun: runAt,
       status: 'open',
       titleMatch: c.titleMatch,
+      ...(c.secondLook ? { secondLook: c.secondLook } : {}),
       score: null,
     };
     newKeys.add(c.key);
@@ -205,7 +257,6 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
 
   // ── 5. Score ──────────────────────────────────────────────────────────────
   const open = Object.values(state.jobs).filter((j) => j.status === 'open');
-  const aiScorer = dryRun ? null : makeScorer({ env, settings, resume, criteria, ...scorerOverrides });
   const ai = { enabled: Boolean(aiScorer), engine: aiScorer?.engine ?? null, model: aiScorer?.model ?? null, scored: 0, failed: 0, stoppedBecause: null, pending: 0 };
 
   // Spend the daily AI budget on the most promising roles first: new before
@@ -256,6 +307,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
       closedToday: closedToday.length,
       duplicates,
     },
+    secondLook: second,
     ai,
     newKeys: [...newKeys],
   };
@@ -312,4 +364,34 @@ async function enrich(c, ctx) {
     // The posting may have just closed, or the board refused this one read.
     // Scoring falls back to title + location; nothing else depends on it.
   }
+}
+
+/** `axia second-look`: what the second look would let through today, from every rejected title. Writes nothing. */
+function previewSecondLook({ titles, state, titleKey, second, log }) {
+  const byCompany = new Map();
+  for (const r of titles.values()) {
+    const id = titleKey(r.company, r.job.title);
+    const v = state.titleChecks[id];
+    if (!byCompany.has(r.company)) byCompany.set(r.company, new Map());
+    const list = byCompany.get(r.company);
+    if (!list.has(id)) list.set(id, { title: r.job.title, keep: v?.keep === true, why: v?.why ?? '', roles: 0 });
+    list.get(id).roles++;
+  }
+  const all = [...byCompany.values()].flatMap((m) => [...m.values()]);
+  const kept = all.filter((t) => t.keep);
+  log(`\nSecond look preview: ${all.length} distinct title(s) in your places that your title words reject (${titles.size} role(s)).`);
+  log(`It would let through ${kept.length} title(s), ${kept.reduce((n, t) => n + t.roles, 0)} role(s):`);
+  for (const [company, list] of byCompany) {
+    const k = [...list.values()].filter((t) => t.keep);
+    if (!k.length) continue;
+    log(`\n  ${company}`);
+    for (const t of k.sort((a, b) => a.title.localeCompare(b.title))) log(`    + ${t.title}${t.roles > 1 ? ` (×${t.roles})` : ''} — ${t.why}`);
+  }
+  log(`\nLeft out: ${all.length - kept.length} title(s):`);
+  for (const [company, list] of byCompany) {
+    const out = [...list.values()].filter((t) => !t.keep);
+    if (out.length) log(`  ${company}: ${out.map((t) => t.title + (t.roles > 1 ? ` (×${t.roles})` : '')).sort().join(' · ')}`);
+  }
+  if (second.stoppedBecause) log(`\nStopped early: ${second.stoppedBecause}`);
+  return { summary: { secondLook: second }, preview: { titles: all.length, letThrough: kept.length }, messages: [], delivery: [], reason: second.stoppedBecause ? `Second look stopped early: ${second.stoppedBecause}` : null, exitCode: second.stoppedBecause ? 1 : 0 };
 }
