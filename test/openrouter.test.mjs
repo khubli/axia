@@ -38,7 +38,7 @@ test('openrouter: batches roles, asks for a JSON-schema answer, keeps your key i
   assert.equal(stoppedBecause, null);
   assert.equal(failed, 0);
   assert.equal(scores.size, 3);
-  assert.deepEqual({ ...scores.get('k1'), summary: undefined }, { value: 61, summary: undefined, strengths: ['payments'], gaps: ['scale'], scorer: 'ai', model: 'example/model-large-2026' });
+  assert.deepEqual({ ...scores.get('k1'), summary: undefined }, { value: 61, summary: undefined, strengths: ['payments'], gaps: ['scale'], musts: [], scorer: 'ai', model: 'example/model-large-2026' });
   assert.equal(fetchImpl.calls.length, 2, '3 roles in batches of 2');
   const first = fetchImpl.calls[0];
   assert.equal(first.url, 'https://openrouter.ai/api/v1/chat/completions');

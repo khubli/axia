@@ -19,6 +19,7 @@ Most job-search tools start from a job board and a keyword search, then give you
 - **You choose the companies.** No job-board firehose. Axia reads each employer's own careers system directly (Workday, Greenhouse, Lever, Ashby, SmartRecruiters, Oracle Recruiting Cloud) through the same public feeds their careers pages use. A site it can't read is listed as "check by hand", never silently dropped. Adding a company is one line.
 - **Your title words, plus a second look.** Exact title words and places do the cheap first cut. Titles your words miss, like an employer's "Executive Manager" or "Chief Engineer", get a second look from the model, which can only let roles in, never keep one out.
 - **Scored the way you would score it.** The model reads the full posting against your resume and `criteria.md`, where you write your hard stops, the gaps you'd accept, and the titles that fool you. `axia calibrate` measures how often it agrees with roles you have already judged, so you tune the wording until it scores like you. In the author's own use, that took agreement from 1 in 8 judged roles to 10 or 11 in 12.
+- **Every gap is checkable.** Each score lists what the posting itself requires, quoted in its own words, and whether your resume shows it; a requirement it can't quote is dropped. Once a week the gaps that keep coming up across your close calls are grouped into a few themes, so you decide once whether to add the evidence to your resume or accept the gap.
 - **It learns from your calls.** Mark a role Applied, Shortlist or Not for me on the dashboard. Once a week Axia checks its scores against your calls, and when a change to `criteria.md` would agree with you more often (proven by scoring your judged roles with and without it), it opens a pull request for you to merge or close. It never changes how it scores on its own.
 - **It remembers.** Every role is tracked: new, open, closed, reopened. Each is scored once and announced once, re-scored only when your resume or criteria change, and dropped when the employer takes it down. The same job posted twice counts once, and only when the postings really are the same job.
 - **Quiet by design.** At most one message per run: roles that newly crossed your threshold, problems that last, and a silent weekly check-in. The dashboard holds everything else, with the reasons, strengths and gaps behind every score.
@@ -83,6 +84,7 @@ node src/cli.mjs deploy --dir ../my-axia
 node src/cli.mjs calibrate --dir ../my-axia
 node src/cli.mjs review --dir ../my-axia --now   # the weekly review: would a criteria change agree with your calls more often?
 node src/cli.mjs second-look --dir ../my-axia   # which titles your words miss today that the model would let through
+node src/cli.mjs gaps --dir ../my-axia          # the gaps that keep coming up in your roles scored 55 to 89, grouped now (writes nothing)
 npm test        # offline; job boards, AI models and Telegram are answered by recorded responses
 ```
 

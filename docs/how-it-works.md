@@ -43,7 +43,7 @@ A role is kept when its title contains one of your `titles.include` words and no
 
 Roles are queued for the model most promising first: new roles before re-scores, then by a free estimate from the title and your keywords, then the newest posting. Up to `max_ai_scores_per_run` roles a run.
 
-The model reads the full posting with your resume and `criteria.md` and returns a score from 0 to 100, a one-line summary, what fits and the gaps, written to you. Missing tools are soft gaps; a wrong function, level or location is a hard stop. Each role is scored once, and again only when `cv.md` or `criteria.md` changes, or when you run with **Re-score**.
+The model reads the full posting with your resume and `criteria.md` and returns a score from 0 to 100, a one-line summary, what fits and the gaps, written to you, plus up to four things the posting itself requires, quoted in its own words, each marked as shown in your resume, partly or not. A requirement whose quote isn't in the posting is dropped. Missing tools are soft gaps; a wrong function, level or location is a hard stop. Each role is scored once, and again only when `cv.md` or `criteria.md` changes, or when you run with **Re-score**.
 
 Four ways to reach a model, chosen in `settings.yml` or by which secret is present: Claude Code on your Claude subscription (headless, no tools, a fixed answer format), the Claude API, any model on OpenRouter, or any other OpenAI-compatible API. The subscription and the OpenAI-compatible routes score 8 roles per request, so your resume is sent once per batch. With no model at all, every role gets a keyword estimate, shown as `≈`.
 
@@ -73,6 +73,8 @@ At most **one message per run**, with up to three parts:
 The dashboard is a single page with your data embedded: no server, no database, no third-party requests (fonts are served from your domain). Your filters and the last tab you used are remembered in your browser only.
 
 It is also an installable app (PWA): add it to your phone's home screen or install it on a computer. A service worker keeps the last results you loaded on your device, so the app opens instantly and works offline. Online, the page is always fetched fresh, and when newer results are published while the app is open it offers a refresh.
+
+**Gaps that keep coming up.** Once a week, when they have changed, the gaps of your open roles scored 55 to 89 (`gaps` in `settings.yml`) are grouped by the model into a few themes, each with the roles behind it, at the top of the dashboard. A theme that keeps coming up is a decision to make once: add the evidence to your resume if you have it, or accept the gap in `criteria.md`. Axia changes neither.
 
 ## 7. Learn from your calls
 

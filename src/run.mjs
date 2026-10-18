@@ -25,6 +25,7 @@ import { notifyMinScore, seedNotified, trackProblems, planMessages, deliver, app
 import { isoDate, normalize, similarity } from './text.mjs';
 import { loadFeedback, saveFeedback, pullFeedback, applyFeedback, snapshotFeedback } from './feedback.mjs';
 import { loadMoonshots } from './moonshots.mjs';
+import { rollUpGaps } from './gaps.mjs';
 
 const KEYWORD_DETAIL_BUDGET = 150; // detail fetches for keyword scoring when AI is off
 const SECOND_LOOK_MAX = 1500; // new titles the second look asks about per run; the rest wait for the next run
@@ -311,6 +312,9 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   }
   ai.pending = open.filter((j) => j.score?.scorer !== 'ai').length;
   snapshotFeedback(feedback, state, (key) => candidates.get(key)?.job.description);
+
+  // ── 5b. Gaps that keep coming up: once a week, when your close calls have changed ──
+  if (aiScorer) await rollUpGaps({ state, settings, scorer: aiScorer, today, log });
 
   // ── 6. Report ─────────────────────────────────────────────────────────────
   const summary = {

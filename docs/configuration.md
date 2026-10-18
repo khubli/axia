@@ -80,6 +80,10 @@ review:
 
 moonshots:
   file: moonshots.json           # [moonshots.json] stretch roles you track elsewhere, shown on their own tab; false turns it off
+
+gaps:                            # false turns it off
+  min_score: 55                  # [55] the gaps that keep coming up are read from open roles scored this much or more…
+  max_score: 89                  # [89] …up to this much
 ```
 
 The GitHub variable `NOTIFY_MIN_SCORE` overrides `notify.min_score`, so you can change the message threshold without a commit.
@@ -104,6 +108,12 @@ Open a role and mark it **Applied**, **Shortlist** or **Not for me**, with a one
 The buttons save to a Workers KV store in your Cloudflare account, behind the same login as the dashboard. Each run copies the calls into `data/feedback.json` with the posting text, so they last after the role closes. They count as judged roles for `axia calibrate` and the weekly review. If a call can't be saved (offline, or signed out), it waits on your device and is sent the next time the dashboard opens online.
 
 **The weekly review** (`review.day`) runs when some of your calls disagree with the scores: a role you skipped that scored `report.good_match` or more, or one you wanted that scored below. The model reads your calls, reasons and postings with your resume and `criteria.md`, and proposes the smallest edit to `criteria.md` that would fix them. Axia then scores every judged role twice in the same run, with today's criteria and with the proposal. Only if the proposal agrees with your calls more often, and loses none of your `calibration/roles.yml` roles, does it open a pull request with the edit and the numbers, and message you. Nothing changes until you merge it; one proposal is open at a time. It needs at least 3 calls with their posting saved. A review uses about two AI scores per judged role.
+
+## What the posting requires, and gaps that keep coming up
+
+Each AI score also lists up to four things the posting itself requires, in the posting's own words, and whether your resume shows each (yes, partly, no). Axia keeps one only when its quote is really in the posting, so a requirement the model made up never reaches the dashboard. They explain the score; they don't change it.
+
+Once a week, when they have changed, the gaps and unmet must-haves of your open roles scored `gaps.min_score` to `gaps.max_score` are grouped by the model into a few themes, each with the roles behind it, shown at the top of the dashboard's Roles tab and as one line in the weekly message. For each theme, decide once: add the evidence to your resume if you have it, or accept the gap in `criteria.md`. Axia never edits either. It takes one small model request a week.
 
 ## moonshots.json
 

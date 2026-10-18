@@ -245,6 +245,28 @@ li.sel > .inline { display: block; }
 .d li::before { font: 500 14px/1.5 var(--f-mono); }
 .fits li::before { content: "+"; color: var(--good); }
 .gaps li::before { content: "\2212"; color: var(--look); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.musts li::before { content: "\2713"; color: var(--good); }
+.musts li.partly::before { content: "~"; color: var(--look); }
+.musts li.no::before { content: "\2715"; color: var(--bad); }
+.musts q { display: block; color: var(--muted); font-size: 13px; quotes: "\201C" "\201D"; }
+/* gaps that keep coming up: themes across your close calls */
+.themes { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 0; }
+.themes > summary { list-style: none; cursor: pointer; padding: 12px 18px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: 14px; }
+.themes > summary::-webkit-details-marker { display: none; }
+.themes > summary::after { content: "Show"; margin-left: auto; color: var(--accent); font-size: 13px; }
+.themes[open] > summary::after { content: "Hide"; }
+.themes > summary b { font-weight: 600; }
+.themes > summary .muted { font-size: 13px; }
+.themes .tbody { padding: 0 18px 14px; display: grid; gap: 12px; }
+.themes ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.themes li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; min-width: 0; }
+.themes li > div { min-width: 0; }
+.themes .cnt { font: 500 13px/1.5 var(--f-mono); color: var(--look); white-space: nowrap; }
+.themes .who { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 4px; }
+.themes .who button { border: 0; background: var(--hover); color: var(--ink); border-radius: 6px; padding: 2px 8px; font-size: 12px; cursor: pointer; text-align: left; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.themes .who button:hover { color: var(--accent); }
+.themes p { margin: 0; color: var(--muted); font-size: 13px; max-width: 72ch; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; padding: 9px 14px; font-weight: 600; font-size: 14px; text-decoration: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
@@ -371,6 +393,7 @@ footer a { color: var(--muted); }
     <ul class="warn" id="warn" hidden></ul>
     <div class="lede" id="lede"></div>
     <figure class="strip" id="strip"></figure>
+    <details class="themes" id="themes" hidden></details>
     <div class="bar">
       <div class="chips" id="chips" role="group" aria-label="Score bands"></div>
       <div class="controls">
@@ -669,7 +692,8 @@ footer a { color: var(--muted); }
     } else {
       body = (j.summary ? '<p class="summary">' + esc(j.summary) + '</p>' : '') +
         (j.strengths.length ? '<section><h3>What fits</h3><ul class="fits">' + j.strengths.map((s) => '<li>' + esc(s) + '</li>').join('') + '</ul></section>' : '') +
-        (j.gaps.length ? '<section><h3>Gaps to check</h3><ul class="gaps">' + j.gaps.map((s) => '<li>' + esc(s) + '</li>').join('') + '</ul></section>' : '');
+        (j.gaps.length ? '<section><h3>Gaps to check</h3><ul class="gaps">' + j.gaps.map((s) => '<li>' + esc(s) + '</li>').join('') + '</ul></section>' : '') +
+        mustsHtml(j);
     }
     return '<div class="d">' +
       '<div><div class="eyebrow">' + esc(j.company) + '</div><h2>' + esc(j.title) + '</h2></div>' +
@@ -679,6 +703,16 @@ footer a { color: var(--muted); }
       yoursHtml(j) +
       (j.ai && j.scoredOn ? '<p class="prov">Scored ' + esc(day(j.scoredOn)) + ' by Claude ' + esc(j.model || '') + ' against your resume (version ' + esc(j.resumeRev) + '). Scored again only when your resume or criteria change.</p>' : '') +
       '</div>';
+  }
+
+  // The posting's must-haves in its own words, and whether your resume shows them.
+  const MUST = { yes: 'Your resume shows this', partly: 'Your resume shows part of this', no: 'Not in your resume' };
+  function mustsHtml(j) {
+    const ms = j.musts || [];
+    if (!ms.length) return '';
+    return '<section><h3>What the posting requires</h3><ul class="musts">' +
+      ms.map((m) => '<li class="' + esc(m.match) + '" title="' + MUST[m.match] + '"><span><span class="sr">' + MUST[m.match] + ': </span>' + esc(m.requirement) + '<q>' + esc(m.quote) + '</q></span></li>').join('') +
+      '</ul></section>';
   }
 
   function yoursHtml(j) {
@@ -782,6 +816,25 @@ footer a { color: var(--muted); }
     const next = e.key === 'ArrowDown' ? li.nextElementSibling : li.previousElementSibling;
     if (next && next.dataset.id) { e.preventDefault(); next.querySelector('.row').focus(); if (wide()) select(next.dataset.id, false); }
   });
+
+  // ── gaps that keep coming up: themes across the gaps of your close calls, worked out weekly ──
+  (function themesView() {
+    const G = D.gaps;
+    const themes = G ? G.themes.map((t) => ({ theme: t.theme, ids: t.ids.filter((id) => byId[id] && byId[id].status === 'open') })).filter((t) => t.ids.length >= 2) : [];
+    if (!themes.length) return;
+    const el = $('#themes');
+    const top = themes[0];
+    const who = (id) => '<button type="button" data-id="' + id + '">' + esc(byId[id].title) + ' · ' + esc(byId[id].company) + '</button>';
+    el.innerHTML =
+      '<summary><b>What keeps coming up</b><span class="muted">' + esc(top.theme) + ' in ' + top.ids.length + ' of the ' + G.total + ' roles you scored ' + G.min + '–' + G.max + '</span></summary>' +
+      '<div class="tbody"><ol>' +
+      themes.map((t) => '<li><span class="cnt">' + t.ids.length + ' of ' + G.total + '</span><div>' + esc(t.theme) + '<div class="who">' + t.ids.map(who).join('') + '</div></div></li>').join('') +
+      '</ol><p>For each one, add the evidence to your resume if you have it, or say in criteria.md that you accept the gap. Axia changes neither. Worked out ' + esc(day(G.on)) + ' from the gaps and must-haves of your open roles scored ' + G.min + ' to ' + G.max + '; again each week those roles change.</p></div>';
+    el.hidden = false;
+    store.get('themesOpen', false) && (el.open = true);
+    el.addEventListener('toggle', () => store.set('themesOpen', el.open));
+    el.addEventListener('click', (e) => { const b = e.target.closest('.who button'); if (b) reveal(b.dataset.id); });
+  })();
 
   // ── your roles: Applied and Shortlist, kept after the posting closes ──
   const KEEP = ['applied', 'shortlist'];
@@ -981,6 +1034,8 @@ footer a { color: var(--muted); }
     '<div><b style="color:var(--low)">0–' + (FROM - 1) + '</b><span>Lower. Usually the wrong level or function.</span></div>' +
     '<div><b style="color:var(--faint)">≈ estimate</b><span>Not read by Claude yet: a guess from the title and keywords.</span></div></div>' +
     '<p>Scores move by about 5 to 10 points between runs, so treat anything within 5 of ' + GOOD + ' as on the line.</p>' +
+    '<p>Under the gaps, a role lists up to four things the posting itself requires, in its own words, and whether your resume shows each. One the model can\'t quote from the posting is left out.</p>' +
+    (D.gaps ? '<h2>What keeps coming up</h2><p>Once a week, when they have changed, the gaps of your open roles scored ' + D.gaps.min + ' to ' + D.gaps.max + ' are grouped into a few themes, each with the roles behind it, at the top of the Roles tab. For each theme, decide once: add the evidence to your resume if you have it, or accept the gap in criteria.md.</p>' : '') +
     '<h2 class="install-tip">Use it as an app</h2>' +
     '<p class="install-tip">On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen. On Android or a computer, use Install app at the top, or Install in the browser menu. The app opens straight to your results, and works offline with the last results it loaded.</p>' +
     '<h2>Your calls tune the scoring</h2>' +
