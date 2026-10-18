@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.1
+
+- **Long open, sooner.** A role posted 45 or more days ago now gets the Long open label (it was 180 days), and its details say it may already be filled, so check before putting time into it. Roles are still never hidden for their age: a role stays while its employer lists it, and senior roles often take two or three months to fill.
+
 ## 1.6.0
 
 - **SAP SuccessFactors career sites.** Many banks and consultancies run their careers site on SuccessFactors under their own domain, so the address alone can't say how to read it. Add `platform: successfactors` to the company in `companies.yml` and give the address of the site's search page. `?locationsearch=India` on that address reads only the roles the site places in India, which keeps an employer with thousands of roles to a few dozen requests. Newer sites are read through their JSON search API, older ones from their search pages; a page without a job list is reported as an error, never as "no roles" ([details](docs/configuration.md#companiesyml)).
