@@ -90,10 +90,46 @@ for (const title of ['Platform Lead, Payments Hub', 'Engineering Manager, Payout
   jobs[key] = { key, company: 'Contoso Pay', title, location: CITIES[0], url: 'https://careers.example.com/', postedAt: daysAgo(30), firstSeen: daysAgo(20), status: 'closed', closedOn: daysAgo(2), score: { value: 70, scorer: 'ai', summary: '', strengths: [], gaps: [] } };
 }
 
+const byTitle = (t) => Object.values(jobs).find((j) => j.title === t);
+
+// The posting's own must-haves, on the roles a visitor is likely to open first.
+const MUSTS = {
+  'Head of Payments Platform Engineering': [
+    ['12+ years in payments technology', '12+ years in payments technology, including real-time schemes', 'yes'],
+    ['Leading engineering managers', 'lead a group of engineering managers across several teams', 'yes'],
+    ['Card-scheme certification', 'hands-on experience certifying with the major card schemes', 'no'],
+  ],
+  'Principal Architect, Real-Time Payments': [
+    ['Instant payments architecture', 'own the target architecture for our instant payments platform', 'yes'],
+    ['Kafka at high volume', 'event streaming with Kafka at tens of thousands of messages a second', 'partly'],
+  ],
+  'Engineering Director, Core Platform': [
+    ['Platform roadmap ownership', 'own the core platform roadmap and its budget', 'yes'],
+    ['Hands-on coding', 'stay hands-on, reviewing and writing code every week', 'partly'],
+  ],
+};
+for (const j of Object.values(jobs)) {
+  if (MUSTS[j.title]) j.score.musts = MUSTS[j.title].map(([requirement, quote, match]) => ({ requirement, quote, match }));
+}
+
+// Gaps that keep coming up across the roles scored 55 to 89, as the weekly roll-up would group them.
+const keysOf = (...titles) => titles.map((t) => byTitle(t).key);
+const gaps = {
+  on: daysAgo(2),
+  sig: 'demo',
+  total: Object.values(jobs).filter((j) => j.status === 'open' && j.score.scorer === 'ai' && j.score.value >= 55 && j.score.value <= 89).length,
+  themes: [
+    { theme: 'Card issuing and card-scheme experience', keys: keysOf('Head of Payments Platform Engineering', 'Senior Engineering Manager, Card Issuing') },
+    { theme: 'A narrower scope than your current role', keys: keysOf('Lead Solution Architect, ISO 20022 Migration', 'Senior Engineering Manager, Card Issuing') },
+    { theme: 'Experience outside payments (formal product work, insurance)', keys: keysOf('Platform Product Lead, Payments APIs', 'Enterprise Architect, Finance Systems') },
+  ],
+};
+
 const settings = {
   report: { timezone: TZ, good_match: 65, show_from: 50 },
   scoring: { max_ai_scores_per_run: 40 },
   dashboard: { url: '' },
+  gaps: { enabled: true, min_score: 55, max_score: 89 },
 };
 const companies = Object.fromEntries(COMPANIES.filter((c) => c.source).map((c) => [c.name, { lastReadOk: today }]));
 const summary = {
@@ -127,7 +163,6 @@ const summary = {
 };
 
 // A few calls on roles, as if made on the dashboard's buttons.
-const byTitle = (t) => Object.values(jobs).find((j) => j.title === t);
 const calls = [['Head of Payments Platform Engineering', 'applied'], ['Engineering Director, Core Platform', 'shortlist'], ['Vice President, Treasury Operations', 'not-for-me', 'Operations, not technology']];
 const feedback = { roles: Object.fromEntries(calls.map(([t, verdict, reason = '']) => { const j = byTitle(t); return [j.key, { id: j.key.replace(/[^A-Za-z0-9]+/g, '-'), verdict, reason, at: now.toISOString() }]; })) };
 
@@ -152,5 +187,5 @@ const moonshots = {
   }),
 };
 
-buildSite({ state: { jobs, companies }, summary, settings, feedback, moonshots }, out, { minScore: 65, demo: true });
+buildSite({ state: { jobs, companies, gaps }, summary, settings, feedback, moonshots }, out, { minScore: 65, demo: true });
 console.log(`Demo dashboard written to ${out}`);

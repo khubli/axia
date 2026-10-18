@@ -16,7 +16,8 @@ export const STATE_VERSION = 2;
 
 export function emptyState() {
   // titleChecks: the second look's verdict per employer + title, so each title is asked about once.
-  return { version: STATE_VERSION, lastRun: null, jobs: {}, skipped: {}, companies: {}, problems: {}, lastWeekly: null, titleChecks: {} };
+  // gaps: the weekly themes of gaps that keep coming up (gaps.mjs).
+  return { version: STATE_VERSION, lastRun: null, jobs: {}, skipped: {}, companies: {}, problems: {}, lastWeekly: null, titleChecks: {}, gaps: null };
 }
 
 export function loadState(path) {

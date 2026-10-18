@@ -10,6 +10,7 @@ import nodemailer from 'nodemailer';
 import { daysBetween } from './state.mjs';
 import { escapeHtml, truncate, jobId, decodeEntities } from './text.mjs';
 import { citiesOf } from './site.mjs';
+import { gapsView } from './gaps.mjs';
 
 const MAX_ITEMS = 8;
 const UNREAD_ALERT_DAYS = 2; // first failure + 2 more days = the third day in a row
@@ -147,11 +148,13 @@ export function planMessages({ state, summary, settings, minScore, today }) {
     const all = Object.values(state.jobs);
     const problems = Object.values(state.problems);
     const waiting = open.length - ai.length;
+    const gaps = gapsView(state, settings);
     weeklyLines = [
       `${problems.length ? '⚠️' : '✓'} ${read} of ${companies.size} companies read today${manual ? `, ${manual} by hand` : ''}${problems.length ? ` · ${plural(problems.length, 'open problem', 'open problems')}` : ''}`,
       `New this week: ${plural(all.filter((j) => within(j.firstSeen)).length, 'role', 'roles')} · ${plural(all.filter((j) => within(j.notifiedOn)).length, 'good match')} · ${all.filter((j) => j.status === 'closed' && within(j.closedOn)).length} closed`,
       `Open now: ${plural(ai.filter((j) => j.score.value >= good).length, 'good match')} (${good}+) · ${ai.filter((j) => j.score.value >= floor && j.score.value < good).length} worth a look · ${open.length} in all`,
       summary.ai.enabled ? (waiting ? `${waiting} waiting for an AI score` : 'Every open role has an AI score') : 'AI scoring is off: scores are title estimates',
+      ...(gaps?.themes.length ? [`Gap that comes up most in your ${gaps.min}–${gaps.max} roles: ${gaps.themes[0].theme} (${gaps.themes[0].keys.length} of ${gaps.total})`] : []),
     ].map(escapeHtml);
   }
 

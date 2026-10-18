@@ -58,6 +58,12 @@ review:
 # dashboard's Moonshots tab (not scored). No file, no tab. See docs/configuration.md.
 # moonshots: false
 
+# Gaps that keep coming up: once a week, the gaps of your open roles scored 55 to 89 are grouped into
+# themes at the top of the dashboard. false turns it off.
+gaps:
+  min_score: 55
+  max_score: 89
+
 dashboard:
   domain: jobs.example.com # the address you protected with Cloudflare Access; empty publishes to workers.dev
   worker: axia             # Cloudflare Worker name

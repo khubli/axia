@@ -44,13 +44,15 @@ test('subscription scoring: batched, no tools, schema-checked, your criteria inc
   }
   assert.equal(out.summary.ai.engine, 'Claude Code (your subscription)');
   assert.equal(out.summary.ai.scored, 3);
-  assert.equal(calls.length, 2, '3 roles at batch_size 2 → 2 requests');
+  assert.equal(calls.filter((c) => c.input.includes('<job id=')).length, 2, '3 roles at batch_size 2 → 2 requests');
 
   const { args, input, env, system } = calls[0];
   assert.equal(args[0], '-p');
   assert.equal(args[args.indexOf('--tools') + 1], '', 'no tools: the model only reads and answers');
   assert.equal(args[args.indexOf('--output-format') + 1], 'json');
-  assert.equal(JSON.parse(args[args.indexOf('--json-schema') + 1]).required[0], 'results');
+  const schema = JSON.parse(args[args.indexOf('--json-schema') + 1]);
+  assert.equal(schema.required[0], 'results');
+  assert.ok(schema.properties.results.items.required.includes('musts'), 'the answer quotes what the posting requires');
   assert.ok(args.includes('--no-session-persistence'));
   assert.equal(args[args.indexOf('--model') + 1], 'claude-opus-5-5');
   assert.match(input, /<job id="1">\nCompany: Acme Bank\nTitle: /);

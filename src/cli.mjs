@@ -5,6 +5,7 @@
 //   deploy     publish the dashboard to Cloudflare and check that it asks for a login
 //   calibrate  score the roles in calibration/roles.yml and compare with your own verdicts
 //   second-look  show which titles your title words reject today that the second look would let through (writes nothing)
+//   gaps       group the gaps of your open roles scored 55 to 89 into themes now, and print them (writes nothing)
 //   review     on review.day: check the scores against your dashboard calls; propose a criteria.md change   (--now)
 //   alert      tell you a run broke (used by the GitHub Action)                (--link URL)
 
@@ -13,7 +14,7 @@ import { resolve, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { ConfigError, loadSettings } from './config.mjs';
 
-const HELP = `Usage: axia <run|deploy|calibrate|second-look|review|alert> [--dir <folder>] [options]
+const HELP = `Usage: axia <run|deploy|calibrate|second-look|gaps|review|alert> [--dir <folder>] [options]
 Docs: https://github.com/khubli/axia#readme`;
 
 /** Pull --dir out of the arguments; everything else goes to the command. */
@@ -51,6 +52,11 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
         const out = await run(['--second-look-preview', ...rest], env, { dir });
         if (out.reason) throw new Error(out.reason);
         return out.exitCode;
+      }
+      case 'gaps': {
+        const { previewGaps } = await import('./gaps.mjs');
+        await previewGaps({ dir, env });
+        return 0;
       }
       case 'deploy': {
         const { deploy } = await import('./deploy.mjs');

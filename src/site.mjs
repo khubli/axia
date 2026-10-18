@@ -9,6 +9,7 @@ import { viewModel } from './render.mjs';
 import { jobId } from './text.mjs';
 import { daysBetween } from './state.mjs';
 import { feedbackEnabled, pageFeedback } from './feedback.mjs';
+import { gapsView } from './gaps.mjs';
 
 const ASSETS = join(dirname(fileURLToPath(import.meta.url)), 'dashboard');
 const ICONS = ['icon.svg', 'icon-32.png', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
@@ -69,6 +70,7 @@ export function siteData(view, { minScore, demo = false }) {
         summary: ai ? j.score.summary : null,
         strengths: ai ? j.score.strengths ?? [] : [],
         gaps: ai ? j.score.gaps ?? [] : [],
+        musts: ai ? j.score.musts ?? [] : [],
         model: ai ? modelName(j.score.model) : null,
         resumeRev: ai ? String(j.score.resumeHash ?? '').slice(0, 6) : null,
         scoredOn: j.score?.scoredOn ?? null,
@@ -92,8 +94,15 @@ export function siteData(view, { minScore, demo = false }) {
     // Your calls on roles. With `api`, the buttons save to your Cloudflare account; otherwise (the demo) only in this browser.
     feedback: { api: !demo && feedbackEnabled(settings), entries: pageFeedback(view.feedback) },
     // Stretch roles from your own research (moonshots.json), on their own tab; null means no tab.
+    // Gaps that keep coming up across your close calls (gaps.mjs); null until the first roll-up.
+    gaps: pageGaps(state, settings),
     moonshots: view.moonshots ? (view.moonshots.problem ? { problem: view.moonshots.problem } : { ...view.moonshots.report, dropped: undefined }) : null,
   };
+}
+
+function pageGaps(state, settings) {
+  const g = gapsView(state, settings);
+  return g && { ...g, themes: g.themes.map((t) => ({ theme: t.theme, ids: t.keys.map(jobId) })) };
 }
 
 /** The page with its data embedded. `<` is escaped so no value can close the script tag. */

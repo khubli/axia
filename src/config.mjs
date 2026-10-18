@@ -28,6 +28,9 @@ const DEFAULTS = {
   // Moonshots: stretch roles you track outside Axia (another tool or a research task writes the file),
   // shown on their own dashboard tab, not scored. No file, no tab. false turns it off.
   moonshots: { file: 'moonshots.json' },
+  // Gaps that keep coming up: once a week, the gaps of open roles scored min_score to max_score,
+  // grouped into themes on the dashboard. false turns it off.
+  gaps: { min_score: 55, max_score: 89 },
 };
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -46,6 +49,13 @@ export function loadSettings(dir = ROOT) {
   for (const [section, defaults] of Object.entries(DEFAULTS)) s[section] = { ...defaults, ...(raw[section] ?? {}) };
   s.resume = raw.resume ?? 'cv.md';
   if (raw.moonshots === false || s.moonshots.file === false) s.moonshots = { file: '' };
+  s.gaps.enabled = raw.gaps !== false;
+  for (const key of ['min_score', 'max_score']) {
+    const n = Number(s.gaps[key]);
+    if (!Number.isInteger(n) || n < 0 || n > 100) throw new ConfigError(`settings.yml: gaps.${key} must be a whole number from 0 to 100`);
+    s.gaps[key] = n;
+  }
+  if (s.gaps.min_score > s.gaps.max_score) throw new ConfigError('settings.yml: gaps.min_score must not be above gaps.max_score');
   if (typeof s.moonshots.file !== 'string') throw new ConfigError(`settings.yml: moonshots.file must be a file name (for example moonshots.json) or false, not "${s.moonshots.file}"`);
   // Older settings kept the dashboard link under report.
   if (!s.dashboard.url && s.dashboard.domain) s.dashboard.url = `https://${s.dashboard.domain}`;
