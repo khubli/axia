@@ -1,0 +1,117 @@
+<!doctype html>
+<!--
+  Source of how-it-works-light.png and how-it-works-dark.png (README → How it works).
+  To redraw: open this page in Chromium at 1050 px wide with device scale factor 2, once in light
+  and once in dark color scheme, and screenshot the <main> element. Fonts come from the dashboard.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1050">
+<title>How Axia works</title>
+<style>
+@font-face { font-family: 'Geist'; font-weight: 400 600; src: url(../../src/dashboard/fonts/geist-latin.woff2) format('woff2'); }
+@font-face { font-family: 'Geist Mono'; font-weight: 400 500; src: url(../../src/dashboard/fonts/geist-mono-latin.woff2) format('woff2'); }
+:root {
+  --bg: #F3F5F8; --surface: #FFFFFF; --ink: #131821; --muted: #566070; --faint: #808999; --line: #DFE4EB;
+  --accent: #2346C8; --accent-soft: #E6EBFC; --good: #0F7A55; --chip: #F3F5F8;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0E1117; --surface: #161A22; --ink: #E6EAF0; --muted: #A3ACBA; --faint: #747D8D; --line: #262D38;
+    --accent: #8FA5FF; --accent-soft: #1C2447; --good: #3DB884; --chip: #1D232D;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 400 11px/1.45 "Geist", system-ui, sans-serif; }
+main { width: 1050px; padding: 30px 32px 30px; display: grid; grid-template-columns: 250px 22px 1fr 22px 236px; align-items: center; row-gap: 14px; }
+.eyebrow { font-size: 9.5px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin: 0 0 8px; display: flex; justify-content: space-between; }
+.eyebrow code { text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--faint); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+code, .mono { font-family: "Geist Mono", ui-monospace, monospace; }
+.arrow { color: var(--faint); font-size: 16px; text-align: center; }
+
+/* your repository */
+.files { padding: 14px 13px; }
+.files dl { margin: 0; display: grid; grid-template-columns: 112px 1fr; column-gap: 8px; }
+.files dt, .files dd { margin: 0; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+.files dt { color: var(--accent); font-family: "Geist Mono", monospace; font-size: 10px; padding-top: 7px; }
+.files dd { color: var(--ink); }
+.files dl > :nth-last-child(-n+2) { border-bottom: 0; }
+.files .sub { font-size: 8.5px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin: 10px 0 2px; }
+
+/* the run */
+.steps { display: grid; gap: 7px; }
+.step { padding: 11px 14px; display: grid; grid-template-columns: 22px 1fr; column-gap: 12px; }
+.step .n { width: 22px; height: 22px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-weight: 600; display: grid; place-items: center; font-size: 10.5px; }
+.step h3 { margin: 1px 0 2px; font-size: 12.5px; font-weight: 600; }
+.step p { margin: 0; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.chips span { font-family: "Geist Mono", monospace; font-size: 9px; padding: 2px 6px; border-radius: 5px; border: 1px solid var(--line); background: var(--chip); color: var(--muted); }
+.chips.ai span { border-color: transparent; background: var(--accent-soft); color: var(--accent); }
+
+/* you */
+.you { display: grid; gap: 10px; }
+.out { padding: 13px 14px; }
+.out h3 { margin: 0 0 6px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.out h3 img { width: 18px; height: 18px; }
+.out ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.out li { display: grid; grid-template-columns: 10px 1fr; gap: 6px; color: var(--muted); }
+.out li::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--good); margin-top: 6px; }
+
+/* the loop */
+.loop { grid-column: 1 / -1; padding: 11px 16px; display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; border-style: dashed; }
+.loop .badge { font-size: 9.5px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--accent); font-weight: 600; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+.loop .badge b { font-size: 15px; letter-spacing: 0; }
+.loop p { margin: 0; color: var(--muted); }
+.loop .to { color: var(--faint); margin: 0 7px; }
+.loop strong { color: var(--ink); font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+  <section>
+    <p class="eyebrow">Your private repository</p>
+    <div class="card files">
+      <dl>
+        <dt>companies.yml</dt><dd>the employers you'd join</dd>
+        <dt>cv.md</dt><dd>your resume</dd>
+        <dt>criteria.md</dt><dd>how you judge a role, in your words</dd>
+        <dt>settings.yml</dt><dd>titles, places, thresholds, model</dd>
+      </dl>
+      <p class="sub">Saved back after every run</p>
+      <dl>
+        <dt>data/jobs.json</dt><dd>memory: every role and its score</dd>
+        <dt>data/feedback.json</dt><dd>your calls, with each posting</dd>
+      </dl>
+    </div>
+  </section>
+  <div class="arrow">→</div>
+  <section>
+    <p class="eyebrow">Every morning, in GitHub Actions <code>khubli/axia@v1</code></p>
+    <div class="steps">
+      <div class="card step"><span class="n">1</span><div><h3>Read</h3><p>Each employer's own careers site, through the public feeds its pages use.</p>
+        <div class="chips"><span>Workday</span><span>Greenhouse</span><span>Lever</span><span>Ashby</span><span>SmartRecruiters</span><span>Oracle</span></div></div></div>
+      <div class="card step"><span class="n">2</span><div><h3>Filter</h3><p>Your titles and places, free. Titles your words miss get a second look from the model, which can only let roles in. What's left out is listed for spot checks.</p></div></div>
+      <div class="card step"><span class="n">3</span><div><h3>Score</h3><p>The full posting against your resume and criteria: 0–100, what fits, the gaps.</p>
+        <div class="chips ai"><span>Claude subscription</span><span>Anthropic API</span><span>OpenRouter</span><span>OpenAI-compatible</span></div></div></div>
+      <div class="card step"><span class="n">4</span><div><h3>Remember</h3><p>New, open, closed, reopened. Each role scored once and announced once.</p></div></div>
+    </div>
+  </section>
+  <div class="arrow">→</div>
+  <section>
+    <p class="eyebrow">You</p>
+    <div class="you">
+      <div class="card out"><h3><img src="../../src/dashboard/icon.svg" alt="">Your dashboard</h3>
+        <ul><li>On your domain, behind your Cloudflare login</li><li>Login checked after every publish; no login, no data</li><li>Mark roles Applied, Shortlist or Not for me</li><li>Installs as an app; works offline</li></ul></div>
+      <div class="card out"><h3>Telegram or email</h3>
+        <ul><li>Only roles that newly clear your bar</li><li>Problems that last, once</li><li>A silent weekly check-in</li></ul></div>
+    </div>
+  </section>
+  <div class="card loop">
+    <span class="badge"><b>↺</b> Once a week</span>
+    <p>Your calls the scores disagree with<span class="to">→</span>the model proposes an edit to <strong class="mono">criteria.md</strong><span class="to">→</span>your judged roles are scored with and without it<span class="to">→</span><strong>a pull request</strong>, only if it agrees with you more often</p>
+  </div>
+</main>
+</body>
+</html>
