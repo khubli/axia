@@ -277,6 +277,15 @@ li.sel > .inline { display: block; }
 .yours .opts button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
 .yours .why { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; width: 100%; box-sizing: border-box; }
 .yours .st { margin: 0; font-size: 12px; color: var(--faint); }
+/* your roles: Applied and Shortlist, open or closed */
+.mine-group { display: grid; gap: 10px; }
+.mine-group h2 { margin: 6px 0 0; font: 600 18px/1.3 var(--f-display); }
+.mine-group h2 .num { font: 400 13px var(--f-mono); color: var(--muted); margin-left: 6px; }
+.mine .why-line { font-size: 13px; color: var(--muted); font-style: italic; overflow-wrap: anywhere; }
+.mine li.closed .rt { color: var(--muted); }
+.mine-d { display: none; border-top: 1px dashed var(--line); }
+.mine li.sel > .mine-d { display: block; }
+.sc.none b { color: var(--faint); font-size: 17px; }
 .pane .placeholder { padding: 28px 22px; color: var(--muted); }
 
 /* companies */
@@ -373,6 +382,7 @@ footer a { color: var(--muted); }
 
   <nav class="tabs" role="tablist" aria-label="Views">
     <button role="tab" id="tab-roles" aria-controls="view-roles" aria-selected="true">Roles</button>
+    <button role="tab" id="tab-mine" aria-controls="view-mine" aria-selected="false" hidden>Your roles<span class="num" id="mine-num"></span></button>
     <button role="tab" id="tab-moonshots" aria-controls="view-moonshots" aria-selected="false" hidden>Moonshots</button>
     <button role="tab" id="tab-companies" aria-controls="view-companies" aria-selected="false">Companies</button>
     <button role="tab" id="tab-about" aria-controls="view-about" aria-selected="false">How scoring works</button>
@@ -401,6 +411,8 @@ footer a { color: var(--muted); }
       <aside class="pane" id="pane" aria-live="polite"></aside>
     </div>
   </section>
+
+  <section id="view-mine" role="tabpanel" aria-labelledby="tab-mine" class="view" hidden></section>
 
   <section id="view-moonshots" role="tabpanel" aria-labelledby="tab-moonshots" class="view" hidden></section>
 
@@ -439,7 +451,7 @@ footer a { color: var(--muted); }
   const TIER_WORD = { good: 'Good match', look: 'Worth a look', low: 'Lower match', wait: D.ai.enabled ? 'Not scored yet' : 'Title estimate' };
 
   const open = D.jobs.filter((j) => j.status === 'open');
-  const byId = Object.fromEntries(open.map((j) => [j.id, j]));
+  const byId = Object.fromEntries(D.jobs.map((j) => [j.id, j]));
   const lastVisit = store.get('lastVisit', null);
   const isNew = (j) => lastVisit && j.firstSeen > lastVisit;
 
@@ -522,7 +534,7 @@ footer a { color: var(--muted); }
     const g = count('good'), l = count('look'), w = count('wait');
     const cos = new Set(open.map((j) => j.company)).size;
     const fresh = open.filter(isNew).length;
-    const closedWeek = D.jobs.filter((j) => j.status === 'closed').length;
+    const closedWeek = D.jobs.filter((j) => j.status === 'closed' && j.closedOn && (Date.parse(D.today) - Date.parse(j.closedOn)) / 864e5 < (D.closedShownDays || 7)).length;
     let h;
     if (!D.ai.enabled) h = open.length + ' open roles match your titles and places';
     else if (g || l) h = '<span class="g num">' + g + '</span> good match' + (g === 1 ? '' : 'es') + ' and <span class="l num">' + l + '</span> worth a look';
@@ -640,6 +652,7 @@ footer a { color: var(--muted); }
   const place = (j) => (j.cities.length ? j.cities.join(', ') : 'Location not stated');
   function scoreCell(j) {
     const t = tierOf(j);
+    if (j.score == null) return '<span class="sc none"><b>–</b></span>';
     if (t === 'wait') return '<span class="sc wait"><b class="num">≈' + j.score + '</b><small>est.</small></span>';
     return '<span class="sc ' + t + '"><b>' + j.score + '</b><span class="meter"><i style="width:' + j.score + '%"></i></span></span>';
   }
@@ -661,11 +674,12 @@ footer a { color: var(--muted); }
     const facts = [
       ['Location', esc(j.location || 'Not stated on the posting')],
       ['Posted', j.postedAt ? esc(day(j.postedAt)) + ' <span class="muted">(' + age(j.postedAt) + ')</span>' : 'Not shown on the posting'],
-      ['First seen', esc(day(j.firstSeen))],
     ];
+    if (j.firstSeen) facts.push(['First seen', esc(day(j.firstSeen))]);
+    if (j.status === 'closed') facts.push(['Closed', (j.closedOn ? esc(day(j.closedOn)) + ': ' : '') + 'the employer took the posting down, so the link may not work']);
     if (j.secondLook) facts.push(['Found by', 'The second look: your title words missed this title. <span class="muted">' + esc(j.secondLook) + '</span>']);
     const pos = Math.min(100, Math.max(0, j.score));
-    const gauge =
+    const gauge = j.score == null ? '' :
       '<div class="gauge ' + t + '"><div class="head"><span class="big">' + (t === 'wait' ? '≈' : '') + j.score + '</span>' +
       '<span class="lab"><b>' + TIER_WORD[t] + '</b>' + (t === 'wait' ? (D.ai.enabled ? 'Estimate from the title. A full AI read is queued.' : 'Estimate from the title and keywords.') : 'out of 100 · ' + GOOD + '+ is a good match') + '</span></div>' +
       '<div class="track"><span class="seg low" style="width:' + FROM + '%"></span><span class="seg look" style="left:' + FROM + '%;width:' + (GOOD - FROM) + '%"></span><span class="seg good" style="left:' + GOOD + '%"></span><span class="mk" style="left:' + pos + '%"></span></div>' +
@@ -676,7 +690,7 @@ footer a { color: var(--muted); }
         ? '<p class="summary muted">Claude has not read this posting yet. About ' + D.aiPerDay + ' roles get a full read each run, most promising titles first.</p>'
         : '<p class="summary muted">Turn on AI scoring for a full read of this posting against your resume.</p>';
     } else {
-      body = '<p class="summary">' + esc(j.summary) + '</p>' +
+      body = (j.summary ? '<p class="summary">' + esc(j.summary) + '</p>' : '') +
         (j.strengths.length ? '<section><h3>What fits</h3><ul class="fits">' + j.strengths.map((s) => '<li>' + esc(s) + '</li>').join('') + '</ul></section>' : '') +
         (j.gaps.length ? '<section><h3>Gaps to check</h3><ul class="gaps">' + j.gaps.map((s) => '<li>' + esc(s) + '</li>').join('') + '</ul></section>' : '') +
         mustsHtml(j);
@@ -687,7 +701,7 @@ footer a { color: var(--muted); }
       gauge + body +
       '<div class="actions"><a class="btn primary" href="' + esc(j.url) + '" target="_blank" rel="noopener noreferrer">Open the posting ↗</a></div>' +
       yoursHtml(j) +
-      (j.ai ? '<p class="prov">Scored ' + esc(day(j.scoredOn)) + ' by Claude ' + esc(j.model || '') + ' against your resume (version ' + esc(j.resumeRev) + '). Scored again only when your resume or criteria change.</p>' : '') +
+      (j.ai && j.scoredOn ? '<p class="prov">Scored ' + esc(day(j.scoredOn)) + ' by Claude ' + esc(j.model || '') + ' against your resume (version ' + esc(j.resumeRev) + '). Scored again only when your resume or criteria change.</p>' : '') +
       '</div>';
   }
 
@@ -717,6 +731,7 @@ footer a { color: var(--muted); }
     const li = document.querySelector('#list > li[data-id="' + id + '"]');
     if (li) { const tmp = document.createElement('div'); tmp.innerHTML = rowHtml(j); li.replaceWith(tmp.firstChild); }
     if (sel === id && wide()) $('#pane').innerHTML = detailHtml(j);
+    renderMine();
   }
   async function sendCall(id) {
     const e = FB[id];
@@ -805,7 +820,7 @@ footer a { color: var(--muted); }
   // ── gaps that keep coming up: themes across the gaps of your close calls, worked out weekly ──
   (function themesView() {
     const G = D.gaps;
-    const themes = G ? G.themes.map((t) => ({ theme: t.theme, ids: t.ids.filter((id) => byId[id]) })).filter((t) => t.ids.length >= 2) : [];
+    const themes = G ? G.themes.map((t) => ({ theme: t.theme, ids: t.ids.filter((id) => byId[id] && byId[id].status === 'open') })).filter((t) => t.ids.length >= 2) : [];
     if (!themes.length) return;
     const el = $('#themes');
     const top = themes[0];
@@ -820,6 +835,44 @@ footer a { color: var(--muted); }
     el.addEventListener('toggle', () => store.set('themesOpen', el.open));
     el.addEventListener('click', (e) => { const b = e.target.closest('.who button'); if (b) reveal(b.dataset.id); });
   })();
+
+  // ── your roles: Applied and Shortlist, kept after the posting closes ──
+  const KEEP = ['applied', 'shortlist'];
+  let mineSel = null;
+  const mineGroup = {}; // a role you just unmarked stays where it was until you leave the tab
+  function mineRow(j) {
+    const e = FB[j.id] || {};
+    const meta = [esc(j.company), esc(place(j)), e.t ? 'marked ' + esc(day(isoDay(new Date(e.t)))) : ''].filter(Boolean);
+    const pill = j.status === 'closed' ? '<span class="pill closed">' + (j.closedOn ? 'Closed ' + esc(day(j.closedOn)) : 'Closed') + '</span>' : '';
+    return '<li data-id="' + j.id + '" class="' + (j.status === 'closed' ? 'closed' : '') + (j.id === mineSel ? ' sel' : '') + '">' +
+      '<button class="row" aria-expanded="' + (j.id === mineSel) + '">' + scoreCell(j) +
+      '<span class="rb"><span class="rt">' + esc(j.title) + pill + '</span>' +
+      '<span class="rm">' + meta.join('<span class="sep">·</span>') + '</span>' +
+      (e.r ? '<span class="why-line">' + esc(e.r) + '</span>' : '') + '</span></button>' +
+      '<div class="mine-d">' + (j.id === mineSel ? detailHtml(j) : '') + '</div></li>';
+  }
+  function renderMine() {
+    const view = $('#view-mine');
+    const roles = D.jobs.filter((j) => KEEP.includes(callOf(j)) || (j.id === mineSel && mineGroup[j.id]));
+    for (const j of roles) if (KEEP.includes(callOf(j))) mineGroup[j.id] = callOf(j);
+    $('#tab-mine').hidden = !roles.length && view.hidden;
+    $('#mine-num').textContent = roles.length || '';
+    if (!roles.length) { view.innerHTML = '<p class="note">No roles marked Applied or Shortlist.</p>'; return; }
+    const when = (j) => (FB[j.id] && FB[j.id].t) || '';
+    const group = (k) => {
+      const list = roles.filter((j) => mineGroup[j.id] === k)
+        .sort((a, b) => (a.status === 'open' ? 0 : 1) - (b.status === 'open' ? 0 : 1) || when(b).localeCompare(when(a)));
+      return list.length ? '<section class="mine-group"><h2>' + CALL[k] + '<span class="num">' + list.length + '</span></h2><ul class="list mine">' + list.map(mineRow).join('') + '</ul></section>' : '';
+    };
+    view.innerHTML = '<p class="note">Roles you marked Applied or Shortlist. They stay here after the employer takes the posting down, so you can still find them when you hear back.</p>' + KEEP.map(group).join('');
+  }
+  $('#view-mine').addEventListener('click', (e) => {
+    const li = e.target.closest('li[data-id]'); if (!li || !e.target.closest('.row')) return;
+    mineSel = mineSel === li.dataset.id ? null : li.dataset.id;
+    renderMine();
+  });
+  document.querySelector('.tabs').addEventListener('click', (e) => { if (!e.target.closest('#tab-mine')) { mineSel = null; setTimeout(renderMine); } });
+  renderMine();
 
   // ── companies ──
   (function companiesView() {
@@ -990,14 +1043,15 @@ footer a { color: var(--muted); }
     '<p>Once a week Axia looks for calls the scores disagree with: a role you skipped that scored ' + GOOD + ' or more, or one you wanted that scored below. When there are some, the model suggests a change to your criteria.md, and Axia scores your judged roles again with and without it. Only if the change agrees with you more often does it open a pull request in your repository, with the numbers, for you to merge or close. Nothing changes until you merge it.</p>' +
     (MS && !MS.problem ? '<h2>Moonshots</h2><p>The Moonshots tab lists stretch roles you track yourself, for example from a daily research task: roles beyond your companies\' boards, picked for career upside rather than fit. Axia shows them as written in your moonshots.json on each run. It does not read or score them, and they never trigger a message.</p>' : '') +
     '<h2>When a role leaves this list</h2>' +
-    '<p>When the company takes the posting down, when its site cannot be read for 7 days in a row, or when you remove the company from your list. A role that comes back keeps its old score.</p>' +
+    '<p>When the company takes the posting down, when its site cannot be read for 7 days in a row, or when you remove the company from your list. A role that comes back keeps its old score. Roles you marked Applied or Shortlist stay on the Your roles tab after they close.</p>' +
     '</div>';
 
   // ── tabs ──
-  const tabs = ['roles', 'moonshots', 'companies', 'about'].filter((t) => !$('#tab-' + t).hidden);
+  const TABS = ['roles', 'mine', 'moonshots', 'companies', 'about'];
+  const tabs = () => TABS.filter((t) => !$('#tab-' + t).hidden);
   function showTab(name) {
-    if (!tabs.includes(name)) name = 'roles';
-    for (const t of tabs) {
+    if (!tabs().includes(name)) name = 'roles';
+    for (const t of TABS) {
       $('#tab-' + t).setAttribute('aria-selected', t === name);
       $('#view-' + t).hidden = t !== name;
     }
@@ -1022,15 +1076,17 @@ footer a { color: var(--muted); }
         if (fbPending[id] || !byId[id] || JSON.stringify(FB[id]) === JSON.stringify(e)) continue;
         FB[id] = e; changed = true;
       }
-      if (changed) { paintNfm(); render(); }
+      if (changed) { paintNfm(); render(); renderMine(); }
     } catch (e) {}
   })();
   render();
   // A link from a message (…/#role-id) opens that role; #companies and #about open those tabs.
   const fromHash = () => {
     const id = decodeURIComponent(location.hash.slice(1));
-    if (id && byId[id] && id !== sel) reveal(id);
-    else if (tabs.includes(id)) showTab(id);
+    const j = id && byId[id];
+    if (j && j.status === 'open') { if (id !== sel) reveal(id); }
+    else if (j && KEEP.includes(callOf(j))) { mineSel = id; showTab('mine'); renderMine(); }
+    else if (tabs().includes(id)) showTab(id);
   };
   fromHash();
   addEventListener('hashchange', fromHash);

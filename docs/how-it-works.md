@@ -55,7 +55,7 @@ Four ways to reach a model, chosen in `settings.yml` or by which secret is prese
 - its company's board could not be read for 7 days in a row (a shorter outage changes nothing);
 - its company is removed from `companies.yml` or set `enabled: false`.
 
-Closed roles leave the dashboard (it notes how many closed in the last week) and are forgotten after 45 days. A role that reappears keeps its old score and is not announced again.
+Closed roles leave the dashboard (it notes how many closed in the last week) and are forgotten after 45 days. Roles you marked Applied or Shortlist are the exception: they stay on the **Your roles** tab after they close, for good, from the copy of your calls in `data/feedback.json`. A role that reappears keeps its old score and is not announced again.
 
 ## 5. Tell you
 
