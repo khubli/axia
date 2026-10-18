@@ -6,6 +6,7 @@
 import { resolve } from 'node:path';
 import { buildSite } from '../src/site.mjs';
 import { isoDate } from '../src/text.mjs';
+import { normalizeMoonshots } from '../src/moonshots.mjs';
 
 const out = resolve(process.argv[2] ?? '_site');
 const TZ = 'Europe/London';
@@ -130,5 +131,26 @@ const byTitle = (t) => Object.values(jobs).find((j) => j.title === t);
 const calls = [['Head of Payments Platform Engineering', 'applied'], ['Engineering Director, Core Platform', 'shortlist'], ['Vice President, Treasury Operations', 'not-for-me', 'Operations, not technology']];
 const feedback = { roles: Object.fromEntries(calls.map(([t, verdict, reason = '']) => { const j = byTitle(t); return [j.key, { id: j.key.replace(/[^A-Za-z0-9]+/g, '-'), verdict, reason, at: now.toISOString() }]; })) };
 
-buildSite({ state: { jobs, companies }, summary, settings, feedback }, out, { minScore: 65, demo: true });
+// Stretch roles from a research task outside Axia, shown on the Moonshots tab (made up too).
+const moonshots = {
+  file: 'moonshots.json',
+  report: normalizeMoonshots({
+    updatedAt: new Date(now.getTime() - 9 * 36e5).toISOString(),
+    summary: 'One new role since yesterday. The Bluesky Cloud architect role is still the best overall pick; Lucerne Bank\'s CTO search closes next week.',
+    picks: [
+      { label: 'Best overall', role: 'bluesky-principal-architect', note: 'Platform scale and brand you do not have today, with your integration work as the bridge.' },
+      { label: 'Best executive role', role: 'lucerne-cto', note: 'A first CTO seat at a mid-size bank.' },
+      { label: 'Best realistic stretch', role: 'margie-director-payments', note: 'Same domain, one level up.' },
+    ],
+    roles: [
+      { id: 'bluesky-principal-architect', company: 'Bluesky Cloud', title: 'Principal Architect, Financial Services', location: 'London, United Kingdom', category: 'Big Tech', status: 'active', fit: 'Medium', why: 'Moves you from one bank\'s platforms to shaping how many banks run on a hyperscaler.', requirements: ['15+ years in architecture', 'Customer-facing advisory to banks', 'Cloud migration programmes'], gaps: ['No public-cloud certification', 'Little pre-sales experience'], url: 'https://careers.example.com/bluesky/123', firstSeen: daysAgo(4), lastVerified: daysAgo(0) },
+      { id: 'lucerne-cto', company: 'Lucerne Bank', title: 'Chief Technology Officer', location: 'Edinburgh, United Kingdom', category: 'C-suite', status: 'closing', fit: 'Stretch', why: 'A step from leading a platform to owning the whole technology function.', requirements: ['Executive technology leadership', 'Board-level reporting', 'Regulated banking'], gaps: ['Has not held a P&L', 'No board exposure yet'], url: 'https://careers.example.com/lucerne/cto', firstSeen: daysAgo(9), lastVerified: daysAgo(0), closesOn: daysAgo(-6) },
+      { id: 'margie-director-payments', company: 'Margie Payments', title: 'Director of Engineering, Real-Time Payments', location: 'London, United Kingdom', category: 'Fintech', status: 'new', fit: 'High', why: 'The domain you know at a fast-growing payments company, one level above your role today.', requirements: ['Leads managers of teams', 'Instant payments at scale'], gaps: ['Startup pace'], url: 'https://careers.example.com/margie/412', firstSeen: daysAgo(0), lastVerified: daysAgo(0) },
+      { id: 'trey-staff-engineer', company: 'Trey Research', title: 'Staff Engineer, Developer Platform', location: 'Remote, United Kingdom', category: 'Big Tech', status: 'closed', fit: 'Stretch', why: 'A top-tier engineering brand.', url: 'https://careers.example.com/trey/9', firstSeen: daysAgo(12), note: 'The posting now says it has been filled.' },
+    ],
+    notes: ['Two companies\' careers sites could not be read today; their roles are carried over from yesterday.'],
+  }),
+};
+
+buildSite({ state: { jobs, companies }, summary, settings, feedback, moonshots }, out, { minScore: 65, demo: true });
 console.log(`Demo dashboard written to ${out}`);

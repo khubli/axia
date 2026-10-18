@@ -24,6 +24,7 @@ import { buildSite } from './site.mjs';
 import { notifyMinScore, seedNotified, trackProblems, planMessages, deliver, applyDelivery } from './notify.mjs';
 import { isoDate, normalize, similarity } from './text.mjs';
 import { loadFeedback, saveFeedback, pullFeedback, applyFeedback, snapshotFeedback } from './feedback.mjs';
+import { loadMoonshots } from './moonshots.mjs';
 
 const KEYWORD_DETAIL_BUDGET = 150; // detail fetches for keyword scoring when AI is off
 const SECOND_LOOK_MAX = 1500; // new titles the second look asks about per run; the rest wait for the next run
@@ -350,7 +351,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     applyDelivery(state, messages, delivery, today);
   }
 
-  const view = { state, summary, settings, feedback };
+  const view = { state, summary, settings, feedback, moonshots: loadMoonshots(dir, settings, { log }) };
   if (!dryRun) {
     saveState(statePath, state);
     saveFeedback(dir, feedback);

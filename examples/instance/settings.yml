@@ -54,6 +54,10 @@ review:
   day: sunday              # false turns it off
   max_roles: 60            # your most recent calls it checks against
 
+# Optional: stretch roles you track elsewhere, in moonshots.json next to this file, shown on the
+# dashboard's Moonshots tab (not scored). No file, no tab. See docs/configuration.md.
+# moonshots: false
+
 dashboard:
   domain: jobs.example.com # the address you protected with Cloudflare Access; empty publishes to workers.dev
   worker: axia             # Cloudflare Worker name

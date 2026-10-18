@@ -291,6 +291,43 @@ td.co { font-weight: 600; white-space: nowrap; }
 .nm .tag { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .nm td { overflow-wrap: anywhere; }
 
+/* moonshots: stretch roles from your own research, not scored */
+.ms-picks { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); }
+.ms-pick { display: grid; gap: 4px; align-content: start; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; font-size: 14px; color: var(--ink); }
+button.ms-pick { cursor: pointer; }
+button.ms-pick:hover { background: var(--hover); }
+.ms-pick .lab { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.ms-pick b { font-weight: 600; line-height: 1.35; }
+.ms-pick span.muted { font-size: 13px; }
+.ms-group { display: grid; gap: 10px; }
+.ms-group > h2, .ms-group > summary { margin: 6px 0 0; font: 600 18px/1.3 var(--f-display); }
+.ms-group > summary { cursor: pointer; }
+.ms-group > summary .num { font: 400 13px var(--f-mono); color: var(--muted); margin-left: 6px; }
+.ms-list { display: grid; gap: 10px; }
+.ms { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; display: grid; gap: 10px; min-width: 0; scroll-margin-top: 64px; }
+.ms.flash { box-shadow: 0 0 0 2px var(--accent); }
+.ms h3 { margin: 0; font: 600 17px/1.3 var(--f-display); overflow-wrap: anywhere; }
+.ms .rm { font-size: 13px; }
+.ms p { margin: 0; font-size: 14px; }
+.ms .cols { display: grid; gap: 10px 22px; }
+@media (min-width: 760px) { .ms .cols { grid-template-columns: 1fr 1fr; } }
+.ms h4 { margin: 0 0 4px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.ms ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }
+.ms li { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 6px; }
+.ms li::before { font: 500 14px/1.5 var(--f-mono); }
+.ms .req li::before { content: "\2022"; color: var(--faint); }
+.ms .gaps li::before { content: "\2212"; color: var(--look); }
+.ms .foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.ms .foot .prov { flex: 1 1 220px; }
+.pill.fit-high { background: var(--good-soft); color: var(--good); }
+.pill.fit-medium { background: var(--look-soft); color: var(--look); }
+.pill.fit-stretch { background: var(--low-soft); color: var(--muted); }
+.pill.st-closing { background: var(--look-soft); color: var(--look); }
+.pill.cat { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
+.ms-notes { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.ms-notes summary { padding: 12px 16px; cursor: pointer; font-weight: 600; }
+.ms-notes ul { margin: 0; padding: 0 16px 14px 34px; display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
+
 /* about */
 .prose { max-width: 68ch; display: grid; gap: 14px; }
 .prose h2 { margin: 6px 0 0; font: 600 20px/1.3 var(--f-display); }
@@ -314,6 +351,7 @@ footer a { color: var(--muted); }
 
   <nav class="tabs" role="tablist" aria-label="Views">
     <button role="tab" id="tab-roles" aria-controls="view-roles" aria-selected="true">Roles</button>
+    <button role="tab" id="tab-moonshots" aria-controls="view-moonshots" aria-selected="false" hidden>Moonshots</button>
     <button role="tab" id="tab-companies" aria-controls="view-companies" aria-selected="false">Companies</button>
     <button role="tab" id="tab-about" aria-controls="view-about" aria-selected="false">How scoring works</button>
   </nav>
@@ -340,6 +378,8 @@ footer a { color: var(--muted); }
       <aside class="pane" id="pane" aria-live="polite"></aside>
     </div>
   </section>
+
+  <section id="view-moonshots" role="tabpanel" aria-labelledby="tab-moonshots" class="view" hidden></section>
 
   <section id="view-companies" role="tabpanel" aria-labelledby="tab-companies" class="view" hidden></section>
 
@@ -806,6 +846,74 @@ footer a { color: var(--muted); }
     });
   })();
 
+  // ── moonshots: stretch roles from your own research, beyond your companies' boards; not scored ──
+  const MS = D.moonshots;
+  (function moonshotsView() {
+    if (!MS) return;
+    const tab = $('#tab-moonshots'), view = $('#view-moonshots');
+    tab.hidden = false;
+    if (MS.problem) {
+      view.innerHTML = '<ul class="warn"><li><span>' + esc(MS.problem) + '. The next run shows the list again once the file reads.</span></li></ul>';
+      return;
+    }
+    const live = MS.roles.filter((r) => r.status !== 'closed');
+    tab.innerHTML = 'Moonshots <span class="num">' + live.length + '</span>';
+    const upd = MS.updatedAt ? new Date(MS.updatedAt) : null;
+    const hours = upd ? (Date.now() - upd.getTime()) / 36e5 : Infinity;
+    const when = upd ? (isoDay(upd) === nowDay ? 'today, ' : local(upd, { day: 'numeric', month: 'short' }) + ', ') + local(upd, { hour: '2-digit', minute: '2-digit', hour12: false }) + ' ' + D.tz : null;
+    const FIT = { high: 'High fit', medium: 'Medium fit', stretch: 'Stretch' };
+    const STATUS = { new: 'New', closing: 'Closing soon', active: 'Active', closed: 'Closed' };
+    const STATUS_PILL = { new: 'new', closing: 'st-closing', closed: 'closed' };
+    const sep = '<span class="sep">·</span>';
+    const pills = (r) => (STATUS_PILL[r.status] ? '<span class="pill ' + STATUS_PILL[r.status] + '">' + STATUS[r.status] + '</span>' : '') +
+      (r.fit ? '<span class="pill fit-' + r.fit + '" title="' + esc(r.fitText || '') + '">' + FIT[r.fit] + '</span>' : r.fitText ? '<span class="pill cat">' + esc(r.fitText) + '</span>' : '');
+    const items = (cls, title, xs) => (xs.length ? '<section><h4>' + title + '</h4><ul class="' + cls + '">' + xs.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul></section>' : '');
+    const card = (r) => {
+      const meta = [esc(r.company), esc(r.location || 'Location not stated')].concat(r.category ? [esc(r.category)] : []);
+      const facts = [];
+      if (r.firstSeen) facts.push('First seen ' + esc(day(r.firstSeen)));
+      if (r.lastVerified) facts.push('checked live ' + esc(day(r.lastVerified)));
+      if (r.closesOn) facts.push('<b>closes ' + esc(day(r.closesOn)) + '</b>');
+      if (r.note) facts.push(esc(r.note));
+      const cols = items('req', 'Key requirements', r.requirements) + items('gaps', 'Gaps to weigh', r.gaps);
+      return '<article class="ms" id="ms-' + esc(r.id) + '">' +
+        '<div><h3>' + esc(r.title) + pills(r) + '</h3><div class="rm">' + meta.join(sep) + '</div></div>' +
+        (r.why ? '<p>' + esc(r.why) + '</p>' : '') +
+        (cols ? '<div class="cols">' + cols + '</div>' : '') +
+        '<div class="foot"><p class="prov">' + facts.join(' · ') + '</p>' +
+        (r.url ? '<a class="btn primary" href="' + esc(r.url) + '" target="_blank" rel="noopener noreferrer">Open the posting ↗</a>' : '') + '</div></article>';
+    };
+    const byMs = Object.fromEntries(MS.roles.map((r) => [r.id, r]));
+    const picks = MS.picks.map((p) => {
+      const r = p.role && byMs[p.role];
+      const inner = '<span class="lab">' + esc(p.label) + '</span>' + (r ? '<b>' + esc(r.title) + '</b><span class="muted">' + esc(r.company) + (r.location ? ' · ' + esc(r.location) : '') + '</span>' : '') +
+        (p.note ? '<span' + (r ? ' class="muted"' : '') + '>' + esc(p.note) + '</span>' : '');
+      return r ? '<button type="button" class="ms-pick" data-ms="' + esc(r.id) + '">' + inner + '</button>' : '<div class="ms-pick">' + inner + '</div>';
+    });
+    const group = (st, title) => {
+      const rs = MS.roles.filter((r) => r.status === st);
+      return rs.length ? '<section class="ms-group"><h2>' + title + ' <span class="num muted">' + rs.length + '</span></h2><div class="ms-list">' + rs.map(card).join('') + '</div></section>' : '';
+    };
+    const closed = MS.roles.filter((r) => r.status === 'closed');
+    const stale = hours > 50 && !D.demo;
+    view.innerHTML =
+      (stale ? '<ul class="warn"><li><span>No new moonshots report ' + (upd ? 'since ' + esc(day(isoDay(upd))) : 'yet') + '. Check the task that writes ' + esc('moonshots.json') + '.</span></li></ul>' : '') +
+      '<div class="lede"><h1>' + (live.length ? '<span class="g num">' + live.length + '</span> moonshot' + (live.length === 1 ? '' : 's') + ' open' : 'No open moonshots right now') + '</h1>' +
+      '<p>Stretch roles from your own research, beyond your ' + D.companies.length + ' companies. They are not scored against your resume.' + (when ? ' Report updated <b>' + esc(when) + '</b>.' : '') + '</p>' +
+      (MS.summary ? '<p>' + esc(MS.summary) + '</p>' : '') + '</div>' +
+      (picks.length ? '<div class="ms-picks">' + picks.join('') + '</div>' : '') +
+      group('new', 'New') + group('closing', 'Closing soon') + group('active', 'Still open') +
+      (closed.length ? '<details class="ms-group"><summary>Closed<span class="num">' + closed.length + '</span></summary><div class="ms-list">' + closed.map(card).join('') + '</div></details>' : '') +
+      (MS.notes.length ? '<details class="ms-notes"><summary>Notes from the search</summary><ul>' + MS.notes.map((n) => '<li>' + esc(n) + '</li>').join('') + '</ul></details>' : '');
+    view.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-ms]'); if (!b) return;
+      const el = document.getElementById('ms-' + b.dataset.ms); if (!el) return;
+      const d = el.closest('details'); if (d) d.open = true;
+      el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1600);
+    });
+  })();
+
   // ── how scoring works ──
   $('#view-about').innerHTML =
     '<div class="prose">' +
@@ -825,13 +933,15 @@ footer a { color: var(--muted); }
     '<h2>Your calls tune the scoring</h2>' +
     '<p>Open a role and mark it Applied, Shortlist or Not for me, with a one-line reason if you like. Roles you mark Not for me leave the list (the Not for me chip brings them back). Each run saves your calls, with the posting, in your private repository.</p>' +
     '<p>Once a week Axia looks for calls the scores disagree with: a role you skipped that scored ' + GOOD + ' or more, or one you wanted that scored below. When there are some, the model suggests a change to your criteria.md, and Axia scores your judged roles again with and without it. Only if the change agrees with you more often does it open a pull request in your repository, with the numbers, for you to merge or close. Nothing changes until you merge it.</p>' +
+    (MS && !MS.problem ? '<h2>Moonshots</h2><p>The Moonshots tab lists stretch roles you track yourself, for example from a daily research task: roles beyond your companies\' boards, picked for career upside rather than fit. Axia shows them as written in your moonshots.json on each run. It does not read or score them, and they never trigger a message.</p>' : '') +
     '<h2>When a role leaves this list</h2>' +
     '<p>When the company takes the posting down, when its site cannot be read for 7 days in a row, or when you remove the company from your list. A role that comes back keeps its old score.</p>' +
     '</div>';
 
   // ── tabs ──
-  const tabs = ['roles', 'companies', 'about'];
+  const tabs = ['roles', 'moonshots', 'companies', 'about'].filter((t) => !$('#tab-' + t).hidden);
   function showTab(name) {
+    if (!tabs.includes(name)) name = 'roles';
     for (const t of tabs) {
       $('#tab-' + t).setAttribute('aria-selected', t === name);
       $('#view-' + t).hidden = t !== name;
