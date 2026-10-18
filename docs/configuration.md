@@ -77,6 +77,9 @@ dashboard:
 review:
   day: sunday                    # [sunday] the weekly review of your calls; false turns it off
   max_roles: 60                  # [60] your most recent calls it checks against (plus everything in calibration/roles.yml)
+
+moonshots:
+  file: moonshots.json           # [moonshots.json] stretch roles you track elsewhere, shown on their own tab; false turns it off
 ```
 
 The GitHub variable `NOTIFY_MIN_SCORE` overrides `notify.min_score`, so you can change the message threshold without a commit.
@@ -101,6 +104,48 @@ Open a role and mark it **Applied**, **Shortlist** or **Not for me**, with a one
 The buttons save to a Workers KV store in your Cloudflare account, behind the same login as the dashboard. Each run copies the calls into `data/feedback.json` with the posting text, so they last after the role closes. They count as judged roles for `axia calibrate` and the weekly review. If a call can't be saved (offline, or signed out), it waits on your device and is sent the next time the dashboard opens online.
 
 **The weekly review** (`review.day`) runs when some of your calls disagree with the scores: a role you skipped that scored `report.good_match` or more, or one you wanted that scored below. The model reads your calls, reasons and postings with your resume and `criteria.md`, and proposes the smallest edit to `criteria.md` that would fix them. Axia then scores every judged role twice in the same run, with today's criteria and with the proposal. Only if the proposal agrees with your calls more often, and loses none of your `calibration/roles.yml` roles, does it open a pull request with the edit and the numbers, and message you. Nothing changes until you merge it; one proposal is open at a time. It needs at least 3 calls with their posting saved. A review uses about two AI scores per judged role.
+
+## moonshots.json
+
+An optional short list of stretch roles you track outside Axia: roles beyond your companies' boards, picked for career upside rather than fit, by hand or by another tool such as a daily research task. When the file is there, each run shows it on the dashboard's **Moonshots** tab. Axia does not read or score these roles and never messages about them; it shows what the file says, cleaned up. No file, no tab.
+
+```json
+{
+  "updatedAt": "2026-10-18T15:25:00Z",
+  "summary": "One or two sentences on today's search.",
+  "picks": [
+    { "label": "Best overall", "role": "bluesky-principal-architect", "note": "Why, in a line." }
+  ],
+  "roles": [
+    {
+      "id": "bluesky-principal-architect",
+      "company": "Bluesky Cloud",
+      "title": "Principal Architect, Financial Services",
+      "location": "London, United Kingdom",
+      "category": "Big Tech",
+      "status": "active",
+      "fit": "medium",
+      "why": "Why it would be a step up.",
+      "requirements": ["15+ years in architecture"],
+      "gaps": ["No public-cloud certification"],
+      "url": "https://careers.example.com/123",
+      "firstSeen": "2026-10-14",
+      "lastVerified": "2026-10-18",
+      "closesOn": "2026-10-27",
+      "note": "Anything else worth a line."
+    }
+  ],
+  "notes": ["What the search could not check today."]
+}
+```
+
+- Only `company` and `title` are required for a role; a role without them is left out, with the reason in the run log.
+- `status` is `new`, `active`, `closing` or `closed`, and `fit` is `high`, `medium` or `stretch` (words such as "🔥 ACTIVE" or "High/Medium" are understood). New, closing and open roles are listed in that order; closed ones fold away.
+- `picks` point at a role by its `id`, or carry only a `note`.
+- Dates are `YYYY-MM-DD`; links must start with `https://` or `http://`.
+- If the file can't be read, the tab says why and the rest of the run carries on. If `updatedAt` is more than two days old, the tab says the report is stale.
+
+Whatever writes the file commits it next to `settings.yml` (or where `moonshots.file` points); the next run publishes it.
 
 ## calibration/roles.yml
 

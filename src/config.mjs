@@ -25,6 +25,9 @@ const DEFAULTS = {
   // The weekly review: on this day, your calls are checked against the scores, and a criteria.md change
   // that agrees with them better is proposed as a pull request. false turns it off.
   review: { day: 'sunday', max_roles: 60 },
+  // Moonshots: stretch roles you track outside Axia (another tool or a research task writes the file),
+  // shown on their own dashboard tab, not scored. No file, no tab. false turns it off.
+  moonshots: { file: 'moonshots.json' },
 };
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -42,6 +45,8 @@ export function loadSettings(dir = ROOT) {
   const s = {};
   for (const [section, defaults] of Object.entries(DEFAULTS)) s[section] = { ...defaults, ...(raw[section] ?? {}) };
   s.resume = raw.resume ?? 'cv.md';
+  if (raw.moonshots === false || s.moonshots.file === false) s.moonshots = { file: '' };
+  if (typeof s.moonshots.file !== 'string') throw new ConfigError(`settings.yml: moonshots.file must be a file name (for example moonshots.json) or false, not "${s.moonshots.file}"`);
   // Older settings kept the dashboard link under report.
   if (!s.dashboard.url && s.dashboard.domain) s.dashboard.url = `https://${s.dashboard.domain}`;
   if (!s.dashboard.url && raw.report?.dashboard_url) s.dashboard.url = raw.report.dashboard_url;

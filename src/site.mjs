@@ -91,6 +91,8 @@ export function siteData(view, { minScore, demo = false }) {
     nearMisses: summary.nearMisses ?? null,
     // Your calls on roles. With `api`, the buttons save to your Cloudflare account; otherwise (the demo) only in this browser.
     feedback: { api: !demo && feedbackEnabled(settings), entries: pageFeedback(view.feedback) },
+    // Stretch roles from your own research (moonshots.json), on their own tab; null means no tab.
+    moonshots: view.moonshots ? (view.moonshots.problem ? { problem: view.moonshots.problem } : { ...view.moonshots.report, dropped: undefined }) : null,
   };
 }
 
