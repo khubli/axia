@@ -85,6 +85,29 @@ test('the dashboard keeps closed roles for a week, then drops them', () => {
   assert.deepEqual(data.jobs.map((j) => j.status), ['open', 'closed']);
 });
 
+test('roles you marked Applied or Shortlist stay on the page after they close, even once Axia forgets them', () => {
+  const closed = (i, on) => job(i, 80, { status: 'closed', closedOn: on });
+  const v = view([job(1, 91), closed(2, '2026-09-20'), closed(3, '2026-09-20'), closed(4, '2026-09-20')]);
+  const call = (i, verdict, extra = {}) => [`greenhouse:x:${i}`, { id: jobId(`greenhouse:x:${i}`), company: 'Acme | Co', title: `Architect ${i}`, location: 'Pune', url: `https://example.test/${i}`, verdict, reason: '', at: '2026-09-01T10:00:00Z', ...extra }];
+  v.feedback = { roles: Object.fromEntries([
+    call(2, 'applied'),
+    call(3, 'not-for-me'),
+    call(4, 'shortlist'),
+    call(5, 'applied', { score: { value: 72, scorer: 'ai', model: 'claude-sonnet-5-5', resumeHash: 'abcdef123456' } }),
+    call(6, 'not-for-me'),
+  ]) };
+  const data = siteData(v, { minScore: 70 });
+  const byKey = (i) => data.jobs.find((j) => j.id === jobId(`greenhouse:x:${i}`));
+  assert.equal(byKey(1).status, 'open');
+  assert.equal(byKey(2).status, 'closed', 'applied, closed a month ago: kept');
+  assert.equal(byKey(3), undefined, 'not for me, closed a month ago: dropped as before');
+  assert.equal(byKey(4).status, 'closed', 'shortlist: kept');
+  assert.deepEqual([byKey(5).status, byKey(5).closedOn, byKey(5).score, byKey(5).ai, byKey(5).model], ['closed', null, 72, true, 'Sonnet'], 'forgotten by Axia: rebuilt from feedback.json');
+  assert.equal(byKey(6), undefined);
+  assert.equal(data.closedShownDays, 7);
+  assert.equal(data.feedback.entries[jobId('greenhouse:x:5')].v, 'applied');
+});
+
 test('cities are read from messy location strings', () => {
   assert.deepEqual(citiesOf('Bengaluru, Karnataka, India; Hyderabad, India'), ['Bengaluru', 'Hyderabad']);
   assert.deepEqual(citiesOf('Northwind Global Services Pvt. Ltd. - Bengaluru (Tech Park)'), ['Bengaluru']);
