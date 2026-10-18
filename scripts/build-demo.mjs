@@ -128,7 +128,7 @@ const summary = {
 
 // A few calls on roles, as if made on the dashboard's buttons.
 const byTitle = (t) => Object.values(jobs).find((j) => j.title === t);
-const calls = [['Head of Payments Platform Engineering', 'applied'], ['Engineering Director, Core Platform', 'shortlist'], ['Vice President, Treasury Operations', 'not-for-me', 'Operations, not technology']];
+const calls = [['Head of Payments Platform Engineering', 'applied'], ['Engineering Director, Core Platform', 'shortlist'], ['Vice President, Treasury Operations', 'not-for-me', 'Operations, not technology'], ['Platform Lead, Payments Hub', 'applied', 'Recruiter call booked']];
 const feedback = { roles: Object.fromEntries(calls.map(([t, verdict, reason = '']) => { const j = byTitle(t); return [j.key, { id: j.key.replace(/[^A-Za-z0-9]+/g, '-'), verdict, reason, at: now.toISOString() }]; })) };
 
 // Stretch roles from a research task outside Axia, shown on the Moonshots tab (made up too).

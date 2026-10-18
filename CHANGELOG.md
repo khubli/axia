@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.0
+
+- **Your roles.** A new dashboard tab lists the roles you marked Applied or Shortlist, open or closed, with your one-line reason and the day you marked each. A role used to vanish from the dashboard as soon as the employer took the posting down, often right after you applied; now it stays on this tab with a Closed label, its score and reasons, and the buttons to change your call. Roles Axia has already forgotten (closed more than 45 days ago) are rebuilt from `data/feedback.json`. The tab appears with your first call. "Closed this week" now counts only roles closed in the last week.
+
 ## 1.3.0
 
 - **Moonshots.** A new dashboard tab for stretch roles you track outside Axia: roles beyond your companies' boards, picked for career upside rather than fit, kept in a `moonshots.json` next to your settings by hand or by another tool such as a daily research task. Each run shows the latest file: top picks, then new, closing-soon and open roles with why each is a step up, key requirements, gaps, your estimated fit and the posting link; closed roles fold away. Axia does not score these roles or message about them. No file, no tab; `moonshots: false` turns it off ([format](docs/configuration.md#moonshotsjson)).

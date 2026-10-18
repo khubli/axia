@@ -14,6 +14,8 @@ const ASSETS = join(dirname(fileURLToPath(import.meta.url)), 'dashboard');
 const ICONS = ['icon.svg', 'icon-32.png', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
 const FONTS = readdirSync(join(ASSETS, 'fonts')).filter((f) => f.endsWith('.woff2')).sort();
 const CLOSED_SHOWN_DAYS = 7;
+// Calls that mean "I'm pursuing this": those roles are kept on the Your roles tab after they close.
+const KEPT_CALLS = ['applied', 'shortlist'];
 
 const CITIES = [
   [/pune/i, 'Pune'], [/bengaluru|bangalore/i, 'Bengaluru'], [/mumbai/i, 'Mumbai'], [/hyderabad/i, 'Hyderabad'],
@@ -48,8 +50,11 @@ export function siteData(view, { minScore, demo = false }) {
   const { state, summary, settings } = view;
   const v = viewModel(view);
   const today = summary.today;
+  // Roles you marked Applied or Shortlist stay on the page after they close, for the Your roles tab.
+  const calls = view.feedback?.roles ?? {};
+  const kept = (key) => KEPT_CALLS.includes(calls[key]?.verdict);
   const jobs = Object.values(state.jobs)
-    .filter((j) => j.status === 'open' || (j.closedOn && daysBetween(j.closedOn, today) < CLOSED_SHOWN_DAYS))
+    .filter((j) => j.status === 'open' || (j.closedOn && daysBetween(j.closedOn, today) < CLOSED_SHOWN_DAYS) || kept(j.key))
     .map((j) => {
       const ai = j.score?.scorer === 'ai';
       return {
@@ -74,9 +79,21 @@ export function siteData(view, { minScore, demo = false }) {
         scoredOn: j.score?.scoredOn ?? null,
       };
     });
+  // Marked roles Axia has already forgotten (closed more than 45 days ago) come from data/feedback.json.
+  for (const [key, r] of Object.entries(calls)) {
+    if (!kept(key) || state.jobs[key]) continue;
+    const ai = r.score?.scorer === 'ai';
+    jobs.push({
+      id: r.id, company: r.company, title: String(r.title).replace(/\s+/g, ' ').trim(), location: r.location || null, cities: citiesOf(r.location),
+      url: r.url, postedAt: null, firstSeen: null, secondLook: null, status: 'closed', closedOn: null,
+      ai, score: r.score?.value ?? null, summary: null, strengths: [], gaps: [],
+      model: ai ? modelName(r.score.model) : null, resumeRev: ai ? String(r.score.resumeHash ?? '').slice(0, 6) : null, scoredOn: null,
+    });
+  }
   return {
     runAt: summary.runAt,
     today,
+    closedShownDays: CLOSED_SHOWN_DAYS,
     demo,
     timeZone: settings.report.timezone,
     tz: tzLabel(settings.report.timezone, summary.runAt),
