@@ -275,7 +275,10 @@ li.sel > .inline { display: block; }
 .yours .opts { display: flex; flex-wrap: wrap; gap: 6px; }
 .yours .opts button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 7px 13px; font-size: 14px; cursor: pointer; }
 .yours .opts button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
-.yours .why { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; width: 100%; box-sizing: border-box; }
+.yours .why-row { display: flex; gap: 8px; margin: 0; }
+.yours .why { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; flex: 1; min-width: 0; box-sizing: border-box; }
+.yours .why-row .btn { padding: 8px 14px; }
+.yours .why-row .btn:disabled { background: var(--surface); border-color: var(--line); color: var(--faint); cursor: default; }
 .yours .st { margin: 0; font-size: 12px; color: var(--faint); }
 /* your roles: Applied and Shortlist, open or closed */
 .mine-group { display: grid; gap: 10px; }
@@ -723,8 +726,8 @@ footer a { color: var(--muted); }
       : 'Each week Axia checks its scores against your calls, and proposes a change to your criteria when they disagree.';
     return '<section class="yours" data-id="' + j.id + '"><h3>Your call</h3><div class="opts" role="group" aria-label="Your call">' +
       CALLS.map((k) => '<button type="button" data-call="' + k + '" aria-pressed="' + (v === k) + '">' + CALL[k] + '</button>').join('') + '</div>' +
-      (v ? '<input class="why" type="text" maxlength="240" placeholder="Why? One line helps the weekly review" aria-label="Why (optional)" value="' + esc(e.r || '') + '">' : '') +
-      '<p class="st">' + note + '</p></section>';
+      (v ? '<form class="why-row"><input class="why" type="text" maxlength="240" enterkeyhint="done" placeholder="Why? One line helps the weekly review" aria-label="Why (optional)" value="' + esc(e.r || '') + '"><button type="submit" class="btn primary" disabled>Save</button></form>' : '') +
+      '<p class="st" data-note="' + esc(note) + '">' + note + '</p></section>';
   }
   function refreshRole(id) {
     const j = byId[id]; if (!j) return;
@@ -757,13 +760,24 @@ footer a { color: var(--muted); }
     const id = b.closest('.yours').dataset.id;
     setCall(id, callOf(byId[id]) === b.dataset.call ? null : b.dataset.call);
   });
-  document.addEventListener('change', (e) => {
-    const inp = e.target.closest('.yours .why'); if (!inp) return;
+  // The reason saves with its Save button (or Enter), and also when you leave the box.
+  const typed = (inp) => inp.value.replace(/\s+/g, ' ').trim().slice(0, 240);
+  function saveReason(inp) {
     const id = inp.closest('.yours').dataset.id, cur = FB[id];
-    const reason = inp.value.replace(/\s+/g, ' ').trim().slice(0, 240);
-    if (cur && cur.v && reason !== (cur.r || '')) setCall(id, cur.v, reason);
+    if (cur && cur.v && typed(inp) !== (cur.r || '')) setCall(id, cur.v, typed(inp));
+  }
+  document.addEventListener('input', (e) => {
+    const inp = e.target.closest('.yours .why'); if (!inp) return;
+    const box = inp.closest('.yours'), cur = FB[box.dataset.id] || {}, changed = typed(inp) !== (cur.r || '');
+    box.querySelector('.why-row button').disabled = !changed;
+    box.querySelector('.st').textContent = changed ? 'Not saved yet. Press Save to keep your reason.' : box.querySelector('.st').dataset.note;
   });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.closest('.yours .why')) e.target.blur(); });
+  document.addEventListener('submit', (e) => {
+    const form = e.target.closest('.yours .why-row'); if (!form) return;
+    e.preventDefault();
+    saveReason(form.querySelector('.why'));
+  });
+  document.addEventListener('change', (e) => { const inp = e.target.closest('.yours .why'); if (inp) saveReason(inp); });
 
   function render() {
     store.set('filters', { tiers: [...F.tiers], company: F.company, city: F.city, sort: F.sort, showNfm: F.showNfm });
