@@ -1,16 +1,16 @@
-// Oracle Recruiting Cloud (Candidate Experience sites on *.oraclecloud.com).
+// Oracle Recruiting Cloud (Candidate Experience sites on *.oraclecloud.com, or *.oraclecloud.eu in the EU).
 // Public REST endpoints behind the career site; no login needed.
 
 import { htmlToText, toDay } from '../text.mjs';
 
 const PAGE = 200;
-const MAX_PAGES = 25;
+const MAX_PAGES = 50; // 10,000 postings; one bank lists over 7,000
 
 export const type = 'oracle';
 
 export function match(url) {
   const host = url.hostname.toLowerCase();
-  if (!host.endsWith('.oraclecloud.com')) return null;
+  if (!host.endsWith('.oraclecloud.com') && !host.endsWith('.oraclecloud.eu')) return null;
   const m = url.pathname.match(/\/CandidateExperience\/([a-z-]+)\/sites\/([^/]+)/i);
   if (!m) return null;
   return { host, lang: m[1], site: m[2], scope: `${host}:${m[2]}` };
