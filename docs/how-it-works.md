@@ -8,6 +8,7 @@ flowchart LR
     cfg["companies.yml · settings.yml"]
     cv["cv.md · criteria.md"]
     mem[("data/jobs.json<br/>memory")]
+    fb[("data/feedback.json<br/>your calls")]
   end
   sites[["Employers' careers sites<br/>Workday · Greenhouse · Lever · Ashby · SmartRecruiters · Oracle"]]
   model[["Your model<br/>Claude · OpenRouter · OpenAI-compatible"]]
@@ -21,6 +22,9 @@ flowchart LR
   remember --> mem
   remember --> dash["Your dashboard<br/>Cloudflare + Access login"]
   remember --> msg["Telegram or email<br/>new good matches only"]
+  dash -. "Applied · Shortlist · Not for me" .-> fb
+  fb --> review["Weekly review<br/>a better criteria.md?"]
+  review -. "pull request, if it agrees with you more often" .-> cv
 ```
 
 ## 1. Read
