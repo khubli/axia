@@ -57,6 +57,8 @@ Four ways to reach a model, chosen in `settings.yml` or by which secret is prese
 
 Closed roles leave the dashboard (it notes how many closed in the last week) and are forgotten after 45 days. Roles you marked Applied or Shortlist are the exception: they stay on the **Your roles** tab after they close, for good, from the copy of your calls in `data/feedback.json`. A role that reappears keeps its old score and is not announced again.
 
+There is no age limit: a role stays while its employer lists it, because senior roles often take two or three months to fill. A role posted 45 or more days ago gets a **Long open** label, since an employer sometimes leaves a filled role up.
+
 ## 5. Tell you
 
 At most **one message per run**, with up to three parts:

@@ -488,6 +488,9 @@ footer a { color: var(--muted); }
     return d + ' ' + MONTHS[m - 1] + (y !== todayYear ? ' ' + y : '');
   }
   const daysSince = (iso) => Math.round((Date.parse(nowDay) - Date.parse(iso)) / 864e5);
+  // Employers sometimes leave a filled role up. Past this age, say so; never hide the role.
+  const LONG_OPEN_DAYS = 45;
+  const longOpen = (j) => j.status !== 'closed' && j.postedAt && daysSince(j.postedAt) >= LONG_OPEN_DAYS;
   function age(iso) {
     const n = daysSince(iso);
     if (n <= 0) return 'today';
@@ -661,7 +664,7 @@ footer a { color: var(--muted); }
   }
   function rowHtml(j) {
     const meta = [esc(j.company), esc(place(j)), j.postedAt ? 'posted ' + esc(day(j.postedAt)) : 'no posting date'];
-    const pills = (isNew(j) ? '<span class="pill new">New</span>' : '') + (j.postedAt && daysSince(j.postedAt) > 180 ? '<span class="pill old">Long open</span>' : '') +
+    const pills = (isNew(j) ? '<span class="pill new">New</span>' : '') + (longOpen(j) ? '<span class="pill old" title="Posted ' + LONG_OPEN_DAYS + '+ days ago; check it is still being filled">Long open</span>' : '') +
       (j.secondLook ? '<span class="pill second" title="Your title words missed this title; the second look let it through">Second look</span>' : '') +
       (callOf(j) ? '<span class="pill ' + CALL_PILL[callOf(j)] + '">' + CALL[callOf(j)] + '</span>' : '');
     return '<li data-id="' + j.id + '"' + (j.id === sel ? ' class="sel"' : '') + '>' +
@@ -676,7 +679,8 @@ footer a { color: var(--muted); }
     const t = tierOf(j);
     const facts = [
       ['Location', esc(j.location || 'Not stated on the posting')],
-      ['Posted', j.postedAt ? esc(day(j.postedAt)) + ' <span class="muted">(' + age(j.postedAt) + ')</span>' : 'Not shown on the posting'],
+      ['Posted', j.postedAt ? esc(day(j.postedAt)) + ' <span class="muted">(' + age(j.postedAt) + ')</span>' +
+        (longOpen(j) ? '<br><span class="muted">Open a while. It may already be filled, so check with the recruiter or a contact before you put time into it.</span>' : '') : 'Not shown on the posting'],
     ];
     if (j.firstSeen) facts.push(['First seen', esc(day(j.firstSeen))]);
     if (j.status === 'closed') facts.push(['Closed', (j.closedOn ? esc(day(j.closedOn)) + ': ' : '') + 'the employer took the posting down, so the link may not work']);
