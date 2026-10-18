@@ -8,19 +8,23 @@ import * as oracle from './oracle.mjs';
 import * as goldman from './goldman.mjs';
 import * as lever from './lever.mjs';
 import * as ashby from './ashby.mjs';
+import * as successfactors from './successfactors.mjs';
 
-export const SOURCES = [workday, greenhouse, smartrecruiters, oracle, goldman, lever, ashby];
+export const SOURCES = [workday, greenhouse, smartrecruiters, oracle, goldman, lever, ashby, successfactors];
+
+/** Sites the address can't identify; companies.yml names them with `platform:`. */
+export const PLATFORMS = [successfactors.type];
 
 /** @returns {{source: object, params: object} | null} */
-export function detect(rawUrl) {
+export function detect(rawUrl, platform) {
   let url;
   try {
     url = new URL(rawUrl);
   } catch {
     return null;
   }
-  for (const source of SOURCES) {
-    const params = source.match(url);
+  for (const source of platform ? SOURCES.filter((s) => s.type === platform) : SOURCES) {
+    const params = source.match(url, { platform });
     if (params) return { source, params };
   }
   return null;

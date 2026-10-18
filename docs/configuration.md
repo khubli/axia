@@ -15,6 +15,9 @@ companies:
   - name: Paused Co
     url: https://jobs.lever.co/paused
     enabled: false                 # stops watching; its roles leave the dashboard
+  - name: Branded Co               # a SuccessFactors site on the employer's own domain
+    url: https://careers.branded.example/search/?locationsearch=India
+    platform: successfactors
 ```
 
 The address decides how a company is read:
@@ -26,8 +29,10 @@ The address decides how a company is read:
 | Lever | `https://jobs.lever.co/<company>` (also `jobs.eu.lever.co`) |
 | Ashby | `https://jobs.ashbyhq.com/<company>` |
 | SmartRecruiters | `https://jobs.smartrecruiters.com/<company>` |
-| Oracle Recruiting Cloud | `https://<host>.oraclecloud.com/hcmUI/CandidateExperience/<lang>/sites/<site>` |
+| Oracle Recruiting Cloud | `https://<host>.oraclecloud.com/hcmUI/CandidateExperience/<lang>/sites/<site>` (also `.oraclecloud.eu`) |
 | Goldman Sachs | `https://higher.gs.com` |
+
+SAP SuccessFactors career sites usually sit on the employer's own domain (`careers.<company>.com`), so the address can't identify them: add `platform: successfactors` and use the address of the site's search page. You can tell one by the `/search/` and `/job/…/<number>/` addresses and "Results 1 – 25 of N" above the list. Search terms on the address narrow what is read: `?locationsearch=India` reads only the roles the site places in India, which keeps an employer with thousands of roles to a few dozen requests, and `?q=` adds keywords. Add `&locale=en_GB` if the site's roles are in another language. Newer sites are read through their JSON search API, older ones from their search pages, 25 roles a page.
 
 Any other address is shown as "check by hand" with a link, so nothing silently drops out. A company whose board fails to load keeps its roles as they were; after 7 days without a successful read they close.
 

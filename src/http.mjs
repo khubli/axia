@@ -19,11 +19,26 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
  * Fetch a URL and parse the JSON body.
  * Retries network errors and 408/429/5xx up to `retries` times.
  */
-export async function fetchJson(url, { method = 'GET', body, headers = {}, timeoutMs = 30000, retries = 3 } = {}) {
+export async function fetchJson(url, opts = {}) {
+  return request(url, opts, 'application/json', (text) => {
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new HttpError(`not JSON from ${shortUrl(url)} (got ${text.slice(0, 60).replace(/\s+/g, ' ')}…)`, { url });
+    }
+  });
+}
+
+/** Fetch a URL and return the body as text (for career sites that only serve HTML). Same retries as fetchJson. */
+export async function fetchText(url, opts = {}) {
+  return request(url, opts, 'text/html,application/xhtml+xml', (text) => text);
+}
+
+async function request(url, { method = 'GET', body, headers = {}, timeoutMs = 30000, retries = 3 } = {}, accept, parse) {
   const init = {
     method,
     headers: {
-      Accept: 'application/json',
+      Accept: accept,
       'User-Agent': 'axia/1.0 (+https://github.com/khubli/axia; personal job search, one read a day)',
       ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
       ...headers,
@@ -36,14 +51,7 @@ export async function fetchJson(url, { method = 'GET', body, headers = {}, timeo
     if (attempt > 0) await sleep(1000 * 2 ** (attempt - 1));
     try {
       const res = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
-      if (res.ok) {
-        const text = await res.text();
-        try {
-          return JSON.parse(text);
-        } catch {
-          throw new HttpError(`not JSON from ${shortUrl(url)} (got ${text.slice(0, 60).replace(/\s+/g, ' ')}…)`, { status: res.status, url });
-        }
-      }
+      if (res.ok) return parse(await res.text());
       lastError = new HttpError(`HTTP ${res.status} from ${shortUrl(url)}`, { status: res.status, url });
       if (!RETRYABLE.has(res.status)) throw lastError;
     } catch (err) {

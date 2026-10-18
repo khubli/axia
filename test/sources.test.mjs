@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { detect } from '../src/sources/index.mjs';
 import { postedOnToDay } from '../src/sources/workday.mjs';
 import { htmlToText } from '../src/text.mjs';
-import { fixture, fakeHttp } from './helpers.mjs';
+import { readFileSync } from 'node:fs';
+import { loadCompanies, ConfigError } from '../src/config.mjs';
+import { fixture, fakeHttp, tempProject } from './helpers.mjs';
 
 const ctx = (http) => ({ http, today: '2026-10-15' });
 
@@ -131,4 +133,76 @@ test('a GraphQL error is reported, not swallowed', async () => {
 
 test('htmlToText keeps bullets and decodes entities', () => {
   assert.equal(htmlToText('<p>Lead &amp; design</p><ul><li>SWIFT</li><li>ISO&nbsp;20022</li></ul>'), 'Lead & design\n\n• SWIFT\n• ISO 20022');
+});
+
+test('successfactors: named by platform, read from the API when the site has one', async () => {
+  assert.equal(detect('https://jobs.fabrikam.com/search/'), null, 'the address alone does not say SuccessFactors');
+  const { source, params } = detect('https://jobs.fabrikam.com/search/?locationsearch=India&locale=en_GB', 'successfactors');
+  assert.equal(source.type, 'successfactors');
+  assert.deepEqual([params.base, params.location, params.locale], ['/', 'India', 'en_GB']);
+  const api = fixture('successfactors-api.json');
+  const http = fakeHttp([['/services/recruiting/v1/jobs', (url, opts) => (opts.body.pageNumber === 0 ? api : { totalJobs: 3, jobSearchResult: [api.jobSearchResult[0]] })]]);
+  const jobs = await source.list(params, ctx(http));
+  assert.equal(jobs.length, 2, 'a role repeated on a later page counts once');
+  assert.equal(jobs[0].url, 'https://jobs.fabrikam.com/job/Director%2C-Payments-Architecture/53258-en_GB');
+  assert.equal(jobs[1].title, 'Head of Core Banking & Deposits');
+  assert.equal(jobs[1].location, 'Chennai, IND; Mumbai, IND');
+  assert.equal(jobs[0].postedAt, null);
+  assert.equal(http.calls[0].body.location, 'India');
+  assert.equal(http.calls[0].body.sortBy, 'date');
+});
+
+test('successfactors: an older site is read from its search pages', async () => {
+  const { source, params } = detect('https://careers.fabrikam.com/fab/search/?locationsearch=India', 'successfactors');
+  assert.equal(params.base, '/fab/');
+  const http = fakeHttp([
+    ['/services/recruiting/v1/jobs', () => Promise.reject(new Error('HTTP 401'))],
+    ['startrow=0', readFileSync(new URL('./fixtures/successfactors-search.html', import.meta.url), 'utf8')],
+    ['startrow=2', readFileSync(new URL('./fixtures/successfactors-search-2.html', import.meta.url), 'utf8')],
+    ['/job/', readFileSync(new URL('./fixtures/successfactors-job.html', import.meta.url), 'utf8')],
+  ]);
+  const jobs = await source.list(params, ctx(http));
+  assert.equal(jobs.length, 3);
+  assert.match(http.calls[1].url, /^https:\/\/careers\.fabrikam\.com\/fab\/search\/\?q=&locationsearch=India&startrow=0$/);
+  assert.deepEqual(jobs[0], {
+    id: '1447535233',
+    title: 'Payments Solution Architect & Lead',
+    location: 'Pune, MH, IN',
+    url: 'https://careers.fabrikam.com/fab/job/Pune-Payments-Solution-Architect-MH-411001/1447535233/',
+    postedAt: '2026-10-18',
+    ref: { listedPlace: 'Pune, MH, IN' },
+  });
+  assert.equal(jobs[1].title, 'Core Banking Director');
+  assert.equal(jobs[1].location, null, '"+3 more" leaves the place to the posting');
+
+  const d = await source.detail(params, jobs[1], ctx(http));
+  assert.equal(d.location, 'Bengaluru; Pune, IN');
+  assert.equal(d.postedAt, '2026-10-14');
+  assert.match(d.description, /ISO 20022 migration/);
+  assert.match(d.description, /• Core banking integration/);
+  assert.doesNotMatch(d.description, /Apply now/);
+});
+
+test('successfactors: a page with no job list is an error, never "no roles"', async () => {
+  const { source, params } = detect('https://careers.fabrikam.com/search/', 'successfactors');
+  const http = fakeHttp([
+    ['/services/recruiting/v1/jobs', () => Promise.reject(new Error('timed out'))],
+    ['/search/', '<html><body>Access denied</body></html>'],
+  ]);
+  await assert.rejects(source.list(params, ctx(http)), /no job list/);
+});
+
+test('oracle: sites on the EU cloud are read too', () => {
+  const d = detect('https://ejqi.fa.ocs.oraclecloud.eu/hcmUI/CandidateExperience/en/sites/CX_1001/jobs');
+  assert.equal(d.source.type, 'oracle');
+  assert.equal(d.params.site, 'CX_1001');
+});
+
+test('companies.yml: platform picks the reader, and an unknown one is a clear error', () => {
+  const dir = tempProject({ companies: [{ name: 'Fabrikam', url: 'https://careers.fabrikam.com/search/', platform: 'SuccessFactors' }, { name: 'Contoso', url: 'https://careers.contoso.com/' }] });
+  const [fab, contoso] = loadCompanies(dir);
+  assert.equal(fab.boards[0].source.type, 'successfactors');
+  assert.equal(contoso.boards[0].source, null, 'still "check by hand"');
+  const bad = tempProject({ companies: [{ name: 'Fabrikam', url: 'https://careers.fabrikam.com/', platform: 'taleo' }] });
+  assert.throws(() => loadCompanies(bad), (e) => e instanceof ConfigError && /known platforms: successfactors/.test(e.message));
 });

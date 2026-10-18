@@ -4,7 +4,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parse } from 'yaml';
-import { detect } from './sources/index.mjs';
+import { detect, PLATFORMS } from './sources/index.mjs';
 
 /** Where your settings live when no --dir is given: the folder you run axia from. */
 export const ROOT = process.cwd();
@@ -93,10 +93,12 @@ export function loadCompanies(dir = ROOT) {
     if (!c?.name) throw new ConfigError(`companies.yml: entry ${i + 1} has no name`);
     const urls = [c.url].flat().filter(Boolean).map(String);
     if (urls.length === 0) throw new ConfigError(`companies.yml: ${c.name} has no url`);
+    const platform = c.platform ? String(c.platform).toLowerCase() : undefined;
+    if (platform && !PLATFORMS.includes(platform)) throw new ConfigError(`companies.yml: ${c.name} has platform "${c.platform}"; known platforms: ${PLATFORMS.join(', ')}`);
     return {
       name: String(c.name),
       enabled: c.enabled !== false,
-      boards: urls.map((url) => ({ url, ...(detect(url) ?? { source: null, params: null }) })),
+      boards: urls.map((url) => ({ url, ...(detect(url, platform) ?? { source: null, params: null }) })),
     };
   });
 }

@@ -18,6 +18,9 @@ export function fakeHttp(routes) {
       }
       throw new Error(`unexpected URL in test: ${url}`);
     },
+    async fetchText(url, opts = {}) {
+      return this.fetchJson(url, opts);
+    },
     async mapLimit(items, _limit, fn) {
       return Promise.all(items.map(fn));
     },
