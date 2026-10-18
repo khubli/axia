@@ -10,7 +10,7 @@ You list the employers you want to work for. Every morning Axia reads their own 
 
 **[Live demo](https://khubli.github.io/axia/)** (made-up companies, roles and candidate) · **[Set it up](docs/setup.md)** in about 30 minutes
 
-<img src="docs/screenshots/desktop.png" alt="The Axia dashboard: a one-line verdict, where the AI scores fall, filters, and a ranked list with the reasons for each score" width="100%">
+<img src="docs/screenshots/desktop.png" alt="The Axia dashboard: a one-line verdict, where the AI scores fall, filters, and a ranked list with the reasons for each score and your calls on roles (Applied, Shortlist)" width="100%">
 
 ## Why Axia
 
@@ -32,13 +32,13 @@ Most job-search tools start from a job board and a keyword search, then give you
 
 **Who it's for:** people with a shortlist of employers and a clear sense of the level and kind of role they want, who would rather hear about the right opening the day it appears than check a dozen careers sites.
 
-<p align="center"><img src="docs/screenshots/phone-dark.png" alt="A role on a phone, in dark mode: score, what fits, gaps to check and a link to the posting" width="300"></p>
+<p align="center"><img src="docs/screenshots/phone-dark.png" alt="A role on a phone, in dark mode: score, what fits, gaps to check, a link to the posting, and your call: Applied, Shortlist or Not for me" width="300"></p>
 
 ## How it works
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/how-it-works-dark.png">
-  <img src="docs/images/how-it-works-light.png" alt="Your private repository (companies, resume, criteria, settings) feeds a daily GitHub Actions run of Axia: read each employer's careers site, filter by your titles and places, score with Claude, OpenRouter or another OpenAI-compatible model, and remember every role. Results go to your private dashboard and, for new good matches, to Telegram or email." width="100%">
+  <img src="docs/images/how-it-works-light.png" alt="Your private repository (companies, resume, criteria, settings) feeds a daily GitHub Actions run of Axia: read each employer's careers site, filter by your titles and places, score with Claude, OpenRouter or another OpenAI-compatible model, and remember every role. Results go to your private dashboard and, for new good matches, to Telegram or email. You mark roles Applied, Shortlist or Not for me on the dashboard; once a week, when the scores disagree with your calls, the model proposes a criteria.md edit, your judged roles are scored with and without it, and it becomes a pull request only if it agrees with you more often." width="100%">
 </picture>
 
 Details, step by step: [docs/how-it-works.md](docs/how-it-works.md).
