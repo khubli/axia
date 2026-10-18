@@ -168,7 +168,7 @@ button, a, select, input { -webkit-tap-highlight-color: transparent; }
 .chip[aria-pressed="true"] { border-color: var(--ink); color: var(--ink); }
 .chip[aria-pressed="true"] .num { color: var(--ink); }
 .controls { display: flex; flex-wrap: wrap; gap: 8px; }
-.controls input, .controls select { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; min-width: 0; }
+.controls input, .controls select, .nm .find { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; min-width: 0; }
 .controls input { flex: 1 1 240px; }
 .controls select { flex: 0 1 auto; }
 
@@ -200,6 +200,10 @@ li.sel .rt { color: var(--accent); }
 .pill.old { background: var(--low-soft); color: var(--muted); }
 .pill.second { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
 .pill.closed { background: var(--bad-soft); color: var(--bad); }
+.pill.applied { background: var(--good-soft); color: var(--good); }
+.pill.shortlist { background: var(--accent-soft); color: var(--accent); }
+.pill.nfm { background: var(--low-soft); color: var(--muted); }
+.chip.nfm i { background: var(--faint); }
 .empty { padding: 28px 20px; color: var(--muted); display: grid; gap: 10px; justify-items: start; }
 
 .pane { display: none; }
@@ -245,6 +249,12 @@ li.sel > .inline { display: block; }
 .btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; padding: 9px 14px; font-weight: 600; font-size: 14px; text-decoration: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .prov { margin: 0; font-size: 12px; color: var(--faint); }
+.yours { display: grid; gap: 8px; }
+.yours .opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.yours .opts button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 7px 13px; font-size: 14px; cursor: pointer; }
+.yours .opts button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.yours .why { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; width: 100%; box-sizing: border-box; }
+.yours .st { margin: 0; font-size: 12px; color: var(--faint); }
 .pane .placeholder { padding: 28px 22px; color: var(--muted); }
 
 /* companies */
@@ -264,6 +274,22 @@ td.co { font-weight: 600; white-space: nowrap; }
 .bestcell .meter i { display: block; height: 100%; }
 .muted { color: var(--muted); }
 .note { font-size: 13px; color: var(--muted); margin: 0; }
+
+/* left out: what never reached scoring */
+.nm { display: grid; gap: 12px; margin-top: 28px; }
+.nm h2 { margin: 0; font: 600 18px/1.3 var(--f-display); }
+.nm h3 { margin: 12px 0 0; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.nm .find { width: 100%; max-width: 360px; }
+.nm details { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.nm summary { padding: 12px 16px; cursor: pointer; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; font-weight: 600; }
+.nm summary .num { font-weight: 400; font-size: 13px; color: var(--muted); }
+.nm details details { border: 0; border-top: 1px dashed var(--line); border-radius: 0; }
+.nm details details summary { font-weight: 500; font-size: 13px; color: var(--muted); }
+.nm ul { list-style: none; margin: 0; padding: 0 16px 14px; display: grid; gap: 8px; font-size: 14px; }
+.nm li { display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; justify-content: space-between; }
+.nm li a, .nm li span.t { color: var(--ink); min-width: 0; overflow-wrap: anywhere; }
+.nm .tag { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.nm td { overflow-wrap: anywhere; }
 
 /* about */
 .prose { max-width: 68ch; display: grid; gap: 14px; }
@@ -353,6 +379,19 @@ footer a { color: var(--muted); }
   const byId = Object.fromEntries(open.map((j) => [j.id, j]));
   const lastVisit = store.get('lastVisit', null);
   const isNew = (j) => lastVisit && j.firstSeen > lastVisit;
+
+  // ── your calls: Applied / Shortlist / Not for me ──
+  // Saved to your Cloudflare account through the dashboard Worker; a call that can't be sent yet
+  // waits on this device and is sent the next time the dashboard opens online.
+  const FBK = D.feedback || { api: false, entries: {} };
+  const FB = Object.assign({}, FBK.entries);
+  const fbPending = store.get('fbPending', {});
+  Object.assign(FB, fbPending);
+  const fbStatus = {};
+  const CALLS = ['applied', 'shortlist', 'not-for-me'];
+  const CALL = { applied: 'Applied', shortlist: 'Shortlist', 'not-for-me': 'Not for me' };
+  const CALL_PILL = { applied: 'applied', shortlist: 'shortlist', 'not-for-me': 'nfm' };
+  const callOf = (j) => (FB[j.id] && FB[j.id].v) || null;
 
   // ── dates ──
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -481,11 +520,18 @@ footer a { color: var(--muted); }
   const F = {
     tiers: new Set(saved && saved.tiers && saved.tiers.length ? saved.tiers : defaultTiers),
     q: '', company: (saved && saved.company) || '', city: (saved && saved.city) || '', sort: (saved && saved.sort) || 'score',
+    showNfm: Boolean(saved && saved.showNfm),
   };
   let sel = null;
 
   const tiersShown = TIERS.filter((t) => count(t.id) || F.tiers.has(t.id) || t.id !== 'wait');
-  $('#chips').innerHTML = tiersShown.map((t) => '<button class="chip ' + t.id + '" data-t="' + t.id + '" aria-pressed="' + F.tiers.has(t.id) + '" title="' + esc(t.range) + '"><i></i>' + t.label + ' <span class="num">' + count(t.id) + '</span></button>').join('');
+  $('#chips').innerHTML = tiersShown.map((t) => '<button class="chip ' + t.id + '" data-t="' + t.id + '" aria-pressed="' + F.tiers.has(t.id) + '" title="' + esc(t.range) + '"><i></i>' + t.label + ' <span class="num">' + count(t.id) + '</span></button>').join('') +
+    '<button class="chip nfm" id="nfm" title="Roles you marked Not for me" hidden><i></i>Not for me <span class="num"></span></button>';
+  function paintNfm() {
+    const n = open.filter((j) => callOf(j) === 'not-for-me').length;
+    const b = $('#nfm'); b.hidden = !n; b.setAttribute('aria-pressed', F.showNfm); b.querySelector('.num').textContent = n;
+  }
+  paintNfm();
   const companies = [...new Set(open.map((j) => j.company))].sort();
   $('#company').innerHTML = '<option value="">All companies</option>' + companies.map((c) => '<option>' + esc(c) + '</option>').join('');
   const cityCount = {};
@@ -498,6 +544,7 @@ footer a { color: var(--muted); }
 
   $('#chips').addEventListener('click', (e) => {
     const b = e.target.closest('.chip'); if (!b) return;
+    if (b.id === 'nfm') { F.showNfm = !F.showNfm; paintNfm(); render(); return; }
     const t = b.dataset.t;
     F.tiers.has(t) ? F.tiers.delete(t) : F.tiers.add(t);
     b.setAttribute('aria-pressed', F.tiers.has(t));
@@ -511,6 +558,7 @@ footer a { color: var(--muted); }
   function visible() {
     const rows = open.filter((j) => {
       if (!F.tiers.has(tierOf(j))) return false;
+      if (!F.showNfm && callOf(j) === 'not-for-me') return false;
       if (F.company && j.company !== F.company) return false;
       if (F.city && !(j.cities.length ? j.cities : ['Not stated']).includes(F.city)) return false;
       if (F.q) {
@@ -535,7 +583,8 @@ footer a { color: var(--muted); }
   function rowHtml(j) {
     const meta = [esc(j.company), esc(place(j)), j.postedAt ? 'posted ' + esc(day(j.postedAt)) : 'no posting date'];
     const pills = (isNew(j) ? '<span class="pill new">New</span>' : '') + (j.postedAt && daysSince(j.postedAt) > 180 ? '<span class="pill old">Long open</span>' : '') +
-      (j.secondLook ? '<span class="pill second" title="Your title words missed this title; the second look let it through">Second look</span>' : '');
+      (j.secondLook ? '<span class="pill second" title="Your title words missed this title; the second look let it through">Second look</span>' : '') +
+      (callOf(j) ? '<span class="pill ' + CALL_PILL[callOf(j)] + '">' + CALL[callOf(j)] + '</span>' : '');
     return '<li data-id="' + j.id + '"' + (j.id === sel ? ' class="sel"' : '') + '>' +
       '<button class="row" aria-expanded="' + (j.id === sel) + '">' + scoreCell(j) +
       '<span class="rb"><span class="rt">' + esc(j.title) + pills + '</span>' +
@@ -573,19 +622,69 @@ footer a { color: var(--muted); }
       '<dl class="facts">' + facts.map((f) => '<dt>' + f[0] + '</dt><dd>' + f[1] + '</dd>').join('') + '</dl>' +
       gauge + body +
       '<div class="actions"><a class="btn primary" href="' + esc(j.url) + '" target="_blank" rel="noopener noreferrer">Open the posting ↗</a></div>' +
+      yoursHtml(j) +
       (j.ai ? '<p class="prov">Scored ' + esc(day(j.scoredOn)) + ' by Claude ' + esc(j.model || '') + ' against your resume (version ' + esc(j.resumeRev) + '). Scored again only when your resume or criteria change.</p>' : '') +
       '</div>';
   }
 
+  function yoursHtml(j) {
+    const v = callOf(j), e = FB[j.id] || {}, st = fbStatus[j.id];
+    const note = st === 'saving' ? 'Saving…'
+      : st === 'saved' ? 'Saved. The next run takes it in.'
+      : st === 'local' ? (FBK.api ? 'Not saved yet: kept on this device, and sent the next time the dashboard opens online.' : 'Saved in this browser only (demo).')
+      : 'Each week Axia checks its scores against your calls, and proposes a change to your criteria when they disagree.';
+    return '<section class="yours" data-id="' + j.id + '"><h3>Your call</h3><div class="opts" role="group" aria-label="Your call">' +
+      CALLS.map((k) => '<button type="button" data-call="' + k + '" aria-pressed="' + (v === k) + '">' + CALL[k] + '</button>').join('') + '</div>' +
+      (v ? '<input class="why" type="text" maxlength="240" placeholder="Why? One line helps the weekly review" aria-label="Why (optional)" value="' + esc(e.r || '') + '">' : '') +
+      '<p class="st">' + note + '</p></section>';
+  }
+  function refreshRole(id) {
+    const j = byId[id]; if (!j) return;
+    const li = document.querySelector('#list > li[data-id="' + id + '"]');
+    if (li) { const tmp = document.createElement('div'); tmp.innerHTML = rowHtml(j); li.replaceWith(tmp.firstChild); }
+    if (sel === id && wide()) $('#pane').innerHTML = detailHtml(j);
+  }
+  async function sendCall(id) {
+    const e = FB[id];
+    if (!FBK.api) { fbPending[id] = e; store.set('fbPending', fbPending); fbStatus[id] = 'local'; refreshRole(id); return; }
+    fbStatus[id] = 'saving';
+    try {
+      const r = await fetch('api/feedback', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id, verdict: e.v, reason: e.r }) });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      delete fbPending[id]; fbStatus[id] = 'saved';
+    } catch (err) { fbPending[id] = e; fbStatus[id] = 'local'; }
+    store.set('fbPending', fbPending);
+    refreshRole(id);
+  }
+  function setCall(id, v, reason) {
+    const prev = FB[id] || {};
+    FB[id] = { v: v, r: reason != null ? reason : v ? prev.r || '' : '', t: new Date().toISOString() };
+    paintNfm();
+    refreshRole(id);
+    sendCall(id);
+  }
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('.yours [data-call]'); if (!b) return;
+    const id = b.closest('.yours').dataset.id;
+    setCall(id, callOf(byId[id]) === b.dataset.call ? null : b.dataset.call);
+  });
+  document.addEventListener('change', (e) => {
+    const inp = e.target.closest('.yours .why'); if (!inp) return;
+    const id = inp.closest('.yours').dataset.id, cur = FB[id];
+    const reason = inp.value.replace(/\s+/g, ' ').trim().slice(0, 240);
+    if (cur && cur.v && reason !== (cur.r || '')) setCall(id, cur.v, reason);
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.closest('.yours .why')) e.target.blur(); });
+
   function render() {
-    store.set('filters', { tiers: [...F.tiers], company: F.company, city: F.city, sort: F.sort });
+    store.set('filters', { tiers: [...F.tiers], company: F.company, city: F.city, sort: F.sort, showNfm: F.showNfm });
     const rows = visible();
     if (!rows.some((j) => j.id === sel)) sel = rows.length && wide() ? rows[0].id : null;
     $('#list').innerHTML = rows.length ? rows.map(rowHtml).join('') :
       '<li class="empty"><span>No roles match these filters.</span><button class="btn" id="reset">Show every open role</button></li>';
     const r = $('#reset');
     if (r) r.onclick = () => {
-      F.tiers = new Set(TIERS.map((t) => t.id)); F.q = ''; F.company = ''; F.city = '';
+      F.tiers = new Set(TIERS.map((t) => t.id)); F.q = ''; F.company = ''; F.city = ''; F.showNfm = true; paintNfm();
       $('#q').value = ''; $('#company').value = ''; $('#city').value = '';
       document.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', 'true'));
       render();
@@ -617,6 +716,7 @@ footer a { color: var(--muted); }
     if (F.company && F.company !== j.company) { F.company = ''; $('#company').value = ''; }
     if (F.city) { F.city = ''; $('#city').value = ''; }
     if (F.q) { F.q = ''; $('#q').value = ''; }
+    if (callOf(j) === 'not-for-me' && !F.showNfm) { F.showNfm = true; paintNfm(); }
     showTab('roles');
     sel = null; render(); select(id, true);
   }
@@ -653,7 +753,57 @@ footer a { color: var(--muted); }
         '<td class="n">' + dash(r, r.worth) + '</td>' +
         '<td class="n">' + best(r) + '</td>' +
         '<td><a href="' + esc(r.c.url) + '" target="_blank" rel="noopener noreferrer">Careers ↗</a></td></tr>').join('') +
-      '</tbody></table></div>';
+      '</tbody></table></div>' + leftOut();
+  })();
+
+  // ── left out: roles at your companies that never reached scoring, for spot checks ──
+  function leftOut() {
+    const N = D.nearMisses;
+    if (!N || (!N.titlesTotal && !N.placesTotal)) return '';
+    const TAG = { 'second-look': 'second look: not in scope', unchecked: 'second look: not asked yet', words: '' };
+    const roles = (n) => n + (n === 1 ? ' role' : ' roles');
+    const item = (t) => '<li data-q="' + esc((t.title + ' ' + t.company).toLowerCase()) + '">' +
+      (t.url ? '<a href="' + esc(t.url) + '" target="_blank" rel="noopener noreferrer">' + esc(t.title) + '</a>' : '<span class="t">' + esc(t.title) + '</span>') +
+      '<span class="tag">' + (t.roles > 1 ? '×' + t.roles + ' · ' : '') + esc(t.why === 'excluded' ? 'excluded: “' + t.word + '”' : TAG[t.why]) + '</span></li>';
+    const byCo = new Map();
+    for (const t of N.titles) { if (!byCo.has(t.company)) byCo.set(t.company, []); byCo.get(t.company).push(t); }
+    let h = '<div class="nm" id="leftout"><h2>Left out</h2>';
+    if (N.titlesTotal) {
+      h += '<h3>Titles your filters rejected</h3><p class="note">Titles in your places that never reached scoring in the last run: none of your title words' +
+        (N.titles.some((t) => t.why === 'second-look' || t.why === 'unchecked') ? ', and the second look did not let them in' : '') +
+        '. Spot-check now and then. If one should have been kept, add a word for it to <code>titles.include</code> in settings.yml (or take a word out of <code>titles.exclude</code>).' +
+        (N.titlesTotal > N.titles.length ? ' Showing the first ' + N.titles.length.toLocaleString('en-IN') + ' of ' + N.titlesTotal.toLocaleString('en-IN') + '.' : '') + '</p>' +
+        '<input class="find" id="nmq" type="search" placeholder="Find a title or company" aria-label="Find a left-out title">';
+      for (const [co, list] of byCo) {
+        const kept = list.filter((t) => t.why !== 'excluded'), excl = list.filter((t) => t.why === 'excluded');
+        const n = (l) => l.reduce((s, t) => s + t.roles, 0);
+        h += '<details data-co><summary>' + esc(co) + '<span class="num">' + list.length + ' title' + (list.length === 1 ? '' : 's') + ' · ' + roles(n(list)) + '</span></summary>' +
+          (kept.length ? '<ul>' + kept.map(item).join('') + '</ul>' : '') +
+          (excl.length ? '<details><summary>' + excl.length + ' with an excluded word<span class="num">' + roles(n(excl)) + '</span></summary><ul>' + excl.map(item).join('') + '</ul></details>' : '') +
+          '</details>';
+      }
+    }
+    if (N.placesTotal) {
+      h += '<h3>Places outside your list</h3><p class="note">' + roles(N.placeRoles) + ' had a title you want in a place outside <code>locations.include</code>. If a place below is one you would work in (or another spelling of one, like Bangalore and Bengaluru), add it.' +
+        (N.placesTotal > N.places.length ? ' Showing the ' + N.places.length + ' places with the most roles, of ' + N.placesTotal + '.' : '') + '</p>' +
+        '<div class="tablebox"><table><thead><tr><th>Place</th><th class="n">Roles</th><th>For example</th></tr></thead><tbody>' +
+        N.places.map((p) => '<tr><td>' + esc(p.place) + '</td><td class="n">' + p.roles + '</td><td class="muted">' + esc(p.example) + '</td></tr>').join('') +
+        '</tbody></table></div>';
+    }
+    return h + '</div>';
+  }
+  (function findLeftOut() {
+    const box = $('#nmq'); if (!box) return;
+    box.addEventListener('input', () => {
+      const q = box.value.trim().toLowerCase();
+      for (const d of document.querySelectorAll('#leftout details[data-co]')) {
+        let hits = 0;
+        for (const li of d.querySelectorAll('li')) { const on = !q || li.dataset.q.includes(q); li.hidden = !on; hits += on; }
+        d.hidden = !hits;
+        d.open = Boolean(q) && hits > 0;
+        for (const inner of d.querySelectorAll('details')) { const any = [...inner.querySelectorAll('li')].some((li) => !li.hidden); inner.hidden = !any; inner.open = Boolean(q) && any; }
+      }
+    });
   })();
 
   // ── how scoring works ──
@@ -672,6 +822,9 @@ footer a { color: var(--muted); }
     '<p>Scores move by about 5 to 10 points between runs, so treat anything within 5 of ' + GOOD + ' as on the line.</p>' +
     '<h2 class="install-tip">Use it as an app</h2>' +
     '<p class="install-tip">On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen. On Android or a computer, use Install app at the top, or Install in the browser menu. The app opens straight to your results, and works offline with the last results it loaded.</p>' +
+    '<h2>Your calls tune the scoring</h2>' +
+    '<p>Open a role and mark it Applied, Shortlist or Not for me, with a one-line reason if you like. Roles you mark Not for me leave the list (the Not for me chip brings them back). Each run saves your calls, with the posting, in your private repository.</p>' +
+    '<p>Once a week Axia looks for calls the scores disagree with: a role you skipped that scored ' + GOOD + ' or more, or one you wanted that scored below. When there are some, the model suggests a change to your criteria.md, and Axia scores your judged roles again with and without it. Only if the change agrees with you more often does it open a pull request in your repository, with the numbers, for you to merge or close. Nothing changes until you merge it.</p>' +
     '<h2>When a role leaves this list</h2>' +
     '<p>When the company takes the posting down, when its site cannot be read for 7 days in a row, or when you remove the company from your list. A role that comes back keeps its old score.</p>' +
     '</div>';
@@ -690,6 +843,23 @@ footer a { color: var(--muted); }
   if (D.demo) $('#foot').textContent = 'Demo data: every company, role and score on this page is made up.';
   drawStrip();
   showTab(store.get('tab', 'roles'));
+
+  // Calls made on another device, or waiting on this one: send what waits, then take the saved ones.
+  (async function syncCalls() {
+    if (!FBK.api) return;
+    for (const id of Object.keys(fbPending)) await sendCall(id);
+    try {
+      const r = await fetch('api/feedback', { credentials: 'same-origin', cache: 'no-store' });
+      if (!r.ok) return;
+      const data = await r.json();
+      let changed = false;
+      for (const [id, e] of Object.entries(data.entries || {})) {
+        if (fbPending[id] || !byId[id] || JSON.stringify(FB[id]) === JSON.stringify(e)) continue;
+        FB[id] = e; changed = true;
+      }
+      if (changed) { paintNfm(); render(); }
+    } catch (e) {}
+  })();
   render();
   // A link from a message (…/#role-id) opens that role; #companies and #about open those tabs.
   const fromHash = () => {

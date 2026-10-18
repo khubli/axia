@@ -99,7 +99,7 @@ The dashboard shows your scores and gaps, so it must never be public. Set up the
 - Policy: action **Allow**, include **Emails**: your email address.
 - Login method: the default one-time PIN by email is enough.
 
-**b. Let GitHub publish.** In Cloudflare, **My Profile → API Tokens → Create Token**, use the **Edit Cloudflare Workers** template, limit *Account resources* to your account and *Zone resources* to your domain, and create it. In your private repository add the secrets `CLOUDFLARE_API_TOKEN` (the token) and `CLOUDFLARE_ACCOUNT_ID` (shown on the right of **Workers & Pages → Overview**).
+**b. Let GitHub publish.** In Cloudflare, **My Profile → API Tokens → Create Token**, use the **Edit Cloudflare Workers** template, limit *Account resources* to your account and *Zone resources* to your domain, and create it. In your private repository add the secrets `CLOUDFLARE_API_TOKEN` (the token) and `CLOUDFLARE_ACCOUNT_ID` (shown on the right of **Workers & Pages → Overview**). The template also lets Axia create the small Workers KV store where the dashboard's Applied / Shortlist / Not for me buttons save your calls; if you build the token by hand, include **Account → Workers KV Storage → Edit**.
 
 **c. Tell Axia the address.** In `settings.yml`:
 
@@ -119,6 +119,8 @@ In your private repository, open **Actions → Axia → Run workflow**. The firs
 
 To re-score everything after changing your resume a lot, run the workflow with **Re-score** ticked. Changes to `cv.md` or `criteria.md` are picked up automatically, 40 roles a day.
 
+**Let the weekly review propose changes.** Mark roles on the dashboard (Applied, Shortlist or Not for me, with a one-line reason if you like). Once a week Axia checks its scores against your calls and, when a change to `criteria.md` agrees with them more often, opens a pull request in your repository. To allow that: in your private repository, **Settings → Actions → General → Workflow permissions**, tick **Allow GitHub Actions to create and approve pull requests**, and keep `pull-requests: write` in the workflow's `permissions` (the example has it). Without it, the change is left on a branch and the message links to it. To run a review straight away: **Run workflow** with **Review** ticked.
+
 ## Keeping Axia up to date
 
 The workflow uses `khubli/axia@v1`: you get fixes and improvements within version 1, never a breaking change. To stay on an exact release, use for example `@v1.0.0` instead.
@@ -135,7 +137,7 @@ node src/cli.mjs run --dir ../my-axia --dry-run            # read and filter onl
 AXIA_SCORER=claude-code node src/cli.mjs calibrate --dir ../my-axia   # uses your logged-in Claude Code
 ```
 
-`calibrate` scores the roles listed in your `calibration/roles.yml` and shows where the model disagrees with your own Apply/Skip verdicts. Run it after editing `criteria.md`.
+`calibrate` scores the roles you have judged (your `calibration/roles.yml`, and your calls on the dashboard saved in `data/feedback.json`) and shows where the model disagrees with your own Apply/Skip verdicts. Run it after editing `criteria.md`. `node src/cli.mjs review --dir ../my-axia --now` runs the weekly review and writes what it would propose to `.axia/review/`.
 
 ## Responsible use
 

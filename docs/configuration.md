@@ -72,6 +72,11 @@ dashboard:
   worker: axia                   # [axia] the Cloudflare Worker's name
   url: https://jobs.example.com  # [https://<domain>] used for links in messages
   public: false                  # [false] true skips the login check; only for a demo with no personal data
+  feedback: true                 # [true] Applied / Shortlist / Not for me buttons on each role, saved to your Cloudflare account
+
+review:
+  day: sunday                    # [sunday] the weekly review of your calls; false turns it off
+  max_roles: 60                  # [60] your most recent calls it checks against (plus everything in calibration/roles.yml)
 ```
 
 The GitHub variable `NOTIFY_MIN_SCORE` overrides `notify.min_score`, so you can change the message threshold without a commit.
@@ -89,9 +94,17 @@ Plain prose that the model reads with your resume for every role. What helps mos
 
 After editing it, run `axia calibrate` (below) before trusting the change.
 
+## Your calls on the dashboard
+
+Open a role and mark it **Applied**, **Shortlist** or **Not for me**, with a one-line reason if you like. Applied and Shortlist count as "worth applying", Not for me as "skip". Roles you mark Not for me leave the list; the **Not for me** chip brings them back.
+
+The buttons save to a Workers KV store in your Cloudflare account, behind the same login as the dashboard. Each run copies the calls into `data/feedback.json` with the posting text, so they last after the role closes. They count as judged roles for `axia calibrate` and the weekly review. If a call can't be saved (offline, or signed out), it waits on your device and is sent the next time the dashboard opens online.
+
+**The weekly review** (`review.day`) runs when some of your calls disagree with the scores: a role you skipped that scored `report.good_match` or more, or one you wanted that scored below. The model reads your calls, reasons and postings with your resume and `criteria.md`, and proposes the smallest edit to `criteria.md` that would fix them. Axia then scores every judged role twice in the same run, with today's criteria and with the proposal. Only if the proposal agrees with your calls more often, and loses none of your `calibration/roles.yml` roles, does it open a pull request with the edit and the numbers, and message you. Nothing changes until you merge it; one proposal is open at a time. It needs at least 3 calls with their posting saved. A review uses about two AI scores per judged role.
+
 ## calibration/roles.yml
 
-Roles you have judged yourself, so you can measure how often the model agrees with you.
+Roles you have judged yourself, so you can measure how often the model agrees with you. Your calls on the dashboard count too (above); this file is for roles you want to keep as fixed reference points, with a 1–5 score.
 
 ```yaml
 - company: Example Bank
@@ -122,5 +135,6 @@ Roles you have judged yourself, so you can measure how often the model agrees wi
 | File | Committed | What it is |
 |---|---|---|
 | `data/jobs.json` | yes | every matching role, open or recently closed, with its score and when you were told about it |
+| `data/feedback.json` | yes | your calls from the dashboard, with each posting's text and its latest score, and the date of the last weekly review |
 | `dashboard/README.md` | yes | the plain list, readable on GitHub |
-| `.axia/` | no | the built dashboard and its publish settings |
+| `.axia/` | no | the built dashboard and its publish settings; `.axia/review/` holds what the last weekly review tried |

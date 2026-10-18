@@ -23,10 +23,13 @@ import { renderMarkdown } from './render.mjs';
 import { buildSite } from './site.mjs';
 import { notifyMinScore, seedNotified, trackProblems, planMessages, deliver, applyDelivery } from './notify.mjs';
 import { isoDate, normalize, similarity } from './text.mjs';
+import { loadFeedback, saveFeedback, pullFeedback, applyFeedback, snapshotFeedback } from './feedback.mjs';
 
 const KEYWORD_DETAIL_BUDGET = 150; // detail fetches for keyword scoring when AI is off
 const SECOND_LOOK_MAX = 1500; // new titles the second look asks about per run; the rest wait for the next run
 const TITLE_CHECK_KEEP_DAYS = 45; // a title not listed for this long is forgotten (and asked about again if it returns)
+const NEAR_MISS_TITLES = 3000; // titles left out, listed on the Companies tab (the page stays small)
+const NEAR_MISS_PLACES = 40; // places outside your list, most roles first
 const SAME_JOB = 0.9; // description similarity above which two lookalike postings are one job (copies measure ~1, different jobs ~0.2-0.5)
 
 // `scorerOverrides` lets tests stand in for the Claude API client or the `claude` CLI.
@@ -94,14 +97,18 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   const listedKeys = new Set();
   const candidates = new Map();
   const rejected = new Map(); // in your places (or place not listed), title has none of your words
+  const excluded = new Map(); // in your places, title has one of your excluded words (kept only for the near-misses list)
   for (const read of reads) {
     for (const job of read.jobs) {
       const key = `${read.board.source.type}:${read.board.params.scope}:${job.id}`;
       listedKeys.add(key);
-      if (candidates.has(key) || rejected.has(key)) continue;
+      if (candidates.has(key) || rejected.has(key) || excluded.has(key)) continue;
       const t = filters.title(job.title);
       if (t.ok) candidates.set(key, { key, company: read.company, board: read.board, job, titleMatch: t.matched, listedLocation: job.location });
-      else if (secondLookOn && !t.excluded && (!job.location || filters.location(job.location).ok)) rejected.set(key, { key, company: read.company, board: read.board, job });
+      else if (!job.location || filters.location(job.location).ok) {
+        if (t.excluded) excluded.set(key, { key, company: read.company, job, word: t.word });
+        else rejected.set(key, { key, company: read.company, board: read.board, job });
+      }
     }
   }
 
@@ -168,12 +175,14 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   };
 
   const newKeys = new Set();
+  const placeMisses = []; // a title you want, in a place outside your list
   let duplicates = 0;
   for (const c of candidates.values()) {
     const existing = state.jobs[c.key];
     const location = c.job.location ?? existing?.location ?? state.skipped[c.key]?.location ?? null;
     const where = filters.location(location);
     if (!where.ok) {
+      placeMisses.push({ company: c.company, title: c.job.title, location });
       // Only remember the ones whose location took a posting read to learn; the rest are re-checked for free.
       if (!c.listedLocation) state.skipped[c.key] = { company: c.company, title: c.job.title, location, reason: where.reason };
       delete state.jobs[c.key];
@@ -255,6 +264,14 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     state.version = STATE_VERSION;
   }
 
+  // ── 4b. Your calls from the dashboard's buttons ────────────────────────────
+  // Copied into data/feedback.json with the posting text, so they outlive the role.
+  const feedback = loadFeedback(dir);
+  const pulled = dryRun ? null : await pullFeedback({ env, settings, log });
+  const fb = applyFeedback(feedback, pulled, state);
+  if (fb.added || fb.changed || fb.cleared) log(`Your calls from the dashboard: ${fb.added} new, ${fb.changed} changed, ${fb.cleared} cleared.`);
+  await mapLimit(fb.needText.map((k) => candidates.get(k)).filter(Boolean), 4, (c) => enrich(c, ctx));
+
   // ── 5. Score ──────────────────────────────────────────────────────────────
   const open = Object.values(state.jobs).filter((j) => j.status === 'open');
   const ai = { enabled: Boolean(aiScorer), engine: aiScorer?.engine ?? null, model: aiScorer?.model ?? null, scored: 0, failed: 0, stoppedBecause: null, pending: 0 };
@@ -292,6 +309,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     }
   }
   ai.pending = open.filter((j) => j.score?.scorer !== 'ai').length;
+  snapshotFeedback(feedback, state, (key) => candidates.get(key)?.job.description);
 
   // ── 6. Report ─────────────────────────────────────────────────────────────
   const summary = {
@@ -309,9 +327,12 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     },
     secondLook: second,
     ai,
+    feedback: { judged: Object.keys(feedback.roles).length, read: pulled !== null },
     newKeys: [...newKeys],
+    nearMisses: nearMisses({ rejected, excluded, placeMisses, titleChecks: state.titleChecks, titleKey, secondLookOn }),
   };
-  state.lastRun = { ...summary, newKeys: undefined };
+  // The near-misses list is for the dashboard only: kept out of memory so jobs.json doesn't churn every day.
+  state.lastRun = { ...summary, newKeys: undefined, nearMisses: undefined };
   trackProblems(state, summary, today);
 
 
@@ -329,9 +350,10 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     applyDelivery(state, messages, delivery, today);
   }
 
-  const view = { state, summary, settings };
+  const view = { state, summary, settings, feedback };
   if (!dryRun) {
     saveState(statePath, state);
+    saveFeedback(dir, feedback);
     mkdirSync(resolve(dir, 'dashboard'), { recursive: true });
     writeFileSync(resolve(dir, 'dashboard/README.md'), renderMarkdown(view));
     buildSite(view, resolve(dir, '.axia/site'), { minScore });
@@ -343,6 +365,45 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   const undelivered = messages.filter((m) => delivery.some((d) => d.kind === m.kind) && !delivery.some((d) => d.kind === m.kind && d.ok));
   const reason = allFailed ? 'No company job board could be read.' : undelivered.length ? `Could not deliver: ${undelivered.map((m) => m.subject).join('; ')}` : null;
   return { summary, messages, delivery, reason, exitCode: reason ? 1 : 0 };
+}
+
+/**
+ * What your filters left out this run, for spot checks on the dashboard's Companies tab:
+ *   titles — roles in your places whose title has none of your words (and the second look didn't let in),
+ *            or one of your excluded words; one entry per employer + title
+ *   places — roles with a title you want, in a place outside your list, grouped by place
+ */
+export function nearMisses({ rejected, excluded, placeMisses, titleChecks, titleKey, secondLookOn }) {
+  const titles = new Map();
+  const add = (r, why) => {
+    const id = titleKey(r.company, r.job.title);
+    if (!titles.has(id)) titles.set(id, { company: r.company, title: String(r.job.title ?? '').replace(/\s+/g, ' ').trim(), url: r.job.url ?? null, roles: 0, ...why });
+    titles.get(id).roles++;
+  };
+  for (const r of rejected.values()) {
+    const v = titleChecks[titleKey(r.company, r.job.title)];
+    if (secondLookOn && v?.keep) continue; // let in: it is on the dashboard
+    add(r, { why: !secondLookOn ? 'words' : v ? 'second-look' : 'unchecked' });
+  }
+  for (const r of excluded.values()) add(r, { why: 'excluded', word: r.word });
+  const order = { 'second-look': 0, unchecked: 0, words: 0, excluded: 1 };
+  const titleList = [...titles.values()].sort((a, b) => a.company.localeCompare(b.company) || order[a.why] - order[b.why] || a.title.localeCompare(b.title));
+
+  const places = new Map();
+  for (const m of placeMisses) {
+    const place = String(m.location ?? '').replace(/\s+/g, ' ').trim() || '(no location given)';
+    if (!places.has(place)) places.set(place, { place, roles: 0, example: `${m.title} · ${m.company}` });
+    places.get(place).roles++;
+  }
+  const placeList = [...places.values()].sort((a, b) => b.roles - a.roles || a.place.localeCompare(b.place));
+
+  return {
+    titles: titleList.slice(0, NEAR_MISS_TITLES),
+    titlesTotal: titleList.length,
+    places: placeList.slice(0, NEAR_MISS_PLACES),
+    placesTotal: placeList.length,
+    placeRoles: placeMisses.length,
+  };
 }
 
 // New roles first, then roles with only a keyword estimate, then stale AI scores.

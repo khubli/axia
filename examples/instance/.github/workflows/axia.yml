@@ -14,6 +14,10 @@ on:
         description: Re-score every open role with AI (for example after editing your resume). Still capped per run.
         type: boolean
         default: false
+      review:
+        description: Run the weekly review of your dashboard calls now.
+        type: boolean
+        default: false
 
 concurrency:
   group: axia
@@ -21,6 +25,7 @@ concurrency:
 
 permissions:
   contents: write # saves data/ and dashboard/ back to this repository
+  pull-requests: write # the weekly review proposes criteria.md changes as pull requests
 
 jobs:
   axia:
@@ -32,6 +37,7 @@ jobs:
         with:
           config-dir: .
           rescore: ${{ inputs.rescore || false }}
+          review: ${{ inputs.review && 'now' || 'auto' }}
           notify-min-score: ${{ vars.NOTIFY_MIN_SCORE }}
           claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}

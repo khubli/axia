@@ -33,6 +33,8 @@ A role is kept when its title contains one of your `titles.include` words and no
 
 **Second look.** Your title words are exact but only know the words you wrote, and employers name the same job in many ways ("Executive Manager", "Chief Engineer", "Chapter Lead", a grade written into the title). So roles in your places whose titles have none of your words, and none of your excluded words, get a second look: the model reads the titles alone, in batches, against your resume and `criteria.md`, and lets through any that could plausibly be in scope. It can only let roles in, never keep one out: what it lets through is read and scored in full like every other role, and if the model is unsure, wrong or unavailable nothing changes. Each employer + title is asked about once (again when your resume or criteria change), so after the first run it is a few dozen titles a day. Roles found this way carry a **Second look** label on the dashboard. To see what it would let through today, without changing anything: `axia second-look --dir <your folder>`. Turn it off with `titles.second_look: false`.
 
+**Left out.** What the filters drop is listed on the dashboard's Companies tab, so you can spot-check it in a minute: the titles in your places that none of your title words matched and the second look didn't let in (or that have one of your excluded words), and the places outside your list where roles with a title you want were found, most roles first. A different spelling of a city you'd work in ("Bangalore" and "Bengaluru") shows up there straight away. The list comes from the last run and is not kept in memory.
+
 ## 3. Score (AI)
 
 Roles are queued for the model most promising first: new roles before re-scores, then by a free estimate from the title and your keywords, then the newest posting. Up to `max_ai_scores_per_run` roles a run.
@@ -68,8 +70,20 @@ The dashboard is a single page with your data embedded: no server, no database, 
 
 It is also an installable app (PWA): add it to your phone's home screen or install it on a computer. A service worker keeps the last results you loaded on your device, so the app opens instantly and works offline. Online, the page is always fetched fresh, and when newer results are published while the app is open it offers a refresh.
 
+## 7. Learn from your calls
+
+Each role on the dashboard has three buttons: **Applied**, **Shortlist** and **Not for me**, with a one-line reason if you like. They save to a Workers KV store in your Cloudflare account through the dashboard's own Worker, behind your login. Each run copies them into `data/feedback.json` in your repository, with the posting text, so they outlive the role.
+
+Once a week (`review.day`) Axia checks whether its scores still agree with your calls. A call disagrees when you skipped a role that scored a good match, or wanted one that scored below. When some do:
+
+1. The model reads every judged role (your call, your reason, its score, the posting) with your resume and `criteria.md`, and proposes the smallest edit to `criteria.md` that would fix the disagreements: general rules, in your own words and structure, never touching your resume.
+2. Every judged role is scored twice in the same run, with today's criteria and with the proposal, so the comparison isn't thrown by the usual 5–10 point wobble between runs.
+3. Only if the proposal agrees with your calls more often, and loses none of your `calibration/roles.yml` roles, is it opened as a pull request in your repository, with the edit, the roles whose score moves and the before/after numbers. You get a message with the link.
+
+Nothing changes until you merge it. Merging re-scores your open roles over the next runs. Closing it turns the proposal down. One proposal is open at a time.
+
 ## Privacy
 
-- Your resume, criteria, company list and scores live only in your private repository, your Cloudflare account and the requests to the AI provider you chose, which score each role.
+- Your resume, criteria, company list, scores and calls live only in your private repository, your Cloudflare account and the requests to the AI provider you chose, which score each role.
 - Run logs list role titles and scores, which is why the workflow runs in your private repository and not in Axia's.
 - Secrets are passed to the action as inputs and never printed.

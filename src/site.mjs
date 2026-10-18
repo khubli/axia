@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { viewModel } from './render.mjs';
 import { jobId } from './text.mjs';
 import { daysBetween } from './state.mjs';
+import { feedbackEnabled, pageFeedback } from './feedback.mjs';
 
 const ASSETS = join(dirname(fileURLToPath(import.meta.url)), 'dashboard');
 const ICONS = ['icon.svg', 'icon-32.png', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
@@ -87,6 +88,9 @@ export function siteData(view, { minScore, demo = false }) {
     listed: summary.counts.listed,
     companies: v.companies.map((c) => ({ name: c.company, url: c.url, status: c.status, error: c.error ?? null, listed: c.listed, lastReadOk: state.companies?.[c.company]?.lastReadOk ?? null })),
     jobs,
+    nearMisses: summary.nearMisses ?? null,
+    // Your calls on roles. With `api`, the buttons save to your Cloudflare account; otherwise (the demo) only in this browser.
+    feedback: { api: !demo && feedbackEnabled(settings), entries: pageFeedback(view.feedback) },
   };
 }
 

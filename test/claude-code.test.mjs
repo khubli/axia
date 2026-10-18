@@ -139,6 +139,6 @@ test('calibrate compares AI scores with your own decisions', async () => {
   const rows = await calibrate({ dir, env: {}, log: (l) => lines.push(l), scorerOverrides: { runClaude: fakeClaude([]) } });
   // The stand-in scores every "Payments…" title 81, so the Skip role is a disagreement.
   assert.deepEqual(rows.map((r) => [r.ai, r.agrees]), [[81, true], [81, false]]);
-  assert.match(lines.join('\n'), /Agreement: 1\/2/);
+  assert.match(lines.join("\n"), /Agreement in all: 1\/2/);
   assert.match(lines.join('\n'), /Every Apply above every Skip: no/);
 });

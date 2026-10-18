@@ -101,7 +101,34 @@ const summary = {
   companies: COMPANIES.map((c) => ({ company: c.name, url: c.url, source: c.source, status: c.source ? 'ok' : 'manual', error: null, listed: c.listed })),
   counts: { listed: COMPANIES.reduce((s, c) => s + c.listed, 0) },
   ai: { enabled: true, pending: WAITING.length, stoppedBecause: null },
+  // What the filters left out, shown on the Companies tab for spot checks.
+  nearMisses: {
+    titles: [
+      ['Adventure Works Bank', 'Executive Manager, Data Governance', 'second-look', 1],
+      ['Adventure Works Bank', 'Senior Software Engineer, Payments', 'second-look', 3],
+      ['Contoso Pay', 'Chapter Lead, Merchant Onboarding', 'unchecked', 1],
+      ['Contoso Pay', 'Account Executive, Enterprise Sales', 'excluded', 2, 'Sales'],
+      ['Fabrikam Capital', 'Associate, Credit Risk Analytics', 'second-look', 2],
+      ['Litware Insurance', 'Claims Handler', 'second-look', 4],
+      ['Litware Insurance', 'Graduate Intern, Technology', 'excluded', 6, 'Intern'],
+      ['Woodgrove Bank', 'Business Analyst, Card Issuing', 'second-look', 2],
+      ['Woodgrove Bank', 'Relationship Manager, Corporate Banking', 'second-look', 1],
+    ].map(([company, title, why, roles, word]) => ({ company, title, url: 'https://careers.example.com/', roles, why, ...(word ? { word } : {}) })),
+    titlesTotal: 9,
+    places: [
+      { place: 'New York, United States', roles: 7, example: 'Director, Platform Engineering · Fabrikam Capital' },
+      { place: 'Bengaluru, India', roles: 4, example: 'Engineering Manager, Payments · Woodgrove Bank' },
+      { place: 'Glasgow, United Kingdom', roles: 2, example: 'Solution Architect, Payments · Litware Insurance' },
+    ],
+    placesTotal: 3,
+    placeRoles: 13,
+  },
 };
 
-buildSite({ state: { jobs, companies }, summary, settings }, out, { minScore: 65, demo: true });
+// A few calls on roles, as if made on the dashboard's buttons.
+const byTitle = (t) => Object.values(jobs).find((j) => j.title === t);
+const calls = [['Head of Payments Platform Engineering', 'applied'], ['Engineering Director, Core Platform', 'shortlist'], ['Vice President, Treasury Operations', 'not-for-me', 'Operations, not technology']];
+const feedback = { roles: Object.fromEntries(calls.map(([t, verdict, reason = '']) => { const j = byTitle(t); return [j.key, { id: j.key.replace(/[^A-Za-z0-9]+/g, '-'), verdict, reason, at: now.toISOString() }]; })) };
+
+buildSite({ state: { jobs, companies }, summary, settings, feedback }, out, { minScore: 65, demo: true });
 console.log(`Demo dashboard written to ${out}`);
