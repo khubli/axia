@@ -1,6 +1,6 @@
 # The companies to watch: a name and the address of its careers page.
 # Axia recognises Workday, Greenhouse, Lever, Ashby, SmartRecruiters and
-# Oracle Recruiting Cloud addresses, plus Amazon, Google and Eightfold (see
+# Oracle Recruiting Cloud addresses, plus Amazon, Google, Eightfold and TurboHire (see
 # docs/configuration.md). A SAP SuccessFactors or Eightfold site on the
 # employer's own domain takes `platform: successfactors` or `platform: eightfold`.
 # Any other address is listed as "check by hand", never silently skipped.

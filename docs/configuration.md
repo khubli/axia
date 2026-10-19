@@ -34,6 +34,7 @@ The address decides how a company is read:
 | Amazon | `https://www.amazon.jobs/en/search?country=IND` (the search's filters carry over) |
 | Google | `https://www.google.com/about/careers/applications/jobs/results?location=India` (filters carry over) |
 | Eightfold | `https://<company>.eightfold.ai/careers?location=India`; on the employer's own domain add `platform: eightfold` |
+| TurboHire | `https://<company>.turbohire.co/dashboardv2` (every open role, with descriptions) |
 
 Eightfold sites on the employer's own domain (`portal.careers.<company>.com`) also need the platform named: `platform: eightfold`. `?location=` narrows the search, and `?domain=` names the company domain the site uses when it isn't the address's own; for `<company>.eightfold.ai` it is taken to be `<company>.com`.
 
