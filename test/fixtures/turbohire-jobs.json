@@ -1,0 +1,31 @@
+{
+  "Total": 3,
+  "Result": [
+    {
+      "JobId": "4f70e4cc-0798-4d02-8c93-e8c44b960e12",
+      "JobIdObfuscated": "F%2F5iroc_example1",
+      "JobCode": "NL-1001",
+      "JobTitle": "Senior Manager - Payments Platform ",
+      "Department": "Engineering",
+      "PublishedDate": "2026-10-16T07:59:37.9674989Z",
+      "Location": "[{\"Address\":\"Bengaluru, Karnataka, India\",\"PlaceId\":null}]",
+      "JobDescV2": "<p><strong>About the Team</strong></p><p>Own the UPI and cards platform.</p><ul><li>10+ years</li></ul>"
+    },
+    {
+      "JobId": "5a11e4cc-0798-4d02-8c93-e8c44b960e13",
+      "JobIdObfuscated": "G%2F6irod_example2",
+      "JobTitle": "Engineering Manager",
+      "PublishedDate": "2026-10-14T06:07:23.4770168Z",
+      "Location": "[{\"Address\":\"Bengaluru, Karnataka, India\"},{\"Address\":\"Pune, Maharashtra, India\"}]",
+      "JobDescV2": "<p>Lead a team.</p>"
+    },
+    {
+      "JobId": "4f70e4cc-0798-4d02-8c93-e8c44b960e12",
+      "JobIdObfuscated": "F%2F5iroc_example1",
+      "JobTitle": "Senior Manager - Payments Platform",
+      "PublishedDate": "2026-10-16T07:59:37Z",
+      "Location": "[]",
+      "JobDescV2": ""
+    }
+  ]
+}

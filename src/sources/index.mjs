@@ -12,8 +12,9 @@ import * as successfactors from './successfactors.mjs';
 import * as eightfold from './eightfold.mjs';
 import * as amazon from './amazon.mjs';
 import * as google from './google.mjs';
+import * as turbohire from './turbohire.mjs';
 
-export const SOURCES = [workday, greenhouse, smartrecruiters, oracle, goldman, lever, ashby, amazon, google, eightfold, successfactors];
+export const SOURCES = [workday, greenhouse, smartrecruiters, oracle, goldman, lever, ashby, amazon, google, turbohire, eightfold, successfactors];
 
 /** Sites the address can't identify; companies.yml names them with `platform:`. */
 export const PLATFORMS = [successfactors.type, eightfold.type];

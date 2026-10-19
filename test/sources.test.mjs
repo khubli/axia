@@ -221,6 +221,37 @@ test('amazon: filters on the address carry over; descriptions come with the list
   assert.match(jobs[0].description, /Design payments platforms\.\nLead migrations\.[\s\S]*Basic qualifications\n- 10\+ years[\s\S]*Preferred qualifications/);
 });
 
+test('turbohire: token, organization, then every role with its description', async () => {
+  const { source, params } = detect('https://navi.turbohire.co/dashboardv2');
+  assert.equal(source.type, 'turbohire');
+  assert.equal(detect('https://identity.turbohire.co/connect/token'), null);
+  const http = fakeHttp([
+    ['/token/noauth', { access_token: 'tok' }],
+    ['/publicorganizations?accountName=navi', { OrgID: 'org-1', OrgName: 'NAVI' }],
+    ['/careerpagev2/filteredjobs?orgId=org-1', fixture('turbohire-jobs.json')],
+  ]);
+  const jobs = await source.list(params, ctx(http));
+  assert.equal(http.calls[0].headers.Origin, 'https://navi.turbohire.co');
+  assert.equal(http.calls[2].headers.Authorization, 'Bearer tok');
+  assert.equal(http.calls[2].method, 'POST');
+  assert.equal(jobs.length, 2, 'a repeated role is listed once');
+  assert.deepEqual(
+    { ...jobs[0], description: undefined },
+    {
+      id: '4f70e4cc-0798-4d02-8c93-e8c44b960e12',
+      title: 'Senior Manager - Payments Platform',
+      location: 'Bengaluru, Karnataka, India',
+      url: 'https://navi.turbohire.co/job/publicjobs/F%2F5iroc_example1',
+      postedAt: '2026-10-16',
+      description: undefined,
+    },
+  );
+  assert.match(jobs[0].description, /About the Team\nOwn the UPI and cards platform\.[\s\S]*10\+ years/);
+  assert.equal(jobs[1].location, 'Bengaluru, Karnataka, India; Pune, Maharashtra, India');
+  const unknown = fakeHttp([['/token/noauth', { access_token: 'tok' }], ['/publicorganizations', '']]);
+  await assert.rejects(source.list(params, ctx(unknown)), /no TurboHire career site named "navi"/);
+});
+
 test('google: reads the roles inside the results pages', async () => {
   const { source, params } = detect('https://www.google.com/about/careers/applications/jobs/results?location=India');
   assert.equal(source.type, 'google');
