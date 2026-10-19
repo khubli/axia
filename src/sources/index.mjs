@@ -9,11 +9,14 @@ import * as goldman from './goldman.mjs';
 import * as lever from './lever.mjs';
 import * as ashby from './ashby.mjs';
 import * as successfactors from './successfactors.mjs';
+import * as eightfold from './eightfold.mjs';
+import * as amazon from './amazon.mjs';
+import * as google from './google.mjs';
 
-export const SOURCES = [workday, greenhouse, smartrecruiters, oracle, goldman, lever, ashby, successfactors];
+export const SOURCES = [workday, greenhouse, smartrecruiters, oracle, goldman, lever, ashby, amazon, google, eightfold, successfactors];
 
 /** Sites the address can't identify; companies.yml names them with `platform:`. */
-export const PLATFORMS = [successfactors.type];
+export const PLATFORMS = [successfactors.type, eightfold.type];
 
 /** @returns {{source: object, params: object} | null} */
 export function detect(rawUrl, platform) {

@@ -17,7 +17,7 @@ Node 22 or later. No other tools are needed.
 
 | Path | What |
 |---|---|
-| `src/sources/` | One file per job site (Workday, Greenhouse, Lever, Ashby, SmartRecruiters, Oracle, SuccessFactors, Goldman Sachs) |
+| `src/sources/` | One file per job site (Workday, Greenhouse, Lever, Ashby, SmartRecruiters, Oracle, SuccessFactors, Eightfold, Amazon, Google, Goldman Sachs) |
 | `src/run.mjs` | The daily pass: read, filter, remember, score, notify, write |
 | `src/score.mjs` | AI scoring (Claude Code on a subscription, the Claude API, OpenRouter, OpenAI-compatible APIs) and the keyword fallback |
 | `src/notify.mjs` | What gets sent and when; Telegram and email |

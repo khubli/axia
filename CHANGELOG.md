@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.0
+
+- **Amazon and Google.** Their own careers sites are read directly: `https://www.amazon.jobs/en/search?country=IND` and `https://www.google.com/about/careers/applications/jobs/results?location=India`. The search's filters on the address carry over, so a company with tens of thousands of roles is read for the country you want. Both come with each role's description, so no posting reads are needed.
+
+- **Eightfold career sites**, such as `paypal.eightfold.ai` or an employer's own `portal.careers.<company>.com` (add `platform: eightfold` to that one). `?location=India` narrows the search. Both of Eightfold's APIs are supported ([details](docs/configuration.md#companiesyml)).
+
 ## 1.6.1
 
 - **Long open, sooner.** A role posted 45 or more days ago now gets the Long open label (it was 180 days), and its details say it may already be filled, so check before putting time into it. Roles are still never hidden for their age: a role stays while its employer lists it, and senior roles often take two or three months to fill.

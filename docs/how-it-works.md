@@ -10,7 +10,7 @@ flowchart LR
     mem[("data/jobs.json<br/>memory")]
     fb[("data/feedback.json<br/>your calls")]
   end
-  sites[["Employers' careers sites<br/>Workday · Greenhouse · Lever · Ashby · SmartRecruiters · Oracle · SuccessFactors"]]
+  sites[["Employers' careers sites<br/>Workday · Greenhouse · Lever · Ashby · SmartRecruiters · Oracle · SuccessFactors · Eightfold · Amazon · Google"]]
   model[["Your model<br/>Claude · OpenRouter · OpenAI-compatible"]]
   subgraph run["Every morning: GitHub Actions running khubli/axia"]
     read["1 Read"] --> filter["2 Filter<br/>titles and places"] --> score["3 Score<br/>0–100, fits, gaps"] --> remember["4 Remember<br/>new · closed · reopened"]
@@ -29,7 +29,7 @@ flowchart LR
 
 ## 1. Read
 
-Each company's board is read through the JSON feed its own careers page uses: Workday, Greenhouse, Lever, Ashby, SmartRecruiters, Oracle Recruiting Cloud, SAP SuccessFactors and Goldman Sachs. Older SuccessFactors sites have no feed, so their search pages are read instead. Four boards at a time, with retries and backoff on errors. A board that cannot be read is reported, never treated as "no roles".
+Each company's board is read through the JSON feed its own careers page uses: Workday, Greenhouse, Lever, Ashby, SmartRecruiters, Oracle Recruiting Cloud, SAP SuccessFactors, Eightfold, Amazon, Google and Goldman Sachs. Older SuccessFactors sites have no feed, so their search pages are read instead; Google's results pages carry their roles as data inside the page. Four boards at a time, with retries and backoff on errors. A board that cannot be read is reported, never treated as "no roles".
 
 ## 2. Filter (free)
 

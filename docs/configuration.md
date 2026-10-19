@@ -31,6 +31,11 @@ The address decides how a company is read:
 | SmartRecruiters | `https://jobs.smartrecruiters.com/<company>` |
 | Oracle Recruiting Cloud | `https://<host>.oraclecloud.com/hcmUI/CandidateExperience/<lang>/sites/<site>` (also `.oraclecloud.eu`) |
 | Goldman Sachs | `https://higher.gs.com` |
+| Amazon | `https://www.amazon.jobs/en/search?country=IND` (the search's filters carry over) |
+| Google | `https://www.google.com/about/careers/applications/jobs/results?location=India` (filters carry over) |
+| Eightfold | `https://<company>.eightfold.ai/careers?location=India`; on the employer's own domain add `platform: eightfold` |
+
+Eightfold sites on the employer's own domain (`portal.careers.<company>.com`) also need the platform named: `platform: eightfold`. `?location=` narrows the search, and `?domain=` names the company domain the site uses when it isn't the address's own; for `<company>.eightfold.ai` it is taken to be `<company>.com`.
 
 SAP SuccessFactors career sites usually sit on the employer's own domain (`careers.<company>.com`), so the address can't identify them: add `platform: successfactors` and use the address of the site's search page. You can tell one by the `/search/` and `/job/…/<number>/` addresses and "Results 1 – 25 of N" above the list. Search terms on the address narrow what is read: `?locationsearch=India` reads only the roles the site places in India, which keeps an employer with thousands of roles to a few dozen requests, and `?q=` adds keywords. Add `&locale=en_GB` if the site's roles are in another language. Newer sites are read through their JSON search API, older ones from their search pages, 25 roles a page.
 
