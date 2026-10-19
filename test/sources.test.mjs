@@ -206,3 +206,63 @@ test('companies.yml: platform picks the reader, and an unknown one is a clear er
   const bad = tempProject({ companies: [{ name: 'Fabrikam', url: 'https://careers.fabrikam.com/', platform: 'taleo' }] });
   assert.throws(() => loadCompanies(bad), (e) => e instanceof ConfigError && /known platforms: successfactors/.test(e.message));
 });
+
+test('amazon: filters on the address carry over; descriptions come with the list', async () => {
+  const { source, params } = detect('https://www.amazon.jobs/en/search?country=IND&offset=40');
+  assert.equal(source.type, 'amazon');
+  const http = fakeHttp([['search.json', fixture('amazon.json')]]);
+  const jobs = await source.list(params, ctx(http));
+  assert.equal(jobs.length, 2);
+  assert.match(http.calls[0].url, /^https:\/\/www\.amazon\.jobs\/en\/search\.json\?country=IND&result_limit=100&offset=0&sort=recent$/);
+  assert.equal(jobs[0].id, '3100001');
+  assert.equal(jobs[0].url, 'https://www.amazon.jobs/en/jobs/3100001/principal-solutions-architect-payments');
+  assert.equal(jobs[0].location, 'Bengaluru, Karnataka, IND');
+  assert.equal(jobs[0].postedAt, '2026-10-18');
+  assert.match(jobs[0].description, /Design payments platforms\.\nLead migrations\.[\s\S]*Basic qualifications\n- 10\+ years[\s\S]*Preferred qualifications/);
+});
+
+test('google: reads the roles inside the results pages', async () => {
+  const { source, params } = detect('https://www.google.com/about/careers/applications/jobs/results?location=India');
+  assert.equal(source.type, 'google');
+  const page = (n) => readFileSync(new URL(`./fixtures/google-${n}.html`, import.meta.url), 'utf8');
+  const http = fakeHttp([['page=1', page(1)], ['page=2', page(2)]]);
+  const jobs = await source.list(params, ctx(http));
+  assert.equal(jobs.length, 3);
+  assert.match(http.calls[0].url, /results\?location=India&page=1$/);
+  assert.deepEqual([jobs[0].id, jobs[0].title, jobs[0].location, jobs[0].postedAt], ['111', 'Payments Architect', 'Bengaluru, Karnataka, India', '2026-10-16']);
+  assert.equal(jobs[0].url, 'https://www.google.com/about/careers/applications/jobs/results/111');
+  assert.match(jobs[0].description, /About the team\.[\s\S]*Responsibilities[\s\S]*Own the payments roadmap[\s\S]*10 years/);
+  await assert.rejects(source.list(params, ctx(fakeHttp([['page=1', '<html>sorry</html>']]))), /no job data/);
+});
+
+test('eightfold: hosted and branded sites, older and newer API', async () => {
+  const hsbc = detect('https://portal.careers.hsbc.com/careers?location=India', 'eightfold');
+  assert.deepEqual([hsbc.source.type, hsbc.params.domain, hsbc.params.location], ['eightfold', 'hsbc.com', 'India']);
+  assert.equal(detect('https://portal.careers.hsbc.com/careers'), null, 'a branded site needs platform: eightfold');
+  const v2 = fakeHttp([
+    ['/api/apply/v2/jobs?', fixture('eightfold-v2.json')],
+    ['/api/apply/v2/jobs/563774612471683', { job_description: '<p>Own <b>collateral</b> platforms.</p>' }],
+  ]);
+  const jobs = await hsbc.source.list(hsbc.params, ctx(v2));
+  assert.match(v2.calls[0].url, /domain=hsbc\.com&start=0&num=10&sort_by=timestamp&location=India/);
+  assert.deepEqual(jobs[1], {
+    id: '563774612471682',
+    title: 'VP Payments Systems',
+    location: 'Mumbai, Maharashtra, India; Pune, Maharashtra, India',
+    url: 'https://portal.careers.hsbc.com/careers/job/563774612471682',
+    postedAt: '2026-10-15',
+  });
+  assert.equal((await hsbc.source.detail(hsbc.params, jobs[0], ctx(v2))).description, 'Own collateral platforms.');
+
+  const paypal = detect('https://paypal.eightfold.ai/careers?location=India');
+  assert.equal(paypal.params.domain, 'paypal.com');
+  const pcsx = fakeHttp([
+    ['/api/apply/v2/jobs?', { message: 'Not authorized for PCSX' }],
+    ['/api/pcsx/search', fixture('eightfold-pcsx.json')],
+  ]);
+  const pj = await paypal.source.list(paypal.params, ctx(pcsx));
+  assert.deepEqual([pj.length, pj[0].id, pj[0].postedAt, pj[0].url], [1, '274922903169', '2026-10-16', 'https://paypal.eightfold.ai/careers/job/274922903169']);
+
+  const none = fakeHttp([['/api/', { message: 'nope' }]]);
+  await assert.rejects(paypal.source.list(paypal.params, ctx(none)), /no job list/);
+});
