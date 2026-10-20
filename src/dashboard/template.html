@@ -177,7 +177,7 @@ button, a, select, input { -webkit-tap-highlight-color: transparent; }
 @media (min-width: 1080px) { .split { grid-template-columns: minmax(0, 1fr) 430px; } }
 .list { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; min-width: 0; }
 .list > li + li { border-top: 1px solid var(--line); }
-.row { width: 100%; display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 14px; padding: 14px 16px; background: none; border: 0; text-align: left; cursor: pointer; }
+.row { width: 100%; display: grid; grid-template-columns: 66px minmax(0, 1fr); gap: 12px; padding: 14px 16px; background: none; border: 0; text-align: left; cursor: pointer; }
 .row:hover { background: var(--hover); }
 li.sel > .row { background: var(--accent-soft); }
 .sc { display: grid; justify-items: center; align-content: start; gap: 5px; padding-top: 1px; }
@@ -188,7 +188,10 @@ li.sel > .row { background: var(--accent-soft); }
 .sc.good .meter { color: var(--good); } .sc.look .meter { color: var(--look); } .sc.low .meter { color: var(--low); }
 .sc.wait b { color: var(--faint); font-size: 17px; }
 .sc.wait small { font: 10px/1 var(--f-mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--faint); }
-.rb { display: grid; gap: 3px; min-width: 0; }
+/* labels sit under the score, where a long title can't push them out of sight */
+.sc .tags { display: grid; gap: 4px; justify-items: center; margin-top: 4px; }
+.sc .pill { margin: 0; vertical-align: 0; font-size: 10px; letter-spacing: 0; padding: 3px 5px; white-space: nowrap; }
+.rb { display: grid; gap: 3px; min-width: 0; align-content: start; }
 .rt { font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 li.sel .rt { color: var(--accent); }
 .rm { font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0 6px; }
@@ -470,6 +473,9 @@ footer a { color: var(--muted); }
   const CALL = { applied: 'Applied', shortlist: 'Shortlist', 'not-for-me': 'Not for me' };
   const CALL_PILL = { applied: 'applied', shortlist: 'shortlist', 'not-for-me': 'nfm' };
   const callOf = (j) => (FB[j.id] && FB[j.id].v) || null;
+  // Applied and Shortlist roles live on the Your roles tab, so the Roles list leaves them out.
+  const KEEP = ['applied', 'shortlist'];
+  const kept = (j) => KEEP.includes(callOf(j));
 
   // ── dates ──
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -639,6 +645,7 @@ footer a { color: var(--muted); }
   function visible() {
     const rows = open.filter((j) => {
       if (!F.tiers.has(tierOf(j))) return false;
+      if (kept(j)) return false;
       if (!F.showNfm && callOf(j) === 'not-for-me') return false;
       if (F.company && j.company !== F.company) return false;
       if (F.city && !(j.cities.length ? j.cities : ['Not stated']).includes(F.city)) return false;
@@ -656,11 +663,12 @@ footer a { color: var(--muted); }
   }
 
   const place = (j) => (j.cities.length ? j.cities.join(', ') : 'Location not stated');
-  function scoreCell(j) {
-    const t = tierOf(j);
-    if (j.score == null) return '<span class="sc none"><b>–</b></span>';
-    if (t === 'wait') return '<span class="sc wait"><b class="num">≈' + j.score + '</b><small>est.</small></span>';
-    return '<span class="sc ' + t + '"><b>' + j.score + '</b><span class="meter"><i style="width:' + j.score + '%"></i></span></span>';
+  // The score, and under it the role's labels (New, Long open, Second look…).
+  function scoreCell(j, pills) {
+    const t = tierOf(j), tags = pills ? '<span class="tags">' + pills + '</span>' : '';
+    if (j.score == null) return '<span class="sc none"><b>–</b>' + tags + '</span>';
+    if (t === 'wait') return '<span class="sc wait"><b class="num">≈' + j.score + '</b><small>est.</small>' + tags + '</span>';
+    return '<span class="sc ' + t + '"><b>' + j.score + '</b><span class="meter"><i style="width:' + j.score + '%"></i></span>' + tags + '</span>';
   }
   function rowHtml(j) {
     const meta = [esc(j.company), esc(place(j)), j.postedAt ? 'posted ' + esc(day(j.postedAt)) : 'no posting date'];
@@ -668,8 +676,8 @@ footer a { color: var(--muted); }
       (j.secondLook ? '<span class="pill second" title="Your title words missed this title; the second look let it through">Second look</span>' : '') +
       (callOf(j) ? '<span class="pill ' + CALL_PILL[callOf(j)] + '">' + CALL[callOf(j)] + '</span>' : '');
     return '<li data-id="' + j.id + '"' + (j.id === sel ? ' class="sel"' : '') + '>' +
-      '<button class="row" aria-expanded="' + (j.id === sel) + '">' + scoreCell(j) +
-      '<span class="rb"><span class="rt">' + esc(j.title) + pills + '</span>' +
+      '<button class="row" aria-expanded="' + (j.id === sel) + '">' + scoreCell(j, pills) +
+      '<span class="rb"><span class="rt">' + esc(j.title) + '</span>' +
       '<span class="rm">' + meta.join('<span class="sep">·</span>') + '</span>' +
       (j.summary ? '<span class="rs">' + esc(j.summary) + '</span>' : '') + '</span></button>' +
       '<div class="inline">' + (j.id === sel && !wide() ? detailHtml(j) : '') + '</div></li>';
@@ -756,6 +764,8 @@ footer a { color: var(--muted); }
     const prev = FB[id] || {};
     FB[id] = { v: v, r: reason != null ? reason : v ? prev.r || '' : '', t: new Date().toISOString() };
     paintNfm();
+    // A role you just marked stays in view until the list next redraws; one you unmark comes back now.
+    if (!kept(byId[id]) && !document.querySelector('#list > li[data-id="' + id + '"]')) render();
     refreshRole(id);
     sendCall(id);
   }
@@ -818,6 +828,7 @@ footer a { color: var(--muted); }
   function reveal(id) {
     const j = byId[id];
     if (!j) return;
+    if (kept(j)) { openMine(id); return; }
     const t = tierOf(j);
     if (!F.tiers.has(t)) { F.tiers.add(t); const chip = document.querySelector('.chip[data-t="' + t + '"]'); if (chip) chip.setAttribute('aria-pressed', 'true'); }
     if (F.company && F.company !== j.company) { F.company = ''; $('#company').value = ''; }
@@ -855,16 +866,15 @@ footer a { color: var(--muted); }
   })();
 
   // ── your roles: Applied and Shortlist, kept after the posting closes ──
-  const KEEP = ['applied', 'shortlist'];
   let mineSel = null;
   const mineGroup = {}; // a role you just unmarked stays where it was until you leave the tab
   function mineRow(j) {
     const e = FB[j.id] || {};
-    const meta = [esc(j.company), esc(place(j)), e.t ? 'marked ' + esc(day(isoDay(new Date(e.t)))) : ''].filter(Boolean);
-    const pill = j.status === 'closed' ? '<span class="pill closed">' + (j.closedOn ? 'Closed ' + esc(day(j.closedOn)) : 'Closed') + '</span>' : '';
+    const meta = [esc(j.company), esc(place(j)), e.t ? 'marked ' + esc(day(isoDay(new Date(e.t)))) : '', j.status === 'closed' && j.closedOn ? 'closed ' + esc(day(j.closedOn)) : ''].filter(Boolean);
+    const pill = j.status === 'closed' ? '<span class="pill closed">Closed</span>' : '';
     return '<li data-id="' + j.id + '" class="' + (j.status === 'closed' ? 'closed' : '') + (j.id === mineSel ? ' sel' : '') + '">' +
-      '<button class="row" aria-expanded="' + (j.id === mineSel) + '">' + scoreCell(j) +
-      '<span class="rb"><span class="rt">' + esc(j.title) + pill + '</span>' +
+      '<button class="row" aria-expanded="' + (j.id === mineSel) + '">' + scoreCell(j, pill) +
+      '<span class="rb"><span class="rt">' + esc(j.title) + '</span>' +
       '<span class="rm">' + meta.join('<span class="sep">·</span>') + '</span>' +
       (e.r ? '<span class="why-line">' + esc(e.r) + '</span>' : '') + '</span></button>' +
       '<div class="mine-d">' + (j.id === mineSel ? detailHtml(j) : '') + '</div></li>';
@@ -883,6 +893,11 @@ footer a { color: var(--muted); }
       return list.length ? '<section class="mine-group"><h2>' + CALL[k] + '<span class="num">' + list.length + '</span></h2><ul class="list mine">' + list.map(mineRow).join('') + '</ul></section>' : '';
     };
     view.innerHTML = '<p class="note">Roles you marked Applied or Shortlist. They stay here after the employer takes the posting down, so you can still find them when you hear back.</p>' + KEEP.map(group).join('');
+  }
+  function openMine(id) {
+    mineSel = id; showTab('mine'); renderMine();
+    const li = document.querySelector('#view-mine li[data-id="' + id + '"]');
+    if (li) li.scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
   $('#view-mine').addEventListener('click', (e) => {
     const li = e.target.closest('li[data-id]'); if (!li || !e.target.closest('.row')) return;
@@ -1057,7 +1072,7 @@ footer a { color: var(--muted); }
     '<h2 class="install-tip">Use it as an app</h2>' +
     '<p class="install-tip">On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen. On Android or a computer, use Install app at the top, or Install in the browser menu. The app opens straight to your results, and works offline with the last results it loaded.</p>' +
     '<h2>Your calls tune the scoring</h2>' +
-    '<p>Open a role and mark it Applied, Shortlist or Not for me, with a one-line reason if you like. Roles you mark Not for me leave the list (the Not for me chip brings them back). Each run saves your calls, with the posting, in your private repository.</p>' +
+    '<p>Open a role and mark it Applied, Shortlist or Not for me, with a one-line reason if you like. Roles you mark Applied or Shortlist move to the Your roles tab. Roles you mark Not for me leave the list (the Not for me chip brings them back). Each run saves your calls, with the posting, in your private repository.</p>' +
     '<p>Once a week Axia looks for calls the scores disagree with: a role you skipped that scored ' + GOOD + ' or more, or one you wanted that scored below. When there are some, the model suggests a change to your criteria.md, and Axia scores your judged roles again with and without it. Only if the change agrees with you more often does it open a pull request in your repository, with the numbers, for you to merge or close. Nothing changes until you merge it.</p>' +
     (MS && !MS.problem ? '<h2>Moonshots</h2><p>The Moonshots tab lists stretch roles you track yourself, for example from a daily research task: roles beyond your companies\' boards, picked for career upside rather than fit. Axia shows them as written in your moonshots.json on each run. It does not read or score them, and they never trigger a message.</p>' : '') +
     '<h2>When a role leaves this list</h2>' +
@@ -1103,7 +1118,7 @@ footer a { color: var(--muted); }
     const id = decodeURIComponent(location.hash.slice(1));
     const j = id && byId[id];
     if (j && j.status === 'open') { if (id !== sel) reveal(id); }
-    else if (j && KEEP.includes(callOf(j))) { mineSel = id; showTab('mine'); renderMine(); }
+    else if (j && kept(j)) openMine(id);
     else if (tabs().includes(id)) showTab(id);
   };
   fromHash();

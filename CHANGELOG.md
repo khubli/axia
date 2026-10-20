@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.8.1
+
+- **Labels under the score.** New, Long open, Second look and Not for me now sit under a role's score instead of after its title, so a long title can no longer push them out of sight. The Closed label on Your roles moved there too, with its date beside "marked".
+
+- **Applied and Shortlist roles move to Your roles.** Once you mark a role Applied or Shortlist it leaves the Roles list, the way Not for me does, so the list holds only roles you haven't decided on. It stays in view until the list next redraws, and comes straight back if you clear the call. A link or chart dot for a marked role opens it on Your roles.
+
 ## 1.8.0
 
 - **TurboHire career sites** (`<company>.turbohire.co`), which many Indian startups and fintechs use, such as Navi: `https://navi.turbohire.co/dashboardv2`. Every open role comes in one answer with its description, so no posting reads are needed. An address that names no TurboHire company is reported as an error, never as "no roles".

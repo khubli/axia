@@ -114,7 +114,7 @@ After editing it, run `axia calibrate` (below) before trusting the change.
 
 ## Your calls on the dashboard
 
-Open a role and mark it **Applied**, **Shortlist** or **Not for me**, with a one-line reason if you like. Applied and Shortlist count as "worth applying", Not for me as "skip". Roles you mark Not for me leave the list; the **Not for me** chip brings them back.
+Open a role and mark it **Applied**, **Shortlist** or **Not for me**, with a one-line reason if you like. Applied and Shortlist count as "worth applying", Not for me as "skip". Roles you mark Applied or Shortlist move from the Roles list to the **Your roles** tab. Roles you mark Not for me leave the list; the **Not for me** chip brings them back.
 
 The buttons save to a Workers KV store in your Cloudflare account, behind the same login as the dashboard. Each run copies the calls into `data/feedback.json` with the posting text, so they last after the role closes. They count as judged roles for `axia calibrate` and the weekly review. If a call can't be saved (offline, or signed out), it waits on your device and is sent the next time the dashboard opens online.
 
