@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.2
+
+- **The model reads up to 15,000 characters of each posting, not 7,000.** Scoring several roles per request (Claude Code, OpenRouter and other OpenAI-compatible APIs) cut each posting at 7,000 characters. On one night's 40 scored roles that cut 10 postings, and two of them lost their whole skills and qualifications section. None of those 40 passed 15,000, so postings now reach the model whole, as they already did on the Claude API. A night's scoring sends about 14% more text. Roles already scored keep their score until they are next scored.
+
 ## 1.8.1
 
 - **Labels under the score.** New, Long open, Second look and Not for me now sit under a role's score instead of after its title, so a long title can no longer push them out of sight. The Closed label on Your roles moved there too, with its date beside "marked".

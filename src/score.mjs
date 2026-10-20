@@ -21,8 +21,10 @@ import { mapLimit } from './http.mjs';
 import { normalize, truncate } from './text.mjs';
 import { ConfigError } from './config.mjs';
 
-const MAX_JD_CHARS = 15000; // one role per request (API)
-const MAX_JD_CHARS_BATCH = 7000; // several roles per request (Claude Code)
+// Posting text sent per role, the same whether roles go one per request (API) or several (Claude
+// Code, OpenRouter). Few postings pass 15,000 characters; a cut at 7,000 dropped a quarter of
+// postings' endings, sometimes their whole skills and qualifications section.
+const MAX_JD_CHARS = 15000;
 
 // Server-side refusal fallback: supported on these models via the Claude API.
 const FALLBACK_MODELS = new Set(['claude-opus-5-5', 'claude-opus-5', 'claude-fable-5-1', 'claude-sonnet-5-5']);
@@ -372,7 +374,7 @@ function openAIScorer({ name, baseUrl, apiKey, settings, resume, criteria, fetch
     const { data: parsed, model: usedModel } = await ask({
       system,
       instruction: `Score all ${batch.length} jobs below. Return exactly one result for each id: ${ids.join(', ')}.`,
-      input: batch.map((job, i) => `<job id="${ids[i]}">\n${jobText(job, MAX_JD_CHARS_BATCH)}\n</job>`).join('\n\n'),
+      input: batch.map((job, i) => `<job id="${ids[i]}">\n${jobText(job, MAX_JD_CHARS)}\n</job>`).join('\n\n'),
       schema: BATCH_SCHEMA,
       example: '{"results":[{"id":"1","score":0,"summary":"","strengths":[],"gaps":[],"musts":[{"requirement":"","quote":"","match":"yes"}]}]}',
     });
@@ -461,7 +463,7 @@ function claudeCodeScorer({ env, settings, resume, criteria, runClaude = spawnCl
       workdir,
       systemFile: 'system.txt',
       instruction: `Score all ${batch.length} jobs in the input. Return exactly one result for each id: ${ids.join(', ')}.`,
-      input: batch.map((job, i) => `<job id="${ids[i]}">\n${jobText(job, MAX_JD_CHARS_BATCH)}\n</job>`).join('\n\n'),
+      input: batch.map((job, i) => `<job id="${ids[i]}">\n${jobText(job, MAX_JD_CHARS)}\n</job>`).join('\n\n'),
       schema: BATCH_SCHEMA,
     });
     const results = new Map((structured?.results ?? []).map((r) => [String(r.id), r]));
