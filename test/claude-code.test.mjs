@@ -114,6 +114,21 @@ test('a role the model skipped stays unscored instead of getting a wrong score',
   assert.equal(out.stoppedBecause, null);
 });
 
+test('a long posting reaches the model whole, up to 15,000 characters', async () => {
+  const calls = [];
+  const scorer = makeScorer({ env: {}, settings: { scoring: { model: 'sonnet', batch_size: 8 } }, resume: 'r', criteria: '', runClaude: fakeClaude(calls) });
+  const qualifications = 'Qualifications: 18+ years in payments and core banking technology.';
+  const long = `${'Role overview. '.repeat(700)}${qualifications}`; // about 10,600 characters, the requirements at the end
+  const huge = 'x'.repeat(20000);
+  await scorer.scoreAll([
+    { key: 'k1', company: 'A', title: 'T1', location: 'Pune', description: long },
+    { key: 'k2', company: 'A', title: 'T2', location: 'Pune', description: huge },
+  ]);
+  assert.ok(calls[0].input.includes(qualifications), 'the end of a 10,600-character posting is sent');
+  assert.ok(calls[0].input.includes(`${'x'.repeat(14999 - 1)}…`), 'a posting over 15,000 characters is still cut');
+  assert.ok(!calls[0].input.includes('x'.repeat(15000)));
+});
+
 test('scorer choice follows the secrets present', () => {
   const base = { settings: { scoring: { model: 'sonnet' } }, resume: 'r', criteria: '' };
   assert.equal(makeScorer({ ...base, env: {} }), null);
