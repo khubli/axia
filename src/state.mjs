@@ -17,13 +17,14 @@ export const STATE_VERSION = 2;
 export function emptyState() {
   // titleChecks: the second look's verdict per employer + title, so each title is asked about once.
   // gaps: the weekly themes of gaps that keep coming up (gaps.mjs).
-  return { version: STATE_VERSION, lastRun: null, jobs: {}, skipped: {}, companies: {}, problems: {}, lastWeekly: null, titleChecks: {}, gaps: null };
+  // history: one line per recent run, newest first (changes.mjs).
+  return { version: STATE_VERSION, lastRun: null, jobs: {}, skipped: {}, companies: {}, problems: {}, lastWeekly: null, titleChecks: {}, gaps: null, history: [] };
 }
 
 export function loadState(path) {
   if (!existsSync(path)) return emptyState();
   const s = JSON.parse(readFileSync(path, 'utf8'));
-  return { ...emptyState(), ...s, version: s.version ?? 1, jobs: s.jobs ?? {}, skipped: s.skipped ?? {}, companies: s.companies ?? {}, problems: s.problems ?? {}, titleChecks: s.titleChecks ?? {} };
+  return { ...emptyState(), ...s, version: s.version ?? 1, jobs: s.jobs ?? {}, skipped: s.skipped ?? {}, companies: s.companies ?? {}, problems: s.problems ?? {}, titleChecks: s.titleChecks ?? {}, history: s.history ?? [] };
 }
 
 export function saveState(path, state) {

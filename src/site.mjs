@@ -10,6 +10,7 @@ import { jobId } from './text.mjs';
 import { daysBetween } from './state.mjs';
 import { feedbackEnabled, pageFeedback } from './feedback.mjs';
 import { gapsView } from './gaps.mjs';
+import { MOVE_POINTS } from './changes.mjs';
 
 const ASSETS = join(dirname(fileURLToPath(import.meta.url)), 'dashboard');
 const ICONS = ['icon.svg', 'icon-32.png', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
@@ -113,7 +114,29 @@ export function siteData(view, { minScore, demo = false }) {
     // Stretch roles from your own research (moonshots.json), on their own tab; null means no tab.
     // Gaps that keep coming up across your close calls (gaps.mjs); null until the first roll-up.
     gaps: pageGaps(state, settings),
+    // What the last run changed (changes.mjs); null before the first run that records it.
+    brief: pageBrief(summary.changes, state),
     moonshots: view.moonshots ? (view.moonshots.problem ? { problem: view.moonshots.problem } : { ...view.moonshots.report, dropped: undefined }) : null,
+  };
+}
+
+function pageBrief(changes, state) {
+  if (!changes) return null;
+  const ids = (keys) => keys.filter((k) => state.jobs[k]).map(jobId);
+  return {
+    line: changes.line,
+    since: changes.since,
+    new: ids(changes.new),
+    scored: ids(changes.scored),
+    movePoints: MOVE_POINTS,
+    moved: changes.moved.filter((m) => state.jobs[m.key]).map((m) => ({ id: jobId(m.key), from: m.from })),
+    closed: ids(changes.closed),
+    reopened: ids(changes.reopened),
+    notified: ids(changes.notified),
+    companies: changes.companies,
+    pending: changes.pending,
+    // Recent runs, one line each, newest (this run) first.
+    history: state.history ?? [],
   };
 }
 

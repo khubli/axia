@@ -92,6 +92,7 @@ test('daily runs: new, duplicate, out-of-area, closed, failed board, AI scores, 
   assert.equal(out.summary.counts.duplicates, 1);
   assert.equal(out.summary.ai.scored, 2);
   assert.deepEqual(out.delivery, [{ kind: 'digest', channel: 'telegram', ok: true }]);
+  assert.equal(out.summary.changes.line, 'First run: 2 roles found in your titles and places.');
 
   const state = JSON.parse(readFileSync(join(dir, 'data/jobs.json'), 'utf8'));
   const jobs = Object.values(state.jobs);
@@ -151,12 +152,26 @@ test('daily runs: new, duplicate, out-of-area, closed, failed board, AI scores, 
   assert.equal(out.summary.counts.closedToday, 1);
   assert.equal(requests.length, 1, 'only the new role is sent to the AI; earlier scores are kept');
 
+  // The brief of what changed, worked out without any AI request.
+  const ch = out.summary.changes;
+  assert.deepEqual(ch.new, ['greenhouse:acme:5']);
+  assert.deepEqual(ch.closed, ['greenhouse:acme:1']);
+  assert.deepEqual(ch.scored, ['greenhouse:acme:5']);
+  assert.deepEqual(ch.notified, ['greenhouse:acme:5']);
+  assert.deepEqual(ch.companies.unreadable, ['Big Bank']);
+  assert.equal(ch.since, '2026-10-15T03:00:00.000Z');
+  assert.equal(ch.line, '1 new role and 1 closed. Scored 1 role for the first time: 1 good match. 1 good match sent to you. Big Bank could not be read.');
+
   const s2 = JSON.parse(readFileSync(join(dir, 'data/jobs.json'), 'utf8'));
   const byTitle = Object.fromEntries(Object.values(s2.jobs).map((j) => [j.title, j]));
   assert.equal(byTitle['Senior Solution Architect'].status, 'closed');
   assert.equal(byTitle['Senior Solution Architect'].closedOn, '2026-10-16');
   assert.equal(byTitle['Enterprise Architect - VP'].status, 'open', 'a board that failed to load must not close its roles');
   assert.equal(byTitle['Payments Architect'].score.value, 79);
+  assert.equal(s2.lastRun.changes.line, ch.line, 'the brief is kept in memory with the run');
+  assert.deepEqual(s2.history.map((h) => [h.today, h.new, h.closed, h.scored, h.good]), [['2026-10-16', 1, 1, 1, 1], ['2026-10-15', 2, 0, 2, 1]]);
+  assert.match(readFileSync(join(dir, 'dashboard/README.md'), 'utf8'), /\*\*What changed in this run:\*\* 1 new role and 1 closed\./);
+  assert.match(readFileSync(join(dir, '.axia/site/index.html'), 'utf8'), /"brief":\{"line":"1 new role and 1 closed\./);
 
   assert.equal(sent.length, 1, 'one failed day is not worth a message yet');
   assert.match(JSON.parse(sent[0].init.body).text, /Payments Architect/);
