@@ -113,6 +113,17 @@ for (const j of Object.values(jobs)) {
   if (MUSTS[j.title]) j.score.musts = MUSTS[j.title].map(([requirement, quote, match]) => ({ requirement, quote, match }));
 }
 
+// The role's level against the candidate's (Lead Architect at a bank), as the model would label it.
+const levelFor = (title) =>
+  /\b(Head|Director|VP|Vice President|Chief)\b/.test(title) ? { vs: 'up', note: '≈ one grade above Lead Architect; leads managers' }
+  : /\b(Principal|Lead|Staff|Architect)\b/.test(title) ? { vs: 'same', note: '≈ Lead Architect at your bank' }
+  : /\b(Manager|Engineer|Analyst|Specialist)\b/.test(title) ? { vs: 'down', note: '≈ one grade below; asks 8+ years' }
+  : null;
+for (const j of Object.values(jobs)) {
+  const level = j.score.scorer === 'ai' && levelFor(j.title);
+  if (level) j.score.level = level;
+}
+
 // Gaps that keep coming up across the roles scored 55 to 89, as the weekly roll-up would group them.
 const keysOf = (...titles) => titles.map((t) => byTitle(t).key);
 const gaps = {

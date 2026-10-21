@@ -77,6 +77,7 @@ export function siteData(view, { minScore, demo = false }) {
         strengths: ai ? j.score.strengths ?? [] : [],
         gaps: ai ? j.score.gaps ?? [] : [],
         musts: ai ? j.score.musts ?? [] : [],
+        level: ai ? levelView(j.score.level) : null,
         model: ai ? modelName(j.score.model) : null,
         resumeRev: ai ? String(j.score.resumeHash ?? '').slice(0, 6) : null,
         scoredOn: j.score?.scoredOn ?? null,
@@ -89,7 +90,7 @@ export function siteData(view, { minScore, demo = false }) {
     jobs.push({
       id: r.id, company: r.company, title: String(r.title).replace(/\s+/g, ' ').trim(), location: r.location || null, cities: citiesOf(r.location),
       url: r.url, postedAt: null, firstSeen: null, secondLook: null, status: 'closed', closedOn: null,
-      ai, score: r.score?.value ?? null, summary: null, strengths: [], gaps: [],
+      ai, score: r.score?.value ?? null, summary: null, strengths: [], gaps: [], level: ai ? levelView(r.score.level) : null,
       model: ai ? modelName(r.score.model) : null, resumeRev: ai ? String(r.score.resumeHash ?? '').slice(0, 6) : null, scoredOn: null,
     });
   }
@@ -139,6 +140,9 @@ function pageBrief(changes, state) {
     history: state.history ?? [],
   };
 }
+
+/** The role's level against yours, for the page: { vs, note } without the guide version. */
+const levelView = (level) => (level?.vs ? { vs: level.vs, note: level.note ?? null } : null);
 
 function pageGaps(state, settings) {
   const g = gapsView(state, settings);

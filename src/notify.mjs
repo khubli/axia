@@ -107,7 +107,8 @@ export function planMessages({ state, summary, settings, minScore, today }) {
   const matches = open.filter((j) => isMatch(j, minScore) && !j.notifiedOn).sort((x, y) => y.score.value - x.score.value);
   const item = (j) => {
     const title = escapeHtml(clip(j.title, 110));
-    const meta = [j.company, cityOf(j.location), j.postedAt ? `posted ${dayLabel(j.postedAt)}` : null].filter(Boolean).join(' · ');
+    const level = { up: 'Step up', same: 'Same level', down: 'Step down' }[j.score.level?.vs];
+    const meta = [j.company, cityOf(j.location), j.postedAt ? `posted ${dayLabel(j.postedAt)}` : null, level].filter(Boolean).join(' · ');
     const gap = j.score.gaps?.[0];
     return [
       `<b>${j.score.value}</b> · ${dash ? a(`${dash}/#${jobId(j.key)}`, title) : a(j.url, title)}`,
