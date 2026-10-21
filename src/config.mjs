@@ -33,8 +33,8 @@ const DEFAULTS = {
   gaps: { min_score: 55, max_score: 89 },
   // Tailor buttons: queue a role or moonshot for a tailored resume and cover letter, made by your own
   // tool outside Axia. Off by default; `tailor: true` turns it on. `done` is the file that tool writes.
-  // dispatch: owner/repo whose tailoring workflow a click starts at once (repository_dispatch, axia-tailor).
-  tailor: { enabled: false, done: 'tailored.json', dispatch: '' },
+  // dispatch: owner/repo whose tailoring workflow (workflow, on branch ref) a click starts at once.
+  tailor: { enabled: false, done: 'tailored.json', dispatch: '', workflow: 'tailor.yml', ref: 'main' },
 };
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -57,6 +57,8 @@ export function loadSettings(dir = ROOT) {
   if (typeof s.tailor.done !== 'string' || !s.tailor.done.trim()) throw new ConfigError(`settings.yml: tailor.done must be a file name (for example tailored.json), not "${s.tailor.done}"`);
   s.tailor.dispatch = String(s.tailor.dispatch || '').trim();
   if (s.tailor.dispatch && !/^[\w.-]+\/[\w.-]+$/.test(s.tailor.dispatch)) throw new ConfigError(`settings.yml: tailor.dispatch must be owner/repository, not "${s.tailor.dispatch}"`);
+  if (!/^[\w.-]+\.ya?ml$/.test(String(s.tailor.workflow))) throw new ConfigError(`settings.yml: tailor.workflow must be a workflow file name such as tailor.yml, not "${s.tailor.workflow}"`);
+  if (!/^[\w./-]+$/.test(String(s.tailor.ref))) throw new ConfigError(`settings.yml: tailor.ref must be a branch name, not "${s.tailor.ref}"`);
   if (raw.moonshots === false || s.moonshots.file === false) s.moonshots = { file: '' };
   s.gaps.enabled = raw.gaps !== false;
   for (const key of ['min_score', 'max_score']) {

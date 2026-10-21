@@ -55,7 +55,7 @@ inputs:
     description: Your Cloudflare account id.
     default: ''
   tailor-dispatch-token:
-    description: "With tailor.dispatch in settings.yml: a GitHub token that may start workflows in that repository (fine-grained, Contents: read and write). The dashboard's Tailor button then starts your tailoring workflow at once."
+    description: "With tailor.dispatch in settings.yml: a GitHub token that may start workflows in that repository (fine-grained, Actions: read and write only). The dashboard's Tailor button then starts your tailoring workflow at once."
     default: ''
   commit:
     description: "'true' commits data/ and dashboard/ back to your repository after each run (needs contents: write)."

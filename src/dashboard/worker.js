@@ -6,7 +6,8 @@
 //   GET  /api/tailor     every Tailor request: { entries: { <role id>: { on, n, t } } }
 //   POST /api/tailor     { id, on: true | false, note }   (only when settings.yml turns tailor on)
 //                        With TAILOR_REPO and TAILOR_TOKEN set (tailor.dispatch), a request also starts
-//                        that repository's tailoring workflow at once (repository_dispatch "axia-tailor").
+//                        that repository's tailoring workflow at once (workflow_dispatch of TAILOR_WORKFLOW
+//                        on TAILOR_REF, inputs id, note, at). The token needs only Actions: read and write.
 //
 // Cloudflare Access sits in front of the whole address, so only you reach this. As a second
 // guard, a request that did not come through Access (no Access token) is refused, and a write
@@ -24,12 +25,13 @@ const viaAccess = (request) => Boolean(request.headers.get('cf-access-jwt-assert
 async function dispatch(env, payload) {
   if (!env.TAILOR_REPO || !env.TAILOR_TOKEN) return false;
   try {
-    const res = await fetch(`https://api.github.com/repos/${env.TAILOR_REPO}/dispatches`, {
+    const workflow = encodeURIComponent(env.TAILOR_WORKFLOW || 'tailor.yml');
+    const res = await fetch(`https://api.github.com/repos/${env.TAILOR_REPO}/actions/workflows/${workflow}/dispatches`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${env.TAILOR_TOKEN}`, Accept: 'application/vnd.github+json', 'User-Agent': 'axia-dashboard', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ event_type: 'axia-tailor', client_payload: payload }),
+      body: JSON.stringify({ ref: env.TAILOR_REF || 'main', inputs: { id: payload.id, note: payload.note || '', at: payload.at || '' } }),
     });
-    return res.status === 204;
+    return res.status === 204 || res.status === 200;
   } catch {
     return false;
   }

@@ -107,7 +107,7 @@ export async function deploy({ dir, env = process.env, settings, log = console.l
         const kvId = await findNamespace({ env, settings, create: true, fetchImpl: cfFetch });
         copyFileSync(WORKER_SOURCE, join(work, 'worker.js'));
         feedback = { main: 'worker.js', kvId };
-        if (tailorApi(settings) && settings.tailor.dispatch) feedback.vars = { TAILOR_REPO: settings.tailor.dispatch };
+        if (tailorApi(settings) && settings.tailor.dispatch) feedback.vars = { TAILOR_REPO: settings.tailor.dispatch, TAILOR_WORKFLOW: settings.tailor.workflow, TAILOR_REF: settings.tailor.ref };
       } catch (err) {
         log(`Feedback buttons not connected: ${err.message}. Check that the Cloudflare token can edit Workers KV Storage (docs/setup.md, step 5).`);
       }

@@ -4,7 +4,7 @@
 
 - **Tailor for this role (optional, off by default).** With `tailor: true` in `settings.yml`, each role and each moonshot gets a **Tailor for this role** button, with an optional note. Axia doesn't write resumes. It queues the request for a tool of your own. Each run copies requests into `data/tailor.json`: for a role, the posting text and the score's must-haves quoted from the posting; for a moonshot, its requirements and gaps. When your tool records a request in `tailored.json`, the role shows when the tailored version was made and where to find it. **Tailor again** asks for a fresh one. Tailored versions never feed back into scoring, so every score stays against your one resume ([details](docs/configuration.md#tailored-applications)). The demo shows one done and one waiting.
 
-- **Start the tailoring at the click (optional).** With `tailor.dispatch: owner/repo` and the action's new `tailor-dispatch-token` input, a click also starts that repository's workflow at once (`repository_dispatch`, type `axia-tailor`), instead of waiting for the next run. The new `axia tailor-request` command gives that workflow the one request with its posting text ([details](docs/configuration.md#start-the-tailoring-at-the-click-optional)).
+- **Start the tailoring at the click (optional).** With `tailor.dispatch: owner/repo` and the action's new `tailor-dispatch-token` input, a click also starts that repository's workflow at once (`workflow_dispatch` of `tailor.yml` with inputs `id`, `note`, `at`; the token needs only Actions: read and write), instead of waiting for the next run. The new `axia tailor-request` command gives that workflow the one request with its posting text ([details](docs/configuration.md#start-the-tailoring-at-the-click-optional)).
 
 ## 1.13.0
 

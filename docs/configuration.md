@@ -98,6 +98,8 @@ tailor:                          # true is short for enabled: true
   enabled: false                 # [false] a Tailor for this role button on each role and moonshot, queued for your own tailoring tool
   done: tailored.json            # [tailored.json] the file your tool writes when a request is done
   dispatch: ''                   # [''] owner/repo: a click also starts that repo's tailoring workflow at once
+  workflow: tailor.yml           # [tailor.yml] that workflow's file name
+  ref: main                      # [main] the branch it runs on
 
 gaps:                            # false turns it off
   min_score: 55                  # [55] the gaps that keep coming up are read from open roles scored this much or more…
@@ -248,10 +250,10 @@ tailor: { enabled: true, dispatch: you/career-data }
 # your workflow that runs Axia
 - uses: khubli/axia@v1
   with:
-    tailor-dispatch-token: ${{ secrets.AXIA_TAILOR_TOKEN }}   # fine-grained, Contents: read and write on that repository
+    tailor-dispatch-token: ${{ secrets.AXIA_TAILOR_TOKEN }}   # fine-grained, Actions: read and write on that repository, nothing else
 ```
 
-Deploy saves the token as a secret of your dashboard's Worker; it never reaches the page. Each click (not a cancel) then sends a `repository_dispatch` of type `axia-tailor` with `client_payload: { id, note, at }`. In that workflow, `npx axia tailor-request --dir <folder> --id <id> --note <note> --at <at> --out request.json` writes the one request as `data/tailor.json` would hold it, with the posting text (from what Axia saved, else one read of the role's board). Record the result in `tailored.json` as above. If the dispatch fails, the click is still saved and the next run queues it as usual.
+Deploy saves the token as a secret of your dashboard's Worker; it never reaches the page. It can start workflows but not change the repository's files. Each click (not a cancel) then starts `tailor.workflow` on `tailor.ref` (`workflow_dispatch`) with the string inputs `id`, `note` and `at`, so the workflow declares those three inputs. In that workflow, `npx axia tailor-request --dir <folder> --id <id> --note <note> --at <at> --out request.json` writes the one request as `data/tailor.json` would hold it, with the posting text (from what Axia saved, else one read of the role's board). Record the result in `tailored.json` as above. If the dispatch fails, the click is still saved and the next run queues it as usual.
 
 ## calibration/roles.yml
 
