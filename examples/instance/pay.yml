@@ -1,0 +1,20 @@
+# Optional: pay figures you know of, by employer, job family and level.
+# Each role's AI read gets only its own employer's lines and picks the level that fits.
+# Roles at employers not listed here still get a range: from the posting when it states pay,
+# otherwise a rough AI estimate. Pay never changes a role's score.
+#
+# Amounts are yearly total pay (base, bonus and stock) in whole currency units, or free text.
+# Fill it from what you can see yourself (offers, recruiters, salary sites you read) and say
+# where figures came from in `source`. The figures below are made up; replace them.
+# Details: https://github.com/khubli/axia/blob/main/docs/configuration.md#pay-range-per-role-and-payyml
+
+currency: INR
+companies:
+  Example Bank:
+    source: made-up example figures
+    Software Engineering Manager: { L5: 8700000, L6: 5800000 }
+    Solution Architect: about 50 to 70 lakh
+  Example Tech:
+    currency: USD
+    source: made-up example figures
+    Software Engineer: { L5: 185000, L6: 240000 }

@@ -32,6 +32,9 @@ scoring:
   # base_url: https://api.openai.com/v1   # only for openai-compatible (OpenAI, Groq, a local Ollama…)
   criteria: criteria.md
   levels: levels.md       # your level and what it is called at the companies you watch (optional)
+  # Optional pay figures you know of, by employer and level; each role also gets a pay range from its
+  # posting or a rough AI estimate (docs/configuration.md#pay-range-per-role-and-payyml).
+  pay: pay.yml
   max_ai_scores_per_run: 40
   batch_size: 8
   # Words that make a role more promising; used to decide what gets an AI score first.

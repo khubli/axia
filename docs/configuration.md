@@ -66,6 +66,7 @@ scoring:
   base_url: ''                   # [none] openai-compatible only, e.g. https://api.openai.com/v1; openrouter defaults to its own
   criteria: criteria.md          # [criteria.md] what a good role looks like for you
   levels: levels.md              # [levels.md] your level and what it is called at the companies you watch; optional
+  pay: pay.yml                   # [pay.yml] optional pay figures you know of (below); false leaves the table out
   max_ai_scores_per_run: 40      # [40] the rest wait for the next run
   batch_size: 8                  # [8] roles per request (Claude subscription, OpenRouter, OpenAI-compatible)
   keywords: [payments, platform] # [] make a role more promising for the AI queue, and lift keyword estimates
@@ -140,6 +141,32 @@ The buttons save to a Workers KV store in your Cloudflare account, behind the sa
 Each AI score also lists up to four things the posting itself requires, in the posting's own words, and whether your resume shows each (yes, partly, no). Axia keeps one only when its quote is really in the posting, so a requirement the model made up never reaches the dashboard. They explain the score; they don't change it.
 
 Once a week, when they have changed, the gaps and unmet must-haves of your open roles scored `gaps.min_score` to `gaps.max_score` are grouped by the model into a few themes, each with the roles behind it, shown at the top of the dashboard's Roles tab and as one line in the weekly message. For each theme, decide once: add the evidence to your resume if you have it, or accept the gap in `criteria.md`. Axia never edits either. It takes one small model request a week.
+
+## Pay range per role, and pay.yml
+
+Each AI score also gives the role's likely pay as a range, in the currency of its place. It comes from the same request as the score, so it costs a few dozen output tokens per role and no extra requests, and it never changes the score. Where a range comes from, most trusted first:
+
+- **Stated on the posting.** The posting gives pay. Axia keeps the posting's own words and checks they are really in the posting; a figure it can't find there is shown as an estimate.
+- **From your pay table.** `pay.yml` has figures for the employer, and the model picks the level that fits the role.
+- **AI estimate.** The model's own rough estimate for this kind of role, employer and place, with a few words on what it rests on.
+
+The dashboard shows the range under each role (`~` marks anything not stated on the posting) and where it came from in the role's details. Ranges are total yearly pay (base, bonus and stock) unless the posting says otherwise.
+
+`pay.yml` is optional. Each role's request carries only its own employer's lines, so the table can grow without making runs heavier. Amounts are whole numbers in the table's currency, or free text:
+
+```yaml
+currency: INR                          # [INR] for every company that doesn't name its own
+companies:
+  Example Bank:
+    source: Levels.fyi, India, median total pay, read 21 Oct 2026   # shown to the model; say where figures came from
+    Software Engineering Manager: { L5: 8700000, L6: 5800000 }
+    Solution Architect: about 50 to 70 lakh
+  Example Tech:
+    currency: USD
+    Software Engineer: { L5: 185000, L6: 240000 }
+```
+
+Fill it from what you can see yourself: offers, recruiters, colleagues, or salary sites you read (credit them in `source`; many, such as Levels.fyi, ask for attribution and don't allow bulk collection). Axia never fetches pay data from any site. Pay is filled on roles as they are scored. Roles scored before, and roles on the dashboard after you change `pay.yml`, get it from the same catch-up as the level (see levels.md above).
 
 ## moonshots.json
 

@@ -196,6 +196,7 @@ li.sel > .row { background: var(--accent-soft); }
 li.sel .rt { color: var(--accent); }
 .rm { font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0 6px; }
 .rm .sep { color: var(--faint); }
+.rm .pay { font-variant-numeric: tabular-nums; }
 .rs { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 639px) { .rs { display: none; } }
 .pill { display: inline-block; font: 500 11px/1 var(--f-body); padding: 4px 7px; border-radius: 999px; vertical-align: 2px; margin-left: 6px; letter-spacing: 0.02em; }
@@ -707,6 +708,33 @@ footer a { color: var(--muted); }
   }
 
   const place = (j) => (j.cities.length ? j.cities.join(', ') : 'Location not stated');
+  // Pay: a range from the posting, your pay table or an AI estimate. "~" marks anything not stated on the posting.
+  const PAY_FROM = { posting: 'Stated on the posting', table: 'From your pay table', estimate: 'AI estimate' };
+  function lakh(n) { const l = n / 1e5; return l < 10 ? +l.toFixed(1) : Math.round(l); }
+  function crore(n) { return +(n / 1e7).toFixed(2); }
+  function payRange(p) {
+    if (p.currency === 'INR' && p.high >= 1e5) {
+      const lo = p.low, hi = p.high;
+      const one = (n) => (n >= 1e7 ? crore(n) + 'Cr' : lakh(n) + 'L');
+      if (lo === hi) return '₹' + one(lo);
+      if (hi < 1e7) return '₹' + lakh(lo) + '–' + lakh(hi) + 'L';
+      if (lo >= 1e7) return '₹' + crore(lo) + '–' + crore(hi) + 'Cr';
+      return '₹' + one(lo) + '–' + one(hi);
+    }
+    let f;
+    try { f = new Intl.NumberFormat('en', { style: 'currency', currency: p.currency, notation: p.high >= 1e4 ? 'compact' : 'standard', maximumFractionDigits: 1 }); }
+    catch (e) { f = { format: (n) => n.toLocaleString('en') + ' ' + p.currency }; }
+    return p.low === p.high ? f.format(p.low) : f.format(p.low) + '–' + f.format(p.high);
+  }
+  const PER = { year: '', month: '/mo', hour: '/hr' }, PER_WORDS = { year: ' a year', month: ' a month', hour: ' an hour' };
+  const payShort = (p) => (p.source === 'posting' ? '' : '~') + payRange(p) + (PER[p.period] || '');
+  function payFact(p) {
+    const why = p.source === 'posting' ? (p.quote ? '<q>' + esc(p.quote) + '</q>' : '')
+      : esc(PAY_FROM[p.source] || 'Estimate') + (p.basis ? ': ' + esc(p.basis) : '') + '. A rough guide to total pay (base, bonus and stock), not an offer.';
+    return '<b>' + (p.source === 'posting' ? '' : '~') + esc(payRange(p)) + '</b>' + (PER_WORDS[p.period] || '') +
+      (p.source === 'posting' ? ' <span class="muted">· stated on the posting</span>' : '') +
+      (why ? '<br><span class="muted">' + why + '</span>' : '');
+  }
   // The score, and under it the role's labels (New, Long open, Second look…).
   function scoreCell(j, pills) {
     const t = tierOf(j), tags = pills ? '<span class="tags">' + pills + '</span>' : '';
@@ -716,6 +744,7 @@ footer a { color: var(--muted); }
   }
   function rowHtml(j) {
     const meta = [esc(j.company), esc(place(j)), j.postedAt ? 'posted ' + esc(day(j.postedAt)) : 'no posting date'];
+    if (j.pay) meta.push('<span class="pay" title="' + esc(PAY_FROM[j.pay.source] || '') + '">' + esc(payShort(j.pay)) + '</span>');
     const pills = levelPill(j) + (isNew(j) ? '<span class="pill new">New</span>' : '') + (longOpen(j) ? '<span class="pill old" title="Posted ' + LONG_OPEN_DAYS + '+ days ago; check it is still being filled">Long open</span>' : '') +
       (j.secondLook ? '<span class="pill second" title="Your title words missed this title; the second look let it through">Second look</span>' : '') +
       (callOf(j) ? '<span class="pill ' + CALL_PILL[callOf(j)] + '">' + CALL[callOf(j)] + '</span>' : '');
@@ -734,6 +763,7 @@ footer a { color: var(--muted); }
       ['Posted', j.postedAt ? esc(day(j.postedAt)) + ' <span class="muted">(' + age(j.postedAt) + ')</span>' +
         (longOpen(j) ? '<br><span class="muted">Open a while. It may already be filled, so check with the recruiter or a contact before you put time into it.</span>' : '') : 'Not shown on the posting'],
     ];
+    if (j.pay) facts.push(['Pay', payFact(j.pay)]);
     if (j.firstSeen) facts.push(['First seen', esc(day(j.firstSeen))]);
     if (j.status === 'closed') facts.push(['Closed', (j.closedOn ? esc(day(j.closedOn)) + ': ' : '') + 'the employer took the posting down, so the link may not work']);
     if (j.level && LEVEL[j.level.vs]) facts.push(['Level', '<b>' + LEVEL[levelOf(j)] + '</b> against yours' + (j.level.note ? ' <span class="muted">· ' + esc(j.level.note) + '</span>' : '')]);

@@ -9,6 +9,7 @@ watching and how every role scored against me.
 | `cv.md` | My resume, in Markdown |
 | `criteria.md` | What a good role looks like for me, in my words |
 | `companies.yml` | The companies to watch |
+| `pay.yml` | Optional: pay figures I know of, by employer and level |
 | `settings.yml` | Titles, places, scoring, messages and the dashboard address |
 | `calibration/` | Optional: roles I judged myself, to check the scorer |
 | `data/jobs.json` | Written by Axia: every matching role and its score |

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.11.0
+
+- **Pay range per role.** Each AI score now also gives the role's likely pay as a range, shown under the role (₹58–87L) and in its details with where it came from: stated on the posting (in the posting's own words, checked against it), from your pay table, or a rough AI estimate (marked ~). It is part of the same request as the score, so a night's scoring sends no extra requests, only a few dozen more output tokens per role, and the score never depends on pay.
+
+- **Your pay table, `pay.yml` (optional).** Pay figures you know of, by employer, job family and level. Each role's request carries only its own employer's lines, and the model picks the level that fits the role. Axia never fetches pay data from any site ([details](docs/configuration.md#pay-range-per-role-and-payyml)).
+
+- Roles on the dashboard scored before this version get their pay range from the catch-up (1.10.0), in the same short request as the level when both are missing. Changing `pay.yml` refills it the same way. Nothing is re-scored.
+
 ## 1.10.0
 
 - **Step up, same level or step down.** Each AI score now labels the role against your current level, with its equivalent on your own ladder ("≈ Executive Director at your bank"). Titles mislead across employers, so the model goes by an optional `levels.md` (your level and what it is called at the companies you watch) and by the scope the posting describes, not by the title alone. The label sits under the score, appears in the role's details and in new-match messages, and the Roles tab can filter by it. It is asked in the same request as the score, so it adds a few words of answer per role; it never changes the score ([details](docs/configuration.md#levelsmd-step-up-same-level-or-step-down)).
