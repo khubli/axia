@@ -4,11 +4,12 @@
 // run fails so you hear about it.
 
 import { spawn } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { placeholderHtml, writeSite } from './site.mjs';
 import { feedbackEnabled, findNamespace } from './feedback.mjs';
+import { tailorApi } from './tailor.mjs';
 
 const WORKER_SOURCE = join(dirname(fileURLToPath(import.meta.url)), 'dashboard', 'worker.js');
 
@@ -25,6 +26,7 @@ export function wranglerConfig(dashboard, assetsDir, feedback = null) {
     name: dashboard.worker || 'axia',
     compatibility_date: COMPATIBILITY_DATE,
     ...(feedback ? { main: feedback.main, kv_namespaces: [{ binding: 'FEEDBACK', id: feedback.kvId }] } : {}),
+    ...(feedback?.vars ? { vars: feedback.vars } : {}),
     assets: { directory: assetsDir, ...(feedback ? { binding: 'ASSETS' } : {}) },
     // Version preview URLs would be a second, unprotected way in.
     preview_urls: false,
@@ -105,6 +107,7 @@ export async function deploy({ dir, env = process.env, settings, log = console.l
         const kvId = await findNamespace({ env, settings, create: true, fetchImpl: cfFetch });
         copyFileSync(WORKER_SOURCE, join(work, 'worker.js'));
         feedback = { main: 'worker.js', kvId };
+        if (tailorApi(settings) && settings.tailor.dispatch) feedback.vars = { TAILOR_REPO: settings.tailor.dispatch };
       } catch (err) {
         log(`Feedback buttons not connected: ${err.message}. Check that the Cloudflare token can edit Workers KV Storage (docs/setup.md, step 5).`);
       }
@@ -116,6 +119,23 @@ export async function deploy({ dir, env = process.env, settings, log = console.l
   const urls = dashboard.domain ? [`https://${dashboard.domain}/`] : [...new Set(output.match(/https:\/\/[a-z0-9.-]+\.workers\.dev/gi) ?? [])].map((u) => `${u}/`);
   if (urls.length === 0) throw new Error('Published, but could not tell the address: set dashboard.domain in settings.yml.');
   log(`Published: ${urls.join(', ')}`);
+
+  // The Tailor button's token (tailor.dispatch): a Worker secret, never in the page or the config file.
+  if (feedback?.vars?.TAILOR_REPO) {
+    if (!env.AXIA_TAILOR_TOKEN) log(`Tailor clicks are queued for the nightly run only: add the tailor-dispatch-token input to start ${feedback.vars.TAILOR_REPO}'s workflow at once.`);
+    else {
+      const secrets = join(work, 'tailor-secret.json');
+      try {
+        writeFileSync(secrets, JSON.stringify({ TAILOR_TOKEN: env.AXIA_TAILOR_TOKEN }), { mode: 0o600 });
+        await wrangler(['secret', 'bulk', secrets, '--config', join(work, 'wrangler.site.json')], { CLOUDFLARE_API_TOKEN: env.CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID: env.CLOUDFLARE_ACCOUNT_ID ?? '' }, { cwd: work });
+        log(`Tailor clicks start ${feedback.vars.TAILOR_REPO}'s tailoring workflow at once.`);
+      } catch (err) {
+        log(`Tailor clicks are queued for the nightly run only: could not set the Worker's token (${err.message.split('\n')[0]}).`);
+      } finally {
+        rmSync(secrets, { force: true });
+      }
+    }
+  }
 
   if (dashboard.public === true) {
     log('dashboard.public is true: not checking for a login.');

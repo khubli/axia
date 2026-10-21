@@ -54,6 +54,9 @@ inputs:
   cloudflare-account-id:
     description: Your Cloudflare account id.
     default: ''
+  tailor-dispatch-token:
+    description: "With tailor.dispatch in settings.yml: a GitHub token that may start workflows in that repository (fine-grained, Contents: read and write). The dashboard's Tailor button then starts your tailoring workflow at once."
+    default: ''
   commit:
     description: "'true' commits data/ and dashboard/ back to your repository after each run (needs contents: write)."
     default: 'true'
@@ -161,6 +164,7 @@ runs:
         AXIA_DIR: ${{ inputs.config-dir }}
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+        AXIA_TAILOR_TOKEN: ${{ inputs.tailor-dispatch-token }}
         TELEGRAM_BOT_TOKEN: ${{ inputs.telegram-bot-token }}
         TELEGRAM_CHAT_ID: ${{ inputs.telegram-chat-id }}
         SMTP_USER: ${{ inputs.smtp-user }}

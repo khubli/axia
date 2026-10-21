@@ -105,7 +105,7 @@ export async function pullTailor({ env, settings, log = console.log, fetchImpl }
   }
 }
 
-const roleFacts = (job) => ({
+export const roleFacts = (job) => ({
   kind: 'role',
   key: job.key,
   company: job.company,
@@ -117,7 +117,7 @@ const roleFacts = (job) => ({
     : job.score ? { value: job.score.value, summary: null, strengths: [], gaps: [], musts: [] } : null,
   moonshot: null,
 });
-const moonshotFacts = (r) => ({
+export const moonshotFacts = (r) => ({
   kind: 'moonshot',
   key: null,
   company: r.company,
@@ -190,5 +190,35 @@ export function snapshotTailor(tailor, describe) {
 export function pageTailor(tailor) {
   const out = {};
   for (const r of Object.values(tailor?.requests ?? {})) out[r.id] = { on: true, n: r.note || '', t: r.at, s: r.status, d: r.done ?? null };
+  return out;
+}
+
+/**
+ * `axia tailor-request --id <role id>`: one request as data/tailor.json would hold it, made now, for a
+ * tailoring job started straight from the dashboard click (settings.yml → tailor.dispatch). A role's
+ * posting text comes from what Axia saved, else from one read of its board.
+ */
+export async function tailorRequest({ dir, id, note = '', at = new Date().toISOString(), settings, companies, state, moonshots = [], feedback, tailor, http, today }) {
+  const job = Object.values(state.jobs).find((j) => jobId(j.key) === id);
+  const shot = moonshots.find((r) => r.id === id);
+  if (!job && !shot) {
+    const prev = tailor?.requests?.[id];
+    if (prev) return { ...prev, note: note || prev.note || '', at, status: 'requested' };
+    throw new Error(`No role or moonshot with id ${id} (it may have closed and been forgotten).`);
+  }
+  const facts = job ? roleFacts(job) : moonshotFacts(shot);
+  const out = { id, ...facts, note, at, status: 'requested', done: tailor?.requests?.[id]?.done ?? null };
+  if (job) {
+    let description = feedback?.roles?.[job.key]?.description || tailor?.requests?.[id]?.description || '';
+    if (!description) {
+      const board = companies.flatMap((c) => c.boards).find((b) => b.source && job.key.startsWith(`${b.source.type}:${b.params.scope}:`));
+      if (board) {
+        const listed = (await board.source.list(board.params, { http, today })).find((j) => `${board.source.type}:${board.params.scope}:${j.id}` === job.key);
+        description = listed?.description || '';
+        if (listed && !description && board.source.detail) description = (await board.source.detail(board.params, listed, { http, today })).description || '';
+      }
+    }
+    if (description) out.description = truncate(description, MAX_TEXT);
+  }
   return out;
 }

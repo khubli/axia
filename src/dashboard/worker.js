@@ -5,6 +5,8 @@
 //   POST /api/feedback   { id, verdict: 'applied' | 'shortlist' | 'not-for-me' | null, reason }
 //   GET  /api/tailor     every Tailor request: { entries: { <role id>: { on, n, t } } }
 //   POST /api/tailor     { id, on: true | false, note }   (only when settings.yml turns tailor on)
+//                        With TAILOR_REPO and TAILOR_TOKEN set (tailor.dispatch), a request also starts
+//                        that repository's tailoring workflow at once (repository_dispatch "axia-tailor").
 //
 // Cloudflare Access sits in front of the whole address, so only you reach this. As a second
 // guard, a request that did not come through Access (no Access token) is refused, and a write
@@ -17,6 +19,21 @@ const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' } });
 
 const viaAccess = (request) => Boolean(request.headers.get('cf-access-jwt-assertion') || /(^|;\s*)CF_Authorization=/.test(request.headers.get('cookie') ?? ''));
+
+/** Start the tailoring workflow for one request. False when not set up or GitHub refused; the nightly run still queues it. */
+async function dispatch(env, payload) {
+  if (!env.TAILOR_REPO || !env.TAILOR_TOKEN) return false;
+  try {
+    const res = await fetch(`https://api.github.com/repos/${env.TAILOR_REPO}/dispatches`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${env.TAILOR_TOKEN}`, Accept: 'application/vnd.github+json', 'User-Agent': 'axia-dashboard', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event_type: 'axia-tailor', client_payload: payload }),
+    });
+    return res.status === 204;
+  } catch {
+    return false;
+  }
+}
 
 export default {
   async fetch(request, env) {
@@ -58,7 +75,8 @@ export default {
         while (new TextEncoder().encode(JSON.stringify(entry())).length > 1000) note = note.slice(0, -10);
         const e = entry();
         await env.FEEDBACK.put(`tr:${id}`, JSON.stringify(e), { metadata: e });
-        return json({ ok: true, entry: e });
+        const started = e.on ? await dispatch(env, { id, note: e.n, at: e.t }) : false;
+        return json({ ok: true, entry: e, started });
       }
       const verdict = body.verdict ?? null;
       if (verdict !== null && !VERDICTS.includes(verdict)) return json({ error: 'bad verdict' }, 400);

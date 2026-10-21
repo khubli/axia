@@ -33,7 +33,8 @@ const DEFAULTS = {
   gaps: { min_score: 55, max_score: 89 },
   // Tailor buttons: queue a role or moonshot for a tailored resume and cover letter, made by your own
   // tool outside Axia. Off by default; `tailor: true` turns it on. `done` is the file that tool writes.
-  tailor: { enabled: false, done: 'tailored.json' },
+  // dispatch: owner/repo whose tailoring workflow a click starts at once (repository_dispatch, axia-tailor).
+  tailor: { enabled: false, done: 'tailored.json', dispatch: '' },
 };
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -54,6 +55,8 @@ export function loadSettings(dir = ROOT) {
   if (typeof raw.tailor === 'boolean') s.tailor = { ...DEFAULTS.tailor, enabled: raw.tailor };
   if (typeof s.tailor.enabled !== 'boolean') throw new ConfigError(`settings.yml: tailor.enabled must be true or false without quotes, not "${s.tailor.enabled}"`);
   if (typeof s.tailor.done !== 'string' || !s.tailor.done.trim()) throw new ConfigError(`settings.yml: tailor.done must be a file name (for example tailored.json), not "${s.tailor.done}"`);
+  s.tailor.dispatch = String(s.tailor.dispatch || '').trim();
+  if (s.tailor.dispatch && !/^[\w.-]+\/[\w.-]+$/.test(s.tailor.dispatch)) throw new ConfigError(`settings.yml: tailor.dispatch must be owner/repository, not "${s.tailor.dispatch}"`);
   if (raw.moonshots === false || s.moonshots.file === false) s.moonshots = { file: '' };
   s.gaps.enabled = raw.gaps !== false;
   for (const key of ['min_score', 'max_score']) {

@@ -7,7 +7,9 @@ import { join } from 'node:path';
 import worker from '../src/dashboard/worker.js';
 import { run } from '../src/run.mjs';
 import { loadSettings, ConfigError } from '../src/config.mjs';
-import { applyTailor, pageTailor } from '../src/tailor.mjs';
+import { applyTailor, pageTailor, tailorRequest } from '../src/tailor.mjs';
+import { deploy } from '../src/deploy.mjs';
+import { mkdirSync } from 'node:fs';
 import { tempProject, stubFetch } from './helpers.mjs';
 
 const quiet = () => {};
@@ -16,13 +18,16 @@ const quiet = () => {};
 
 test('tailor is off by default, and true or { enabled } turns it on', () => {
   const off = tempProject({ companies: [] });
-  assert.deepEqual(loadSettings(off).tailor, { enabled: false, done: 'tailored.json' });
+  assert.deepEqual(loadSettings(off).tailor, { enabled: false, done: 'tailored.json', dispatch: '' });
   const on = tempProject({ companies: [], settings: { tailor: true } });
-  assert.deepEqual(loadSettings(on).tailor, { enabled: true, done: 'tailored.json' });
+  assert.deepEqual(loadSettings(on).tailor, { enabled: true, done: 'tailored.json', dispatch: '' });
   const custom = tempProject({ companies: [], settings: { tailor: { enabled: true, done: 'out/done.json' } } });
   assert.equal(loadSettings(custom).tailor.done, 'out/done.json');
   const bad = tempProject({ companies: [], settings: { tailor: { enabled: 'yes' } } });
   assert.throws(() => loadSettings(bad), ConfigError);
+  const repo = tempProject({ companies: [], settings: { tailor: { enabled: true, dispatch: 'me/career-data' } } });
+  assert.equal(loadSettings(repo).tailor.dispatch, 'me/career-data');
+  assert.throws(() => loadSettings(tempProject({ companies: [], settings: { tailor: { enabled: true, dispatch: 'https://x' } } })), ConfigError);
 });
 
 // ── the Worker ──────────────────────────────────────────────────────────────
@@ -58,6 +63,59 @@ test('the Worker keeps Tailor requests apart from your calls', async () => {
   assert.equal((await worker.fetch(post('tailor', { id: 'a', on: 'yes' }), e)).status, 400);
   assert.equal((await worker.fetch(post('tailor', { id: '../a', on: true }), e)).status, 400);
   assert.equal((await worker.fetch(new Request('https://jobs.example.test/api/tailor'), e)).status, 403, 'not through your login');
+});
+
+test('with a repository and token set, a Tailor click starts its workflow at once', async () => {
+  const kv = fakeKV();
+  const e = { FEEDBACK: kv, ASSETS: { fetch: async () => new Response('') }, TAILOR_REPO: 'me/career-data', TAILOR_TOKEN: 'ghp_x' };
+  const stub = stubFetch([['api.github.com/repos/me/career-data/dispatches', () => new Response(null, { status: 204 })]]);
+  try {
+    let res = await (await worker.fetch(post('tailor', { id: 'workday-acme-1', on: true, note: 'stress payments' }), e)).json();
+    assert.equal(res.started, true);
+    const call = stub.calls.find((c) => c.url.includes('/dispatches'));
+    assert.equal(call.init.headers.Authorization, 'Bearer ghp_x');
+    const body = JSON.parse(call.init.body);
+    assert.equal(body.event_type, 'axia-tailor');
+    assert.equal(body.client_payload.id, 'workday-acme-1');
+    assert.equal(body.client_payload.note, 'stress payments');
+    // Cancelling starts nothing; without the token nothing is started either.
+    res = await (await worker.fetch(post('tailor', { id: 'workday-acme-1', on: false }), e)).json();
+    assert.equal(res.started, false);
+    res = await (await worker.fetch(post('tailor', { id: 'workday-acme-1', on: true }), { ...e, TAILOR_TOKEN: undefined })).json();
+    assert.equal(res.started, false);
+    assert.equal(stub.calls.filter((c) => c.url.includes('/dispatches')).length, 1);
+  } finally {
+    stub.restore();
+  }
+});
+
+test('deploy gives the Worker the repository as a setting and the token as a secret', async () => {
+  const dir = tempProject({ companies: [] });
+  mkdirSync(join(dir, '.axia/site'), { recursive: true });
+  writeFileSync(join(dir, '.axia/site/index.html'), 'x');
+  const calls = [];
+  const configs = [];
+  const wrangler = async (args) => {
+    calls.push(args);
+    if (args[0] === 'deploy') configs.push(JSON.parse(readFileSync(args[2], 'utf8')));
+    if (args[0] === 'secret') assert.deepEqual(JSON.parse(readFileSync(args[2], 'utf8')), { TAILOR_TOKEN: 'ghp_x' });
+    return '';
+  };
+  const cfFetch = async () => new Response(JSON.stringify({ success: true, result: [{ id: 'kv1', title: 'axia-feedback' }] }));
+  const settings = { dashboard: { worker: 'axia', domain: 'jobs.example.test', public: false, feedback: true }, tailor: { enabled: true, done: 'tailored.json', dispatch: 'me/career-data' } };
+  const env = { CLOUDFLARE_API_TOKEN: 't', CLOUDFLARE_ACCOUNT_ID: 'acc', AXIA_TAILOR_TOKEN: 'ghp_x' };
+  await deploy({ dir, env, settings, log: quiet, wrangler, check: async () => 'private', cfFetch });
+  assert.deepEqual(configs[0].vars, { TAILOR_REPO: 'me/career-data' });
+  assert.ok(!JSON.stringify(configs[0]).includes('ghp_x'), 'the token is never in the config file');
+  assert.equal(calls[1][0], 'secret');
+  assert.ok(!existsSync(join(dir, '.axia/tailor-secret.json')), 'the secret file is removed');
+
+  // No token: published as before, clicks wait for the nightly run.
+  const logs = [];
+  calls.length = 0;
+  await deploy({ dir, env: { ...env, AXIA_TAILOR_TOKEN: '' }, settings, log: (l) => logs.push(l), wrangler, check: async () => 'private', cfFetch });
+  assert.deepEqual(calls.map((c) => c[0]), ['deploy']);
+  assert.match(logs.join('\n'), /queued for the nightly run only/);
 });
 
 // ── the queue ───────────────────────────────────────────────────────────────
@@ -121,6 +179,18 @@ test('your tool marks a request done; asking again wants a fresh version; cancel
   applyTailor(fresh, new Map([['greenhouse-acme-1', { on: true, note: '', at: at1 }]]), { state: STATE });
   applyTailor(fresh, new Map([['greenhouse-acme-1', { on: false, note: '', at: at2 }]]), { state: STATE });
   assert.deepEqual(fresh.requests, {});
+});
+
+test('tailor-request: one request for a tailoring job, with the posting read from its board when not saved', async () => {
+  const board = { source: { type: 'greenhouse', list: async () => [{ id: '1', title: 'Solution Architect, Payments', description: 'The whole posting.' }] }, params: { scope: 'acme' } };
+  const req = await tailorRequest({ id: 'greenhouse-acme-1', note: 'stress payments', at: '2026-10-21T10:00:00.000Z', state: STATE, companies: [{ boards: [board] }], moonshots: SHOTS, feedback: { roles: {} }, tailor: { requests: {} } });
+  assert.equal(req.kind, 'role');
+  assert.equal(req.description, 'The whole posting.');
+  assert.equal(req.note, 'stress payments');
+  assert.equal(req.score.musts.length, 1);
+  const shot = await tailorRequest({ id: 'globex-head-of-architecture', state: STATE, companies: [], moonshots: SHOTS, feedback: { roles: {} }, tailor: { requests: {} } });
+  assert.equal(shot.kind, 'moonshot');
+  await assert.rejects(tailorRequest({ id: 'nope', state: STATE, companies: [], moonshots: SHOTS, feedback: { roles: {} }, tailor: { requests: {} } }), /No role or moonshot/);
 });
 
 // ── the run ─────────────────────────────────────────────────────────────────
