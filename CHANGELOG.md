@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.14.0
+
+- **Tailor for this role (optional, off by default).** With `tailor: true` in `settings.yml`, each role and each moonshot gets a **Tailor for this role** button, with an optional note. Axia doesn't write resumes. It queues the request for a tool of your own. Each run copies requests into `data/tailor.json`: for a role, the posting text and the score's must-haves quoted from the posting; for a moonshot, its requirements and gaps. When your tool records a request in `tailored.json`, the role shows when the tailored version was made and where to find it. **Tailor again** asks for a fresh one. Tailored versions never feed back into scoring, so every score stays against your one resume ([details](docs/configuration.md#tailored-applications)). The demo shows one done and one waiting.
+
 ## 1.13.0
 
 - **The score chart keeps one height.** "Where your AI scores fall" used one dot per role stacked by score, so a few hundred low scores made columns taller than a phone screen. It now stays about the same height at any number of roles. Lower scores are bars showing how many roles scored each value (tap or hover one for the count). Worth a look and Good match keep one dot per role, tappable as before, and sit side by side within their band instead of in one tall column. Those two bands get two thirds of the width, so their dots have room, and the axis still marks 0, 50, 65 and 100.

@@ -9,6 +9,7 @@ import { viewModel } from './render.mjs';
 import { jobId } from './text.mjs';
 import { daysBetween } from './state.mjs';
 import { feedbackEnabled, pageFeedback } from './feedback.mjs';
+import { tailorEnabled, tailorApi, pageTailor } from './tailor.mjs';
 import { gapsView } from './gaps.mjs';
 import { MOVE_POINTS } from './changes.mjs';
 
@@ -113,6 +114,8 @@ export function siteData(view, { minScore, demo = false }) {
     nearMisses: summary.nearMisses ?? null,
     // Your calls on roles. With `api`, the buttons save to your Cloudflare account; otherwise (the demo) only in this browser.
     feedback: { api: !demo && feedbackEnabled(settings), entries: pageFeedback(view.feedback) },
+    // Tailor buttons (settings.yml → tailor), null when off. Requests go to the same store as your calls.
+    tailor: tailorEnabled(settings) ? { api: !demo && tailorApi(settings), entries: pageTailor(view.tailor) } : null,
     // Stretch roles from your own research (moonshots.json), on their own tab; null means no tab.
     // Gaps that keep coming up across your close calls (gaps.mjs); null until the first roll-up.
     gaps: pageGaps(state, settings),

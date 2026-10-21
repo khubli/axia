@@ -25,6 +25,7 @@ import { notifyMinScore, seedNotified, trackProblems, planMessages, deliver, app
 import { isoDate, normalize, similarity } from './text.mjs';
 import { loadFeedback, saveFeedback, pullFeedback, applyFeedback, snapshotFeedback } from './feedback.mjs';
 import { loadMoonshots } from './moonshots.mjs';
+import { loadTailor, saveTailor, pullTailor, applyTailor, snapshotTailor, loadDone, tailorEnabled } from './tailor.mjs';
 import { rollUpGaps } from './gaps.mjs';
 import { snapshot, runChanges, addHistory, briefLine } from './changes.mjs';
 import { loadLevels, levelField } from './levels.mjs';
@@ -284,6 +285,20 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   if (fb.added || fb.changed || fb.cleared) log(`Your calls from the dashboard: ${fb.added} new, ${fb.changed} changed, ${fb.cleared} cleared.`);
   await mapLimit(fb.needText.map((k) => candidates.get(k)).filter(Boolean), 4, (c) => enrich(c, ctx));
 
+  // ── 4c. Tailor requests from the dashboard (off unless settings.yml turns them on) ──
+  // Queued in data/tailor.json for your own tailoring tool, with the posting text; never scored.
+  const moonshots = loadMoonshots(dir, settings, { log });
+  const tailor = tailorEnabled(settings) ? loadTailor(dir) : null;
+  let tr = null;
+  if (tailor) {
+    const pulledTailor = dryRun ? null : await pullTailor({ env, settings, log });
+    tr = applyTailor(tailor, pulledTailor, { state, moonshots: moonshots?.report?.roles ?? [], done: loadDone(dir, settings, { log }) });
+    if (tr.added || tr.cleared || tr.finished) log(`Tailor requests: ${tr.added} new, ${tr.cleared} cancelled, ${tr.finished} done.`);
+    const waiting = Object.values(tailor.requests).filter((r) => r.status === 'requested').length;
+    if (waiting) log(`Tailor requests waiting for your tool: ${waiting}.`);
+    await mapLimit(tr.needText.filter((k) => !fb.needText.includes(k)).map((k) => candidates.get(k)).filter(Boolean), 4, (c) => enrich(c, ctx));
+  }
+
   // ── 5. Score ──────────────────────────────────────────────────────────────
   const open = Object.values(state.jobs).filter((j) => j.status === 'open');
   const ai = { enabled: Boolean(aiScorer), engine: aiScorer?.engine ?? null, model: aiScorer?.model ?? null, scored: 0, failed: 0, stoppedBecause: null, pending: 0 };
@@ -360,6 +375,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   const payDropped = dropImplausiblePay(Object.values(state.jobs), payGuide);
   if (payDropped) log(`Pay: ${payDropped} AI estimate(s) that can't be right now show no pay.`);
   snapshotFeedback(feedback, state, (key) => candidates.get(key)?.job.description);
+  if (tailor) snapshotTailor(tailor, (key) => candidates.get(key)?.job.description ?? feedback.roles[key]?.description);
 
   // ── 5b. Gaps that keep coming up: once a week, when your close calls have changed ──
   if (aiScorer) await rollUpGaps({ state, settings, scorer: aiScorer, today, log });
@@ -381,6 +397,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     secondLook: second,
     ai,
     feedback: { judged: Object.keys(feedback.roles).length, read: pulled !== null },
+    tailor: tailor ? { waiting: Object.values(tailor.requests).filter((r) => r.status === 'requested').length } : null,
     newKeys: [...newKeys],
     nearMisses: nearMisses({ rejected, excluded, placeMisses, titleChecks: state.titleChecks, titleKey, secondLookOn }),
   };
@@ -409,10 +426,11 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   state.lastRun.changes = summary.changes;
   state.history = addHistory(state.history, { summary, changes, state, settings });
 
-  const view = { state, summary, settings, feedback, moonshots: loadMoonshots(dir, settings, { log }) };
+  const view = { state, summary, settings, feedback, tailor, moonshots };
   if (!dryRun) {
     saveState(statePath, state);
     saveFeedback(dir, feedback);
+    if (tailor) saveTailor(dir, tailor);
     mkdirSync(resolve(dir, 'dashboard'), { recursive: true });
     writeFileSync(resolve(dir, 'dashboard/README.md'), renderMarkdown(view));
     buildSite(view, resolve(dir, '.axia/site'), { minScore });
