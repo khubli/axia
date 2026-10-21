@@ -151,6 +151,8 @@ button, a, select, input { -webkit-tap-highlight-color: transparent; }
 .pt { position: absolute; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; border: 2px solid var(--surface); padding: 0; cursor: pointer; }
 .pt.good { background: var(--good); } .pt.look { background: var(--look); } .pt.low { background: var(--low); }
 .pt:hover, .pt.sel { transform: scale(1.35); }
+.hb { position: absolute; bottom: 4px; border-radius: 2px 2px 0 0; background: var(--low); opacity: 0.55; box-shadow: inset -1px 0 0 var(--surface); cursor: default; }
+.hb:hover { opacity: 0.9; }
 .axis { position: relative; height: 18px; font: 11px/18px var(--f-mono); color: var(--faint); }
 .axis span { position: absolute; transform: translateX(-50%); }
 .axis span:first-child { transform: none; }
@@ -596,41 +598,87 @@ footer a { color: var(--muted); }
   })();
 
   // ── where the scores fall ──
-  let tipEl;
+  // A fixed-height chart, however many roles are scored. Lower scores are bars (how many
+  // roles at each score); Worth a look and Good match keep one dot per role, packed side
+  // by side within their band so a busy score never makes a tall column. The x axis gives
+  // the two upper bands more room than their share of 0–100, so their dots stay tappable.
+  let tipEl, stripW = 0;
+  const STRIP_H = 132, STRIP_TOP = 22, PITCH = 11, DOT = 12;
+  const SHARE = { low: 36, look: 32 }; // % of the width; Good match gets the rest
+  function xOf(score) {
+    if (score < FROM) return (score / FROM) * SHARE.low;
+    if (score < GOOD) return SHARE.low + ((score - FROM) / (GOOD - FROM)) * SHARE.look;
+    return SHARE.low + SHARE.look + ((score - GOOD) / (100 - GOOD)) * (100 - SHARE.low - SHARE.look);
+  }
+  // Packs a band's roles into columns: each goes in the column under its score, or the
+  // nearest one with room. If the band holds more than fits, the dots overlap a little.
+  function packBand(roles, lo, hi, width) {
+    const a = xOf(lo), b = xOf(hi), cols = Math.max(1, Math.floor((width * (b - a)) / 100 / PITCH));
+    const usable = STRIP_H - STRIP_TOP - 4;
+    let rows = Math.max(1, Math.floor((usable - DOT) / PITCH) + 1);
+    let pitch = PITCH;
+    if (roles.length > rows * cols) { rows = Math.ceil(roles.length / cols); pitch = (usable - DOT) / (rows - 1); }
+    const fill = new Array(cols).fill(0);
+    return roles.map((j) => {
+      const want = Math.min(cols - 1, Math.floor(((j.score - lo) / (hi - lo)) * cols));
+      let c = want;
+      for (let d = 1; fill[c] >= rows && d < cols; d++) {
+        if (want + d < cols && fill[want + d] < rows) { c = want + d; break; }
+        if (want - d >= 0 && fill[want - d] < rows) { c = want - d; break; }
+      }
+      const k = fill[c]++;
+      return { j, left: a + ((c + 0.5) / cols) * (b - a), bottom: 4 + k * pitch };
+    });
+  }
   function drawStrip() {
     const scored = open.filter((j) => j.ai).sort((a, b) => a.score - b.score);
     if (!scored.length) { $('#strip').hidden = true; return; }
-    const stacks = {};
-    const placed = scored.map((j) => {
-      const b = Math.round(j.score / 2) * 2;
-      const k = (stacks[b] = (stacks[b] || 0) + 1);
-      return { j, k };
-    });
-    const tallest = Math.max(1, ...Object.values(stacks));
-    const h = Math.max(64, 30 + tallest * 11);
+    const strip = $('#strip');
+    stripW = (strip.clientWidth || 360) - 48;
+    const lower = scored.filter((j) => j.score < FROM);
+    const bins = {};
+    for (const j of lower) { const b = Math.floor(j.score / 2) * 2; bins[b] = (bins[b] || 0) + 1; }
+    const barMax = STRIP_H - STRIP_TOP - 4;
+    // While no score has more roles than a column of dots holds, a role is as tall as a dot.
+    const tallest = Math.max(Math.floor(barMax / PITCH), ...Object.values(bins));
+    const bars = Object.entries(bins).map(([b, n]) => {
+      b = Number(b);
+      const top = Math.min(b + 1, FROM - 1);
+      const label = n + ' role' + (n === 1 ? '' : 's') + ' scored ' + (top > b ? b + '–' + top : b);
+      return '<span class="hb" style="left:' + xOf(b) + '%;width:' + (xOf(b + 2) - xOf(b)) + '%;height:' + Math.max(3, Math.round((n / tallest) * barMax)) + 'px" data-tip="' + esc(label) + '"></span>';
+    }).join('');
+    const dots = [...packBand(scored.filter((j) => tierOf(j) === 'look'), FROM, GOOD, stripW), ...packBand(scored.filter((j) => tierOf(j) === 'good'), GOOD, 100, stripW)];
     const band = (cls, a, b, label) => '<div class="band ' + cls + '" style="left:' + a + '%;width:' + (b - a) + '%"><span>' + label + '</span></div>';
-    $('#strip').innerHTML =
-      '<figcaption><span><b>Where your ' + scored.length + ' AI scores fall</b> · one dot per role</span>' + (count('wait') ? '<span>Roles waiting for a score are not plotted</span>' : '') + '</figcaption>' +
-      '<div class="plot" id="plot" style="height:' + (h + 22) + 'px">' +
-      '<div class="bands" style="bottom:22px">' + band('low', 0, FROM, 'Lower') + band('look', FROM, GOOD, 'Worth a look') + band('good', GOOD, 100, 'Good match') + '</div>' +
-      '<div class="dots" style="height:' + h + 'px">' +
-      placed.map((p) => '<button class="pt ' + tierOf(p.j) + '" data-id="' + p.j.id + '" style="left:' + p.j.score + '%;bottom:' + (4 + (p.k - 1) * 11) + 'px" aria-label="' + esc(p.j.score + ': ' + p.j.title + ', ' + p.j.company) + '"></button>').join('') +
+    const up = scored.length - lower.length;
+    strip.innerHTML =
+      '<figcaption><span><b>Where your ' + scored.length + ' AI scores fall</b> · ' + (up ? 'one dot per role from ' + FROM + ' up' + (lower.length ? ', bars below' : '') : 'bars show how many roles at each score') + '</span>' + (count('wait') ? '<span>Roles waiting for a score are not plotted</span>' : '') + '</figcaption>' +
+      '<div class="plot" id="plot" style="height:' + (STRIP_H + 22) + 'px">' +
+      '<div class="bands" style="bottom:22px">' + band('low', 0, xOf(FROM), 'Lower · ' + lower.length) + band('look', xOf(FROM), xOf(GOOD), 'Worth a look') + band('good', xOf(GOOD), 100, 'Good match') + '</div>' +
+      '<div class="dots" style="height:' + STRIP_H + 'px">' + bars +
+      dots.map((p) => '<button class="pt ' + tierOf(p.j) + '" data-id="' + p.j.id + '" style="left:' + p.left + '%;bottom:' + p.bottom + 'px" aria-label="' + esc(p.j.score + ': ' + p.j.title + ', ' + p.j.company) + '"></button>').join('') +
       '</div>' +
-      '<div class="axis"><span style="left:0">0</span><span style="left:' + FROM + '%">' + FROM + '</span><span style="left:' + GOOD + '%">' + GOOD + '</span><span style="left:100%">100</span></div>' +
+      '<div class="axis"><span style="left:0">0</span><span style="left:' + xOf(FROM) + '%">' + FROM + '</span><span style="left:' + xOf(GOOD) + '%">' + GOOD + '</span><span style="left:100%">100</span></div>' +
       '<div class="tip" id="tip" hidden></div>' +
       '</div>';
     tipEl = $('#tip');
     const plot = $('#plot');
-    plot.addEventListener('pointerover', (e) => { const b = e.target.closest('.pt'); if (b) showTip(b); });
-    plot.addEventListener('focusin', (e) => { const b = e.target.closest('.pt'); if (b) showTip(b); });
+    const tipFor = (t) => t.closest('.pt, .hb');
+    plot.addEventListener('pointerover', (e) => { const b = tipFor(e.target); if (b) showTip(b); });
+    plot.addEventListener('focusin', (e) => { const b = tipFor(e.target); if (b) showTip(b); });
     plot.addEventListener('pointerout', () => { tipEl.hidden = true; });
     plot.addEventListener('focusout', () => { tipEl.hidden = true; });
-    plot.addEventListener('click', (e) => { const b = e.target.closest('.pt'); if (b) reveal(b.dataset.id); });
+    plot.addEventListener('click', (e) => { const b = tipFor(e.target); if (!b) return; if (b.classList.contains('hb')) showTip(b); else reveal(b.dataset.id); });
   }
+  // Dots are packed for the chart's width, so a big change of width (a phone turned
+  // sideways, or the tab first shown) packs them again.
+  if (window.ResizeObserver) new ResizeObserver(() => {
+    const w = ($('#strip').clientWidth || 0) - 48;
+    if (w > 0 && Math.abs(w - stripW) > PITCH) drawStrip();
+  }).observe($('#strip'));
   function showTip(b) {
-    const j = byId[b.dataset.id];
     const pr = $('#plot').getBoundingClientRect(), br = b.getBoundingClientRect();
-    tipEl.innerHTML = '<b class="num">' + j.score + '</b> · ' + esc(j.title) + '<br>' + esc(j.company);
+    if (b.dataset.tip) tipEl.textContent = b.dataset.tip;
+    else { const j = byId[b.dataset.id]; tipEl.innerHTML = '<b class="num">' + j.score + '</b> · ' + esc(j.title) + '<br>' + esc(j.company); }
     tipEl.hidden = false;
     tipEl.style.left = Math.min(Math.max(br.left - pr.left + br.width / 2, 130), pr.width - 130) + 'px';
     tipEl.style.top = (br.top - pr.top) + 'px';
