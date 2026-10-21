@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { run } from '../src/run.mjs';
 import { cleanLevel, levelsRev } from '../src/levels.mjs';
-import { catchUpQueue, CATCH_UP_MAX } from '../src/catchup.mjs';
+import { catchUp, catchUpQueue, CATCH_UP_MAX } from '../src/catchup.mjs';
 import { tempProject, stubFetch } from './helpers.mjs';
 
 const gh = (id, title) => ({
@@ -127,4 +127,24 @@ test('catch-up queue: shown or kept roles, best first, capped', () => {
   assert.deepEqual(q.map((j) => j.key), ['new', 'stale', 'kept']);
   const many = Array.from({ length: 100 }, (_, i) => role(`r${i}`, 60));
   assert.equal(catchUpQueue({ open: many, fields: [field], listedToday: () => true, scoredToday: new Set(), showFrom: 50, kept: () => false }).length, CATCH_UP_MAX);
+});
+
+test('catch-up asks only for the fields a batch is missing', async () => {
+  const asked = [];
+  const scorer = {
+    async ask({ schema, input }) {
+      const names = Object.keys(schema.properties.results.items.properties).filter((k) => k !== 'id');
+      asked.push(names);
+      const ids = [...input.matchAll(/<job id="(\d+)">/g)].map((m) => m[1]);
+      return { data: { results: ids.map((id) => Object.fromEntries([['id', id], ...names.map((n) => [n, { v: n }])])) } };
+    },
+  };
+  const field = (name, rev) => ({ name, rev, schema: { type: 'object' }, rules: `- ${name}`, guide: '', clean: (o) => o });
+  const fields = [field('level', 'L2'), field('pay', 'P1')];
+  const job = (key, score) => ({ key, company: 'A', title: 'T', location: 'Pune', description: 'd', score });
+  const jobs = [job('a', { level: { rev: 'L1' }, pay: { rev: 'P1' } }), job('b', { level: { rev: 'L2' }, pay: { rev: 'P0' } })];
+  const { answers } = await catchUp({ scorer, jobs, resume: 'r', fields, batchSize: 1 });
+  assert.deepEqual(asked, [['level'], ['pay']]);
+  assert.deepEqual(answers.get('a'), { level: { v: 'level', rev: 'L2' } });
+  assert.deepEqual(answers.get('b'), { pay: { v: 'pay', rev: 'P1' } });
 });

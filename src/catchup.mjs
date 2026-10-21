@@ -29,6 +29,56 @@ export async function catchUp({ scorer, jobs, resume, fields, batchSize = 8, log
   let stoppedBecause = null;
   if (!scorer?.ask || !jobs.length || !fields.length) return { answers, failed, stoppedBecause };
 
+  // System prompt and answer shape for a set of fields, built once per set.
+  const prompts = new Map();
+  const promptFor = (need) => {
+    const id = need.map((f) => f.name).join(',');
+    if (!prompts.has(id)) prompts.set(id, buildPrompt(need, resume));
+    return prompts.get(id);
+  };
+
+  for (let i = 0; i < jobs.length && !stoppedBecause; i += batchSize) {
+    const batch = jobs.slice(i, i + batchSize);
+    // Only the fields some role in this batch is missing (or has from an older guide).
+    const need = fields.filter((f) => batch.some((j) => j.score?.[f.name]?.rev !== f.rev));
+    if (!need.length) continue;
+    const { system, schema, example } = promptFor(need);
+    const ids = batch.map((_, k) => String(k + 1));
+    const input = batch
+      .map((job, k) => {
+        const extra = need.map((f) => f.context?.(job)).filter(Boolean).join('\n');
+        return `<job id="${ids[k]}">\n${jobText(job, MAX_JD_CHARS)}${extra ? `\n\n${extra}` : ''}\n</job>`;
+      })
+      .join('\n\n');
+    try {
+      const { data } = await scorer.ask({
+        system,
+        instruction: `Answer for all ${batch.length} jobs in the input. Return exactly one result for each id: ${ids.join(', ')}.`,
+        input,
+        schema,
+        example,
+      });
+      const byId = new Map((data?.results ?? []).map((r) => [String(r.id), r]));
+      batch.forEach((job, k) => {
+        const r = byId.get(ids[k]);
+        const got = {};
+        for (const f of need) {
+          const v = r ? f.clean(r[f.name], job) : null;
+          if (v) got[f.name] = { ...v, rev: f.rev };
+        }
+        if (Object.keys(got).length) answers.set(job.key, got);
+        else failed++;
+      });
+    } catch (err) {
+      failed += batch.length;
+      log(`  ! catch-up batch of ${batch.length}: ${err.message}`);
+      if (err.fatal) stoppedBecause = err.message;
+    }
+  }
+  return { answers, failed, stoppedBecause };
+}
+
+function buildPrompt(fields, resume) {
   const system = [
     'You read job postings for one specific candidate and answer a few short questions about each. The user message contains several <job> elements; return one result per job with its id. Judge only from the resume, the guides and the posting.',
     '',
@@ -56,40 +106,5 @@ export async function catchUp({ scorer, jobs, resume, fields, batchSize = 8, log
     additionalProperties: false,
   };
   const example = `{"results":[{"id":"1",${fields.map((f) => `"${f.name}":${f.example ?? '{}'}`).join(',')}}]}`;
-
-  for (let i = 0; i < jobs.length && !stoppedBecause; i += batchSize) {
-    const batch = jobs.slice(i, i + batchSize);
-    const ids = batch.map((_, k) => String(k + 1));
-    const input = batch
-      .map((job, k) => {
-        const extra = fields.map((f) => f.context?.(job)).filter(Boolean).join('\n');
-        return `<job id="${ids[k]}">\n${jobText(job, MAX_JD_CHARS)}${extra ? `\n\n${extra}` : ''}\n</job>`;
-      })
-      .join('\n\n');
-    try {
-      const { data } = await scorer.ask({
-        system,
-        instruction: `Answer for all ${batch.length} jobs in the input. Return exactly one result for each id: ${ids.join(', ')}.`,
-        input,
-        schema,
-        example,
-      });
-      const byId = new Map((data?.results ?? []).map((r) => [String(r.id), r]));
-      batch.forEach((job, k) => {
-        const r = byId.get(ids[k]);
-        const got = {};
-        for (const f of fields) {
-          const v = r ? f.clean(r[f.name], job) : null;
-          if (v) got[f.name] = { ...v, rev: f.rev };
-        }
-        if (Object.keys(got).length) answers.set(job.key, got);
-        else failed++;
-      });
-    } catch (err) {
-      failed += batch.length;
-      log(`  ! catch-up batch of ${batch.length}: ${err.message}`);
-      if (err.fatal) stoppedBecause = err.message;
-    }
-  }
-  return { answers, failed, stoppedBecause };
+  return { system, schema, example };
 }
