@@ -253,6 +253,24 @@ li.sel > .inline { display: block; }
 .musts li.partly::before { content: "~"; color: var(--look); }
 .musts li.no::before { content: "\2715"; color: var(--bad); }
 .musts q { display: block; color: var(--muted); font-size: 13px; quotes: "\201C" "\201D"; }
+/* what the last run changed: one line, the lists behind it on Show */
+.brief > summary { flex-wrap: nowrap; align-items: flex-start; }
+.brief > summary > span { display: grid; gap: 2px; min-width: 0; }
+.brief > summary .line { color: var(--ink); font-size: 14px; max-width: 80ch; }
+.brief.flat > summary { cursor: default; }
+.brief.flat > summary::after { content: none; }
+.brief h4 { margin: 0 0 4px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.brief .who { margin-top: 0; }
+.brief .who span { background: var(--hover); color: var(--muted); border-radius: 6px; padding: 2px 8px; font-size: 12px; overflow-wrap: anywhere; }
+.brief .who .num { font-size: 11px; margin-right: 4px; }
+.brief .tbody > section { min-width: 0; }
+.brief .scroll { overflow-x: auto; }
+.brief .runs { border-collapse: collapse; font-size: 12px; width: auto; }
+.brief .runs th { text-transform: none; letter-spacing: 0; font-size: 12px; }
+.brief .runs th, .brief .runs td { padding: 3px 14px 3px 0; text-align: right; white-space: nowrap; }
+.brief .runs th:first-child, .brief .runs td:first-child { text-align: left; }
+.brief .runs th { font-weight: 500; color: var(--muted); }
+
 /* gaps that keep coming up: themes across your close calls */
 .themes { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 0; }
 .themes > summary { list-style: none; cursor: pointer; padding: 12px 18px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: 14px; }
@@ -398,6 +416,7 @@ footer a { color: var(--muted); }
     <p class="demo" id="demo" hidden>Demo with made-up companies, roles and candidate. Your own Axia is private to you. <a href="https://github.com/khubli/axia#readme">Set up your own ↗</a></p>
     <ul class="warn" id="warn" hidden></ul>
     <div class="lede" id="lede"></div>
+    <details class="themes brief" id="brief" hidden></details>
     <figure class="strip" id="strip"></figure>
     <details class="themes" id="themes" hidden></details>
     <div class="bar">
@@ -862,6 +881,76 @@ footer a { color: var(--muted); }
     el.hidden = false;
     store.get('themesOpen', false) && (el.open = true);
     el.addEventListener('toggle', () => store.set('themesOpen', el.open));
+    el.addEventListener('click', (e) => { const b = e.target.closest('.who button'); if (b) reveal(b.dataset.id); });
+  })();
+
+  // ── what the last run changed: worked out by comparing memory before and after the run ──
+  (function briefView() {
+    const B = D.brief;
+    if (!B) return;
+    const el = $('#brief');
+    const jobs = (ids) => ids.map((id) => byId[id]).filter(Boolean);
+    const scoreOf = (j) => (j.ai ? '<span class="num">' + j.score + '</span>' : '');
+    // Open roles (and ones you kept on Your roles) open in place; closed ones are plain text.
+    const role = (j, extra) => {
+      const label = (extra || scoreOf(j)) + esc(j.title) + ' · ' + esc(j.company);
+      return j.status === 'open' || kept(j) ? '<button type="button" data-id="' + j.id + '">' + label + '</button>' : '<span>' + label + '</span>';
+    };
+    const roles = (list) => '<div class="who">' + list.map((x) => role(x.j || x, x.extra)).join('') + '</div>';
+    const more = (n, what) => (n > 0 ? '<p>And ' + n + ' ' + what + '.</p>' : '');
+    const best = (a, b) => (b.ai - a.ai) || ((b.score || 0) - (a.score || 0));
+    const sec = [];
+    const MOVE = B.movePoints || 10;
+
+    const scored = jobs(B.scored).sort(best);
+    const strong = scored.filter((j) => j.score >= FROM);
+    if (scored.length) sec.push('<section><h4>Scored for the first time</h4>' + (strong.length ? roles(strong) : '') + more(scored.length - strong.length, 'scored below ' + FROM) + '</section>');
+
+    const moved = B.moved.map((m) => ({ j: byId[m.id], from: m.from })).filter((m) => m.j).sort((a, b) => Math.abs(b.j.score - b.from) - Math.abs(a.j.score - a.from));
+    if (moved.length) sec.push('<section><h4>Re-scored: moved ' + MOVE + '+ points or into another band</h4>' + roles(moved.slice(0, 12).map((m) => ({ j: m.j, extra: '<span class="num">' + m.from + '→' + m.j.score + '</span>' }))) + more(moved.length - 12, 'more') + '</section>');
+
+    const fresh = jobs(B.new);
+    if (fresh.length) {
+      const by = {};
+      for (const j of fresh) by[j.company] = (by[j.company] || 0) + 1;
+      const cos = Object.entries(by).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+      const waiting = fresh.filter((j) => !j.ai).length;
+      sec.push('<section><h4>New roles by company</h4><div class="who">' + cos.map(([c, n]) => '<span><span class="num">' + n + '</span>' + esc(c) + '</span>').join('') + '</div>' +
+        (waiting ? '<p>' + waiting + ' of them wait for a score' + (strong.some((j) => B.new.includes(j.id)) ? '; the ones already scored ' + FROM + '+ are listed above' : '') + '.</p>' : '') + '</section>');
+    }
+
+    const closed = jobs(B.closed).sort(best);
+    const notable = closed.filter((j) => (j.ai && j.score >= FROM) || callOf(j));
+    if (closed.length) sec.push('<section><h4>Closed</h4>' + (notable.length ? roles(notable) : '') + more(closed.length - notable.length, (notable.length ? 'more' : 'roles') + ' scored below ' + FROM + ' or not scored yet') + '</section>');
+
+    const back = jobs(B.reopened);
+    if (back.length) sec.push('<section><h4>Listed again</h4>' + roles(back) + '</section>');
+
+    const C = B.companies || {};
+    const co = [];
+    if (C.unreadable && C.unreadable.length) co.push('Could not be read: <b>' + C.unreadable.map(esc).join(', ') + '</b>.');
+    if (C.stillUnreadable && C.stillUnreadable.length) co.push('Still unreadable: ' + C.stillUnreadable.map(esc).join(', ') + '.');
+    if (C.recovered && C.recovered.length) co.push('Readable again: ' + C.recovered.map(esc).join(', ') + '.');
+    if (C.added && C.added.length) co.push('Added: ' + C.added.map(esc).join(', ') + '.');
+    if (C.removed && C.removed.length) co.push('Removed: ' + C.removed.map(esc).join(', ') + '.');
+    if (co.length) sec.push('<section><h4>Companies</h4><p>' + co.join(' ') + '</p></section>');
+
+    const H = B.history || [];
+    if (H.length > 1) {
+      const when = (h) => local(new Date(h.runAt), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false });
+      const cell = (n) => '<td class="num">' + (n == null ? '–' : n) + '</td>';
+      sec.push('<section><h4>Recent runs</h4><div class="scroll"><table class="runs"><thead><tr><th>Run (' + esc(D.tz) + ')</th><th>New</th><th>Closed</th><th>Scored</th><th>' + GOOD + '+</th><th>' + FROM + '–' + (GOOD - 1) + '</th><th>Waiting</th></tr></thead><tbody>' +
+        H.map((h) => '<tr><td>' + esc(when(h)) + (h.partial ? ' <span class="muted">(some companies)</span>' : '') + '</td>' + cell(h.new) + cell(h.closed) + cell(h.scored) + cell(h.good) + cell(h.look) + cell(h.pending) + '</tr>').join('') +
+        '</tbody></table></div></section>');
+    }
+
+    const since = B.since ? 'compared with the run of ' + local(new Date(B.since), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false }) + ' ' + D.tz : '';
+    el.innerHTML = '<summary><span><b>What changed in the last run</b><span class="line">' + esc(B.line) + '</span></span></summary>' +
+      (sec.length ? '<div class="tbody">' + sec.join('') + (since ? '<p>Worked out from Axia\'s own records, ' + esc(since) + '. No AI is used for this summary.</p>' : '') + '</div>' : '');
+    if (!sec.length) el.classList.add('flat');
+    el.hidden = false;
+    store.get('briefOpen', false) && sec.length && (el.open = true);
+    el.addEventListener('toggle', () => store.set('briefOpen', el.open));
     el.addEventListener('click', (e) => { const b = e.target.closest('.who button'); if (b) reveal(b.dataset.id); });
   })();
 

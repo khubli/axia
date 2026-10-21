@@ -7,6 +7,7 @@ import { resolve } from 'node:path';
 import { buildSite } from '../src/site.mjs';
 import { isoDate } from '../src/text.mjs';
 import { normalizeMoonshots } from '../src/moonshots.mjs';
+import { briefLine } from '../src/changes.mjs';
 
 const out = resolve(process.argv[2] ?? '_site');
 const TZ = 'Europe/London';
@@ -87,7 +88,7 @@ for (const [company, title, value] of WAITING) {
 // Two roles closed this week, to show the count.
 for (const title of ['Platform Lead, Payments Hub', 'Engineering Manager, Payouts']) {
   const key = `contosopay:${n++}`;
-  jobs[key] = { key, company: 'Contoso Pay', title, location: CITIES[0], url: 'https://careers.example.com/', postedAt: daysAgo(30), firstSeen: daysAgo(20), status: 'closed', closedOn: daysAgo(2), score: { value: 70, scorer: 'ai', summary: '', strengths: [], gaps: [] } };
+  jobs[key] = { key, company: 'Contoso Pay', title, location: CITIES[0], url: 'https://careers.example.com/', postedAt: daysAgo(30), firstSeen: daysAgo(20), status: 'closed', closedOn: today, score: { value: 70, scorer: 'ai', summary: '', strengths: [], gaps: [] } };
 }
 
 const byTitle = (t) => Object.values(jobs).find((j) => j.title === t);
@@ -162,6 +163,24 @@ const summary = {
   },
 };
 
+// What the last run changed, as the brief at the top of the Roles tab shows it.
+const firstScored = ['Principal Architect, Real-Time Payments', 'Delivery Lead, Open Banking', 'Data Platform Engineer'].map((t) => byTitle(t).key);
+for (const key of firstScored) Object.assign(jobs[key], { firstSeen: today, score: { ...jobs[key].score, scoredOn: today } });
+const changes = {
+  since: new Date(now.getTime() - 24 * 36e5).toISOString(),
+  new: [...firstScored, ...WAITING.slice(0, 5).map(([, t]) => byTitle(t).key)],
+  scored: firstScored,
+  moved: [{ key: byTitle('Lead Solution Architect, ISO 20022 Migration').key, from: 59 }],
+  closed: ['Platform Lead, Payments Hub', 'Engineering Manager, Payouts'].map((t) => byTitle(t).key),
+  reopened: [],
+  notified: [byTitle('Principal Architect, Real-Time Payments').key],
+  companies: { unreadable: [], stillUnreadable: [], recovered: ['Litware Insurance'], added: [], removed: [] },
+  pending: { before: 11, now: WAITING.length },
+};
+summary.changes = { ...changes, line: briefLine({ changes, state: { jobs }, settings, aiPerRun: settings.scoring.max_ai_scores_per_run }) };
+const history = [[0, 8, 2, 3, 1, 1, 8], [1, 4, 1, 6, 0, 2, 6], [2, 11, 0, 9, 2, 3, 3], [3, 2, 3, 2, 0, 1, 1], [4, 0, 1, 1, 0, 0, 0]]
+  .map(([d, n, c, sc, g, l, p]) => ({ runAt: new Date(now.getTime() - d * 24 * 36e5).toISOString(), today: daysAgo(d), new: n, closed: c, scored: sc, good: g, look: l, pending: p }));
+
 // A few calls on roles, as if made on the dashboard's buttons.
 const calls = [['Head of Payments Platform Engineering', 'applied'], ['Engineering Director, Core Platform', 'shortlist'], ['Vice President, Treasury Operations', 'not-for-me', 'Operations, not technology'], ['Platform Lead, Payments Hub', 'applied', 'Recruiter call booked']];
 const feedback = { roles: Object.fromEntries(calls.map(([t, verdict, reason = '']) => { const j = byTitle(t); return [j.key, { id: j.key.replace(/[^A-Za-z0-9]+/g, '-'), verdict, reason, at: now.toISOString() }]; })) };
@@ -187,5 +206,5 @@ const moonshots = {
   }),
 };
 
-buildSite({ state: { jobs, companies, gaps }, summary, settings, feedback, moonshots }, out, { minScore: 65, demo: true });
+buildSite({ state: { jobs, companies, gaps, history }, summary, settings, feedback, moonshots }, out, { minScore: 65, demo: true });
 console.log(`Demo dashboard written to ${out}`);

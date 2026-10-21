@@ -84,6 +84,7 @@ export function renderMarkdown(view) {
     `**${summary.counts.new} new** · **${v.open.length}** open roles match your titles and locations · **${v.best.length}** good matches (${v.good}+) · ${v.readLine}`,
     '',
   );
+  if (summary.changes?.line) lines.push(`**What changed in this run:** ${summary.changes.line}`, '');
 
   for (const c of v.failed) lines.push(`> ⚠️ **${c.company}** could not be read today (${c.error}). ${keptNote(c)}`, '');
   if (summary.ai.stoppedBecause) lines.push(`> ⚠️ AI scoring stopped early today: ${summary.ai.stoppedBecause}. Affected roles show a keyword estimate (≈).`, '');

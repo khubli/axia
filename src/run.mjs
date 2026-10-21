@@ -26,6 +26,7 @@ import { isoDate, normalize, similarity } from './text.mjs';
 import { loadFeedback, saveFeedback, pullFeedback, applyFeedback, snapshotFeedback } from './feedback.mjs';
 import { loadMoonshots } from './moonshots.mjs';
 import { rollUpGaps } from './gaps.mjs';
+import { snapshot, runChanges, addHistory, briefLine } from './changes.mjs';
 
 const KEYWORD_DETAIL_BUDGET = 150; // detail fetches for keyword scoring when AI is off
 const SECOND_LOOK_MAX = 1500; // new titles the second look asks about per run; the rest wait for the next run
@@ -54,6 +55,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   const resume = loadResume(settings, dir);
   const statePath = resolve(dir, 'data/jobs.json');
   const state = loadState(statePath);
+  const before = snapshot(state); // for the brief of what this run changed
   const firstRun = !state.lastRun;
   const today = isoDate(now, settings.report.timezone);
   const runAt = now.toISOString();
@@ -288,6 +290,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     .sort((a, b) => rank(a) - rank(b) || promise(b) - promise(a) || String(b.postedAt ?? '').localeCompare(String(a.postedAt ?? '')));
   const budget = Number(args['max-ai'] ?? settings.scoring.max_ai_scores_per_run);
   const aiQueue = aiScorer ? needsAi.slice(0, budget) : [];
+  const scoredKeys = new Set();
   const keywordQueue = aiScorer ? [] : open.filter((j) => !j.score && candidates.has(j.key)).slice(0, KEYWORD_DETAIL_BUDGET);
 
   await mapLimit([...aiQueue, ...keywordQueue], 4, (j) => enrich(candidates.get(j.key), ctx));
@@ -300,7 +303,10 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     );
     for (const job of aiQueue) {
       const s = scores.get(job.key);
-      if (s) job.score = { ...s, resumeHash: hash, scoredOn: today };
+      if (s) {
+        job.score = { ...s, resumeHash: hash, scoredOn: today };
+        scoredKeys.add(job.key);
+      }
     }
     Object.assign(ai, { scored: scores.size, failed, stoppedBecause });
   }
@@ -354,6 +360,12 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     delivery = await deliver(messages, env, { log });
     applyDelivery(state, messages, delivery, today);
   }
+
+  // ── 7. What changed, for the brief at the top of the dashboard (no AI involved) ──
+  const changes = runChanges({ before, state, summary, settings, newKeys, closedKeys: closedToday, scoredKeys });
+  summary.changes = { ...changes, line: briefLine({ changes, state, settings, firstRun, aiPerRun: settings.scoring.max_ai_scores_per_run }) };
+  state.lastRun.changes = summary.changes;
+  state.history = addHistory(state.history, { summary, changes, state, settings });
 
   const view = { state, summary, settings, feedback, moonshots: loadMoonshots(dir, settings, { log }) };
   if (!dryRun) {

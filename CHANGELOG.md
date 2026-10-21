@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.9.0
+
+- **What changed in the last run.** A brief at the top of the Roles tab says in one line what the last run changed, for example "8 new roles and 2 closed. Scored 3 roles for the first time: 1 good match and 1 worth a look. 1 good match sent to you. Litware Insurance is readable again. 8 still waiting for a score, about 1 night at 40 a night." Show opens what is behind it: the roles scored for the first time that reached Worth a look (50 by default) or better, best first, scores that moved 10 or more points or into another band on a re-score, new roles by company, closed roles worth noting (scored Worth a look or better, or marked by you), roles listed again, job sites that broke or came back, and a table of the last 14 runs. It is worked out by comparing memory before and after the run and written from a template, so it adds no AI request and no tokens. The brief is kept with the run in `data/jobs.json` (`lastRun.changes`, plus a 14-line `history`), and the same line heads `dashboard/README.md`.
+
 ## 1.8.2
 
 - **The model reads up to 15,000 characters of each posting, not 7,000.** Scoring several roles per request (Claude Code, OpenRouter and other OpenAI-compatible APIs) cut each posting at 7,000 characters. On one night's 40 scored roles that cut 10 postings, and two of them lost their whole skills and qualifications section. None of those 40 passed 15,000, so postings now reach the model whole, as they already did on the Claude API. A night's scoring sends about 14% more text. Roles already scored keep their score until they are next scored.
