@@ -29,7 +29,7 @@ import { rollUpGaps } from './gaps.mjs';
 import { snapshot, runChanges, addHistory, briefLine } from './changes.mjs';
 import { loadLevels, levelField } from './levels.mjs';
 import { catchUp, catchUpQueue } from './catchup.mjs';
-import { loadPayGuide, payField } from './pay.mjs';
+import { loadPayGuide, payField, dropImplausiblePay } from './pay.mjs';
 
 const KEYWORD_DETAIL_BUDGET = 150; // detail fetches for keyword scoring when AI is off
 const SECOND_LOOK_MAX = 1500; // new titles the second look asks about per run; the rest wait for the next run
@@ -356,6 +356,9 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
       log(`Catch-up: ${answers.size} filled in${failed ? `, ${failed} failed` : ''}${stoppedBecause ? `; stopped early: ${stoppedBecause}` : ''}.`);
     }
   }
+  // Pay saved before a bad-estimate check existed (or before estimate_floor was set) is checked again here, free.
+  const payDropped = dropImplausiblePay(Object.values(state.jobs), payGuide);
+  if (payDropped) log(`Pay: ${payDropped} AI estimate(s) that can't be right now show no pay.`);
   snapshotFeedback(feedback, state, (key) => candidates.get(key)?.job.description);
 
   // ── 5b. Gaps that keep coming up: once a week, when your close calls have changed ──

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.12.0
+
+- **Bad pay estimates show no pay.** An AI estimate the model marks "placeholder", or one whose yearly top is below a new optional `estimate_floor` in `pay.yml` (such as ₹5–8 lakh for a VP, a zero dropped), now shows no pay instead of a misleading range. Pay already saved is checked on each run with no AI request, and adding the floor doesn't refill pay on any role. Pay stated on a posting or taken from your table is never second-guessed ([details](docs/configuration.md#pay-range-per-role-and-payyml)).
+
 ## 1.11.0
 
 - **Pay range per role.** Each AI score now also gives the role's likely pay as a range, shown under the role (₹58–87L) and in its details with where it came from: stated on the posting (in the posting's own words, checked against it), from your pay table, or a rough AI estimate (marked ~). It is part of the same request as the score, so a night's scoring sends no extra requests, only a few dozen more output tokens per role, and the score never depends on pay.

@@ -164,9 +164,10 @@ companies:
   Example Tech:
     currency: USD
     Software Engineer: { L5: 185000, L6: 240000 }
+estimate_floor: 1500000                # [none] AI estimates whose yearly top is below this show no pay
 ```
 
-Fill it from what you can see yourself: offers, recruiters, colleagues, or salary sites you read (credit them in `source`; many, such as Levels.fyi, ask for attribution and don't allow bulk collection). Axia never fetches pay data from any site. Pay is filled on roles as they are scored. Roles scored before, and roles on the dashboard after you change `pay.yml`, get it from the same catch-up as the level (see levels.md above).
+Fill it from what you can see yourself: offers, recruiters, colleagues, or salary sites you read (credit them in `source`; many, such as Levels.fyi, ask for attribution and don't allow bulk collection). Axia never fetches pay data from any site. `estimate_floor` catches a model's slip, such as ₹5 to 8 lakh for a VP role (a zero dropped). An AI estimate in the table's currency whose yearly top is below it shows no pay instead; so does an estimate the model marks "placeholder". Pay stated on a posting or taken from your table is never checked against it. Setting or changing the floor asks the model nothing: pay already saved is checked on the next run, and the floor's line doesn't count as a change to the table. Pay is filled on roles as they are scored. Roles scored before, and roles on the dashboard after you change `pay.yml`, get it from the same catch-up as the level (see levels.md above).
 
 ## moonshots.json
 

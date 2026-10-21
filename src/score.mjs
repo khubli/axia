@@ -103,7 +103,7 @@ export const resumeHash = (resume, criteria = '') => createHash('sha256').update
 
 export const verdict = (score) => (score >= 75 ? 'strong' : score >= 60 ? 'good' : score >= 40 ? 'stretch' : 'poor');
 
-function clean(out, model, scorer, description) {
+function clean(out, model, scorer, description, payGuide) {
   const score = Math.max(0, Math.min(100, Math.round(Number(out?.score))));
   if (!Number.isFinite(score)) throw new ScoreError('model returned no score');
   return {
@@ -113,7 +113,7 @@ function clean(out, model, scorer, description) {
     gaps: (out.gaps ?? []).slice(0, 3).map((s) => truncate(s, 140)),
     musts: cleanMusts(out.musts, description),
     ...(cleanLevel(out.level) ? { level: cleanLevel(out.level) } : {}),
-    ...(cleanPay(out.pay, description) ? { pay: cleanPay(out.pay, description) } : {}),
+    ...(cleanPay(out.pay, description, payGuide) ? { pay: cleanPay(out.pay, description, payGuide) } : {}),
     scorer,
     model,
   };
@@ -229,7 +229,7 @@ function apiScorer({ apiKey, settings, resume, criteria, levels, payGuide, clien
       output_config: { ...(effort ? { effort } : {}), format: { type: 'json_schema', schema: SCHEMA } },
       messages: [{ role: 'user', content: jobText(job, MAX_JD_CHARS, payContext(job, payGuide)) }],
     });
-    return clean(data, used, 'ai', job.description);
+    return clean(data, used, 'ai', job.description, payGuide);
   }
 
   return {
@@ -385,7 +385,7 @@ function openAIScorer({ name, baseUrl, apiKey, settings, resume, criteria, level
     return batch.map((job, i) => {
       const r = results.get(ids[i]);
       try {
-        return r ? clean(r, usedModel, 'ai', job.description) : null;
+        return r ? clean(r, usedModel, 'ai', job.description, payGuide) : null;
       } catch {
         return null;
       }
@@ -472,7 +472,7 @@ function claudeCodeScorer({ env, settings, resume, criteria, levels, payGuide, r
     return batch.map((job, i) => {
       const r = results.get(ids[i]);
       try {
-        return r ? clean(r, usedModel, 'ai', job.description) : null;
+        return r ? clean(r, usedModel, 'ai', job.description, payGuide) : null;
       } catch {
         return null;
       }

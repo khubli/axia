@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { run } from '../src/run.mjs';
-import { cleanPay, payContext, loadPayGuide, PAY_RULES } from '../src/pay.mjs';
+import { cleanPay, payContext, loadPayGuide, dropImplausiblePay, PAY_RULES } from '../src/pay.mjs';
 import { tempProject, stubFetch } from './helpers.mjs';
 
 const POSTING = 'Lead our payments platform. Compensation: INR 45,00,000 to 60,00,000 per annum, plus bonus.';
@@ -150,4 +150,38 @@ test('roles scored before pay existed get it from the catch-up, with their emplo
   calls.length = 0;
   await once(true, '2026-10-17T03:00:00Z');
   assert.equal(calls.length, 0, 'nothing left to catch up');
+});
+
+test('an AI estimate that cannot be right shows no pay: a placeholder, or under estimate_floor', () => {
+  const guide = { currency: 'INR', estimateFloor: 1500000 };
+  const base = { source: 'estimate', currency: 'INR', period: 'year', quote: '', basis: 'VP, Bengaluru' };
+  assert.deepEqual(cleanPay({ ...base, low: 500000, high: 800000 }, '', guide), { source: 'none' }, 'a dropped zero');
+  assert.deepEqual(cleanPay({ ...base, low: 800000, high: 800000, basis: 'placeholder' }, ''), { source: 'none' }, 'no floor needed');
+  assert.equal(cleanPay({ ...base, low: 1200000, high: 2000000 }, '', guide).high, 2000000, 'a top above the floor stays');
+  assert.equal(cleanPay({ ...base, low: 500000, high: 800000 }, '', { currency: 'INR', estimateFloor: 0 }).low, 500000, 'no floor, no check');
+  assert.equal(cleanPay({ ...base, currency: 'USD', low: 150000, high: 200000 }, '', guide).currency, 'USD', 'other currencies are not compared');
+  assert.equal(cleanPay({ ...base, period: 'month', low: 400000, high: 600000 }, '', guide).period, 'month');
+  assert.equal(cleanPay({ ...base, source: 'posting', quote: 'INR 45,00,000 to 60,00,000 per annum', low: 500000, high: 800000 }, POSTING, guide).source, 'posting', 'the posting is never second-guessed');
+});
+
+test('estimate_floor is read from pay.yml, does not change the table rev, and clears saved bad estimates', () => {
+  const dir = tempProject({ companies: [] });
+  const table = TABLE.endsWith('\n') ? TABLE : `${TABLE}\n`;
+  writeFileSync(join(dir, 'pay.yml'), table);
+  const before = loadPayGuide({ scoring: { pay: 'pay.yml' } }, dir);
+  writeFileSync(join(dir, 'pay.yml'), `${table}estimate_floor: 1500000   # yearly, below this an AI estimate is dropped\n`);
+  const guide = loadPayGuide({ scoring: { pay: 'pay.yml' } }, dir);
+  assert.equal(guide.estimateFloor, 1500000);
+  assert.equal(guide.rev, before.rev, 'setting a floor refills nothing');
+  const jobs = [
+    { score: { pay: { source: 'estimate', currency: 'INR', low: 500000, high: 800000, period: 'year', basis: 'Director', rev: guide.rev } } },
+    { score: { pay: { source: 'estimate', currency: 'INR', low: 5000000, high: 8000000, period: 'year', basis: 'Director', rev: guide.rev } } },
+    { score: { pay: { source: 'table', currency: 'INR', low: 500000, high: 800000, period: 'year', rev: guide.rev } } },
+    { score: {} },
+  ];
+  assert.equal(dropImplausiblePay(jobs, guide), 1);
+  assert.deepEqual(jobs[0].score.pay, { source: 'none', rev: guide.rev }, 'kept as answered, so the catch-up does not ask again');
+  assert.equal(jobs[1].score.pay.high, 8000000);
+  writeFileSync(join(dir, 'pay.yml'), `${table}estimate_floor: lots\n`);
+  assert.throws(() => loadPayGuide({ scoring: { pay: 'pay.yml' } }, dir), /estimate_floor must be a yearly amount/);
 });
