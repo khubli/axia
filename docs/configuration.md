@@ -65,6 +65,7 @@ scoring:
   effort: medium                 # [medium] low, medium or high: how hard the model thinks (Claude, and OpenRouter models that reason)
   base_url: ''                   # [none] openai-compatible only, e.g. https://api.openai.com/v1; openrouter defaults to its own
   criteria: criteria.md          # [criteria.md] what a good role looks like for you
+  levels: levels.md              # [levels.md] your level and what it is called at the companies you watch; optional
   max_ai_scores_per_run: 40      # [40] the rest wait for the next run
   batch_size: 8                  # [8] roles per request (Claude subscription, OpenRouter, OpenAI-compatible)
   keywords: [payments, platform] # [] make a role more promising for the AI queue, and lift keyword estimates
@@ -111,6 +112,20 @@ Plain prose that the model reads with your resume for every role. What helps mos
 - **Title traps**: titles that match your words but mean something else ("Platform Architect when the platform is network infrastructure").
 
 After editing it, run `axia calibrate` (below) before trusting the change.
+
+## levels.md: step up, same level or step down
+
+Each AI score also labels the role against your current level: **Step up**, **Same level** or **Step down**, with its equivalent on your own ladder ("≈ Executive Director at your bank"). It is a label beside the score, on the dashboard and in messages, and it doesn't move the score. The dashboard can filter by it.
+
+Titles mislead across employers: a Vice President at one bank is a Director at another, and a payments company's Vice President leads a whole organisation. So the model reads the full posting, including the years asked, team size and who the role reports to, and your optional `levels.md`:
+
+- **Where you are now**: your title, employer, team size and years.
+- **The same level as you** at the companies you watch, with one step down and one step up. levels.fyi's level pages are a good place to look these up.
+- **When the title doesn't settle it**: the scope signals that mean a step up or down for you.
+
+See `examples/instance/levels.md`. Without the file the model goes by your resume alone. The level comes in the same request as the score, so it costs a few words of answer per role.
+
+Editing `levels.md` doesn't re-score anything. Instead, each run catches up up to 40 roles whose label is missing or was given with an older `levels.md`, in short requests that ask for the level only. Only roles you would look at are caught up: those scored `report.show_from` or more, and those you marked Applied or Shortlist. Roles scored before 1.10.0 get their label the same way.
 
 ## Your calls on the dashboard
 

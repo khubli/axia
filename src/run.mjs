@@ -27,6 +27,8 @@ import { loadFeedback, saveFeedback, pullFeedback, applyFeedback, snapshotFeedba
 import { loadMoonshots } from './moonshots.mjs';
 import { rollUpGaps } from './gaps.mjs';
 import { snapshot, runChanges, addHistory, briefLine } from './changes.mjs';
+import { loadLevels, levelField } from './levels.mjs';
+import { catchUp, catchUpQueue } from './catchup.mjs';
 
 const KEYWORD_DETAIL_BUDGET = 150; // detail fetches for keyword scoring when AI is off
 const SECOND_LOOK_MAX = 1500; // new titles the second look asks about per run; the rest wait for the next run
@@ -62,9 +64,12 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   const filters = makeFilters(settings);
   const criteria = loadCriteria(settings, dir);
   const hash = resumeHash(resume, criteria);
+  // Your levels guide is kept out of the hash: editing it re-labels roles (step 5c), never re-scores them.
+  const levels = loadLevels(settings, dir);
+  const catchUpFields = [levelField(levels)];
   const ctx = { http, today };
   const preview = args['second-look-preview'];
-  const aiScorer = dryRun ? null : makeScorer({ env, settings, resume, criteria, ...scorerOverrides });
+  const aiScorer = dryRun ? null : makeScorer({ env, settings, resume, criteria, levels, ...scorerOverrides });
   if (preview && !aiScorer?.ask) throw new ConfigError('The second-look preview needs an AI provider (see docs/setup.md, step 3).');
 
   // A title passes your title words, or the second look let it through on an earlier run.
@@ -303,10 +308,10 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     );
     for (const job of aiQueue) {
       const s = scores.get(job.key);
-      if (s) {
-        job.score = { ...s, resumeHash: hash, scoredOn: today };
-        scoredKeys.add(job.key);
-      }
+      if (!s) continue;
+      for (const f of catchUpFields) if (s[f.name]) s[f.name] = { ...s[f.name], rev: f.rev };
+      job.score = { ...s, resumeHash: hash, scoredOn: today };
+      scoredKeys.add(job.key);
     }
     Object.assign(ai, { scored: scores.size, failed, stoppedBecause });
   }
@@ -317,6 +322,35 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     }
   }
   ai.pending = open.filter((j) => j.score?.scorer !== 'ai').length;
+
+  // ── 5c. Catch-up: the level on roles scored before it existed (or before levels.md changed) ──
+  // Only roles worth showing, a few dozen per run, without re-scoring them.
+  if (aiScorer?.ask && !ai.stoppedBecause) {
+    const calls = feedback.roles ?? {};
+    const queue = catchUpQueue({
+      open,
+      fields: catchUpFields,
+      listedToday: (key) => candidates.has(key),
+      scoredToday: new Set(aiQueue.map((j) => j.key)),
+      showFrom: settings.report.show_from,
+      kept: (key) => ['applied', 'shortlist'].includes(calls[key]?.verdict),
+    });
+    if (queue.length) {
+      await mapLimit(queue, 4, (j) => enrich(candidates.get(j.key), ctx));
+      log(`\nCatch-up: the level for ${queue.length} role(s) scored before it was asked for…`);
+      const { answers, failed, stoppedBecause } = await catchUp({
+        scorer: aiScorer,
+        jobs: queue.map((job) => ({ ...job, description: candidates.get(job.key).job.description })),
+        resume,
+        fields: catchUpFields,
+        batchSize: Math.max(1, Number(settings.scoring.batch_size) || 8),
+        log,
+      });
+      for (const job of queue) if (answers.has(job.key)) Object.assign(job.score, answers.get(job.key));
+      ai.caughtUp = answers.size;
+      log(`Catch-up: ${answers.size} labelled${failed ? `, ${failed} failed` : ''}${stoppedBecause ? `; stopped early: ${stoppedBecause}` : ''}.`);
+    }
+  }
   snapshotFeedback(feedback, state, (key) => candidates.get(key)?.job.description);
 
   // ── 5b. Gaps that keep coming up: once a week, when your close calls have changed ──

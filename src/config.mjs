@@ -15,7 +15,7 @@ const DEFAULTS = {
   // second_look: titles in your places that your words reject get a look from the model (it can only let roles in).
   titles: { include: [], exclude: [], second_look: true },
   locations: { include: [], keep_unknown: true },
-  scoring: { provider: 'auto', model: 'sonnet', effort: 'medium', base_url: '', max_ai_scores_per_run: 40, batch_size: 8, criteria: 'criteria.md', keywords: [] },
+  scoring: { provider: 'auto', model: 'sonnet', effort: 'medium', base_url: '', max_ai_scores_per_run: 40, batch_size: 8, criteria: 'criteria.md', levels: 'levels.md', keywords: [] },
   report: { timezone: 'UTC', good_match: 65, show_from: 50 },
   // Messages: new good matches as they are scored, problems once, and a weekly "still running" note.
   notify: { min_score: 65, weekly: 'monday' },

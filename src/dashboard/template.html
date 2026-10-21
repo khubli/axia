@@ -203,6 +203,10 @@ li.sel .rt { color: var(--accent); }
 .pill.old { background: var(--low-soft); color: var(--muted); }
 .pill.second { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
 .pill.closed { background: var(--bad-soft); color: var(--bad); }
+/* the role's level against yours */
+.pill.lv-up { background: var(--good-soft); color: var(--good); }
+.pill.lv-same { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+.pill.lv-down { background: var(--low-soft); color: var(--muted); }
 .pill.applied { background: var(--good-soft); color: var(--good); }
 .pill.shortlist { background: var(--accent-soft); color: var(--accent); }
 .pill.nfm { background: var(--low-soft); color: var(--muted); }
@@ -425,6 +429,7 @@ footer a { color: var(--muted); }
         <input id="q" type="search" placeholder="Search title, company, city or why" aria-label="Search roles">
         <select id="company" aria-label="Company"></select>
         <select id="city" aria-label="City"></select>
+        <select id="level" aria-label="Level against yours" hidden></select>
         <select id="sort" aria-label="Sort">
           <option value="score">Best score first</option>
           <option value="posted">Newest posting first</option>
@@ -495,6 +500,16 @@ footer a { color: var(--muted); }
   // Applied and Shortlist roles live on the Your roles tab, so the Roles list leaves them out.
   const KEEP = ['applied', 'shortlist'];
   const kept = (j) => KEEP.includes(callOf(j));
+
+  // ── the role's level against yours (judged by the model from your levels guide and the posting) ──
+  const LEVEL = { up: 'Step up', same: 'Same level', down: 'Step down', unknown: 'Level not clear' };
+  const LEVEL_ICON = { up: '↑ ', same: '= ', down: '↓ ' };
+  const levelOf = (j) => (j.level && LEVEL[j.level.vs] && j.level.vs !== 'unclear' ? j.level.vs : 'unknown');
+  const levelPill = (j) => {
+    const v = levelOf(j);
+    if (v === 'unknown') return '';
+    return '<span class="pill lv-' + v + '" title="' + esc(LEVEL[v] + (j.level.note ? ': ' + j.level.note : '')) + '">' + LEVEL_ICON[v] + LEVEL[v] + '</span>';
+  };
 
   // ── dates ──
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -625,7 +640,7 @@ footer a { color: var(--muted); }
   const defaultTiers = !D.ai.enabled ? ['wait'] : count('good') + count('look') ? ['good', 'look'] : ['good', 'look', 'low'];
   const F = {
     tiers: new Set(saved && saved.tiers && saved.tiers.length ? saved.tiers : defaultTiers),
-    q: '', company: (saved && saved.company) || '', city: (saved && saved.city) || '', sort: (saved && saved.sort) || 'score',
+    q: '', company: (saved && saved.company) || '', city: (saved && saved.city) || '', level: (saved && saved.level) || '', sort: (saved && saved.sort) || 'score',
     showNfm: Boolean(saved && saved.showNfm),
   };
   let sel = null;
@@ -646,7 +661,14 @@ footer a { color: var(--muted); }
   $('#city').innerHTML = '<option value="">All cities</option>' + cities.map((c) => '<option value="' + esc(c) + '">' + esc(c) + ' (' + cityCount[c] + ')</option>').join('');
   if (!companies.includes(F.company)) F.company = '';
   if (!cities.includes(F.city)) F.city = '';
-  $('#company').value = F.company; $('#city').value = F.city; $('#sort').value = F.sort;
+  // Level filter: only once some roles have a level.
+  const levelCount = {};
+  for (const j of open) levelCount[levelOf(j)] = (levelCount[levelOf(j)] || 0) + 1;
+  const levels = ['up', 'same', 'down', 'unknown'].filter((k) => levelCount[k]);
+  $('#level').hidden = !levels.some((k) => k !== 'unknown');
+  $('#level').innerHTML = '<option value="">All levels</option>' + levels.map((k) => '<option value="' + k + '">' + LEVEL[k] + ' (' + levelCount[k] + ')</option>').join('');
+  if ($('#level').hidden || !levels.includes(F.level)) F.level = '';
+  $('#company').value = F.company; $('#city').value = F.city; $('#level').value = F.level; $('#sort').value = F.sort;
 
   $('#chips').addEventListener('click', (e) => {
     const b = e.target.closest('.chip'); if (!b) return;
@@ -659,6 +681,7 @@ footer a { color: var(--muted); }
   $('#q').addEventListener('input', (e) => { F.q = e.target.value.trim().toLowerCase(); render(); });
   $('#company').addEventListener('change', (e) => { F.company = e.target.value; render(); });
   $('#city').addEventListener('change', (e) => { F.city = e.target.value; render(); });
+  $('#level').addEventListener('change', (e) => { F.level = e.target.value; render(); });
   $('#sort').addEventListener('change', (e) => { F.sort = e.target.value; render(); });
 
   function visible() {
@@ -668,8 +691,10 @@ footer a { color: var(--muted); }
       if (!F.showNfm && callOf(j) === 'not-for-me') return false;
       if (F.company && j.company !== F.company) return false;
       if (F.city && !(j.cities.length ? j.cities : ['Not stated']).includes(F.city)) return false;
+      if (F.level && levelOf(j) !== F.level) return false;
       if (F.q) {
-        const hay = (j.title + ' ' + j.company + ' ' + (j.location || '') + ' ' + (j.summary || '') + ' ' + j.strengths.join(' ') + ' ' + j.gaps.join(' ')).toLowerCase();
+        const hay = (j.title + ' ' + j.company + ' ' + (j.location || '') + ' ' + (j.summary || '') + ' ' + j.strengths.join(' ') + ' ' + j.gaps.join(' ') +
+          (levelOf(j) !== 'unknown' ? ' ' + LEVEL[levelOf(j)] + ' ' + (j.level.note || '') : '')).toLowerCase();
         if (!hay.includes(F.q)) return false;
       }
       return true;
@@ -691,7 +716,7 @@ footer a { color: var(--muted); }
   }
   function rowHtml(j) {
     const meta = [esc(j.company), esc(place(j)), j.postedAt ? 'posted ' + esc(day(j.postedAt)) : 'no posting date'];
-    const pills = (isNew(j) ? '<span class="pill new">New</span>' : '') + (longOpen(j) ? '<span class="pill old" title="Posted ' + LONG_OPEN_DAYS + '+ days ago; check it is still being filled">Long open</span>' : '') +
+    const pills = levelPill(j) + (isNew(j) ? '<span class="pill new">New</span>' : '') + (longOpen(j) ? '<span class="pill old" title="Posted ' + LONG_OPEN_DAYS + '+ days ago; check it is still being filled">Long open</span>' : '') +
       (j.secondLook ? '<span class="pill second" title="Your title words missed this title; the second look let it through">Second look</span>' : '') +
       (callOf(j) ? '<span class="pill ' + CALL_PILL[callOf(j)] + '">' + CALL[callOf(j)] + '</span>' : '');
     return '<li data-id="' + j.id + '"' + (j.id === sel ? ' class="sel"' : '') + '>' +
@@ -711,6 +736,7 @@ footer a { color: var(--muted); }
     ];
     if (j.firstSeen) facts.push(['First seen', esc(day(j.firstSeen))]);
     if (j.status === 'closed') facts.push(['Closed', (j.closedOn ? esc(day(j.closedOn)) + ': ' : '') + 'the employer took the posting down, so the link may not work']);
+    if (j.level && LEVEL[j.level.vs]) facts.push(['Level', '<b>' + LEVEL[levelOf(j)] + '</b> against yours' + (j.level.note ? ' <span class="muted">· ' + esc(j.level.note) + '</span>' : '')]);
     if (j.secondLook) facts.push(['Found by', 'The second look: your title words missed this title. <span class="muted">' + esc(j.secondLook) + '</span>']);
     const pos = Math.min(100, Math.max(0, j.score));
     const gauge = j.score == null ? '' :
@@ -813,15 +839,15 @@ footer a { color: var(--muted); }
   document.addEventListener('change', (e) => { const inp = e.target.closest('.yours .why'); if (inp) saveReason(inp); });
 
   function render() {
-    store.set('filters', { tiers: [...F.tiers], company: F.company, city: F.city, sort: F.sort, showNfm: F.showNfm });
+    store.set('filters', { tiers: [...F.tiers], company: F.company, city: F.city, level: F.level, sort: F.sort, showNfm: F.showNfm });
     const rows = visible();
     if (!rows.some((j) => j.id === sel)) sel = rows.length && wide() ? rows[0].id : null;
     $('#list').innerHTML = rows.length ? rows.map(rowHtml).join('') :
       '<li class="empty"><span>No roles match these filters.</span><button class="btn" id="reset">Show every open role</button></li>';
     const r = $('#reset');
     if (r) r.onclick = () => {
-      F.tiers = new Set(TIERS.map((t) => t.id)); F.q = ''; F.company = ''; F.city = ''; F.showNfm = true; paintNfm();
-      $('#q').value = ''; $('#company').value = ''; $('#city').value = '';
+      F.tiers = new Set(TIERS.map((t) => t.id)); F.q = ''; F.company = ''; F.city = ''; F.level = ''; F.showNfm = true; paintNfm();
+      $('#q').value = ''; $('#company').value = ''; $('#city').value = ''; $('#level').value = '';
       document.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', 'true'));
       render();
     };
@@ -852,6 +878,7 @@ footer a { color: var(--muted); }
     if (!F.tiers.has(t)) { F.tiers.add(t); const chip = document.querySelector('.chip[data-t="' + t + '"]'); if (chip) chip.setAttribute('aria-pressed', 'true'); }
     if (F.company && F.company !== j.company) { F.company = ''; $('#company').value = ''; }
     if (F.city) { F.city = ''; $('#city').value = ''; }
+    if (F.level && F.level !== levelOf(j)) { F.level = ''; $('#level').value = ''; }
     if (F.q) { F.q = ''; $('#q').value = ''; }
     if (callOf(j) === 'not-for-me' && !F.showNfm) { F.showNfm = true; paintNfm(); }
     showTab('roles');
@@ -960,7 +987,7 @@ footer a { color: var(--muted); }
   function mineRow(j) {
     const e = FB[j.id] || {};
     const meta = [esc(j.company), esc(place(j)), e.t ? 'marked ' + esc(day(isoDay(new Date(e.t)))) : '', j.status === 'closed' && j.closedOn ? 'closed ' + esc(day(j.closedOn)) : ''].filter(Boolean);
-    const pill = j.status === 'closed' ? '<span class="pill closed">Closed</span>' : '';
+    const pill = levelPill(j) + (j.status === 'closed' ? '<span class="pill closed">Closed</span>' : '');
     return '<li data-id="' + j.id + '" class="' + (j.status === 'closed' ? 'closed' : '') + (j.id === mineSel ? ' sel' : '') + '">' +
       '<button class="row" aria-expanded="' + (j.id === mineSel) + '">' + scoreCell(j, pill) +
       '<span class="rb"><span class="rt">' + esc(j.title) + '</span>' +

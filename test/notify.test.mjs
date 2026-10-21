@@ -186,3 +186,13 @@ test('many unreadable companies fold into one line, so the problems always fit',
   assert.match(m.html, /⚠️ <b>60 companies<\/b> unreadable for 3 days or more: Company number 0 with a long name, /);
   assert.ok(m.html.length < 1500, String(m.html.length));
 });
+
+test('a new match says whether it is a step up, the same level or a step down', () => {
+  const up = job(1, 80);
+  up.score.level = { vs: 'up', note: '≈ Executive Director', rev: 'r' };
+  const unclear = job(2, 70);
+  unclear.score.level = { vs: 'unclear', rev: 'r' };
+  const [m] = plan(stateWith([up, unclear]));
+  assert.match(m.html, /Bengaluru · posted [^\n]* · Step up\n/);
+  assert.doesNotMatch(m.html, /unclear/i, 'no label when the posting does not settle it');
+});
