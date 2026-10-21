@@ -51,6 +51,7 @@ export const PAY_RULES = `- pay: the role's likely pay as a range. Decide it sep
  *       source: Levels.fyi, India, median total pay, read 21 Oct 2026
  *       Software Engineering Manager: { L5: 8700000, L6: 5800000 }
  *       Solution Architect: "45 to 60 lakh"   # free text works too
+ *   estimate_floor: 1500000           # optional: an AI estimate whose yearly top is below this is dropped
  */
 export function loadPayGuide(settings, dir) {
   const file = settings.scoring.pay;
@@ -68,6 +69,10 @@ export function loadPayGuide(settings, dir) {
     throw new ConfigError(`${file}: companies must be a list of employer names, each with its job families (see docs/configuration.md#payyml)`);
   }
   const currency = String(raw.currency ?? 'INR').toUpperCase();
+  const estimateFloor = raw.estimate_floor == null ? 0 : Number(raw.estimate_floor);
+  if (!Number.isFinite(estimateFloor) || estimateFloor < 0) {
+    throw new ConfigError(`${file}: estimate_floor must be a yearly amount in ${currency}, such as 1500000, not "${raw.estimate_floor}"`);
+  }
   const companies = new Map();
   for (const [name, rows] of Object.entries(raw.companies ?? {})) {
     if (!rows || typeof rows !== 'object') continue;
@@ -75,11 +80,13 @@ export function loadPayGuide(settings, dir) {
     companies.set(name.toLowerCase(), { source: source ? String(source) : '', currency: String(own ?? currency).toUpperCase(), families });
   }
   // Changes to the table refill pay on roles scored before (a catch-up pass compares this).
-  const rev = createHash('sha256').update(`${PAY_VERSION}\n${text}`).digest('hex').slice(0, 12);
-  return { companies, rev };
+  // The floor is left out: it only drops bad estimates (dropImplausiblePay), so it never needs a refill.
+  const tableText = text.replace(/^estimate_floor:.*(\r?\n|$)/m, '');
+  const rev = createHash('sha256').update(`${PAY_VERSION}\n${tableText}`).digest('hex').slice(0, 12);
+  return { companies, rev, currency, estimateFloor };
 }
 
-const empty = () => ({ companies: new Map(), rev: String(PAY_VERSION) });
+const empty = () => ({ companies: new Map(), rev: String(PAY_VERSION), currency: '', estimateFloor: 0 });
 
 /** The <pay-data> lines for one job, or '' when the table has nothing for its employer. */
 export function payContext(job, guide) {
@@ -109,7 +116,7 @@ function money(n, currency) {
  * as an estimate, and a range that makes no sense becomes "none". Returns undefined when the model
  * gave no pay answer at all (an older scorer), so the role simply has no pay field.
  */
-export function cleanPay(pay, description) {
+export function cleanPay(pay, description, guide) {
   if (!pay || typeof pay !== 'object') return undefined;
   const none = { source: 'none' };
   let source = PAY_SOURCES.includes(pay.source) ? pay.source : 'estimate';
@@ -132,7 +139,35 @@ export function cleanPay(pay, description) {
       basis = basis || 'pay the model read in the posting, not found word for word';
     }
   }
-  return { source, currency, low, high, period, ...(quote ? { quote } : {}), ...(basis ? { basis } : {}) };
+  const clean = { source, currency, low, high, period, ...(quote ? { quote } : {}), ...(basis ? { basis } : {}) };
+  return implausible(clean, guide) ? none : clean;
+}
+
+/**
+ * An AI estimate that can't be right: the model's stand-in values (basis "placeholder"), or a yearly
+ * range topping out below estimate_floor in pay.yml, such as ₹5–8 lakh for a VP (a dropped zero).
+ * Pay stated on the posting or taken from your table is never second-guessed.
+ */
+function implausible(pay, guide) {
+  if (pay?.source !== 'estimate') return false;
+  if (/\b(placeholder|tbd)\b/i.test(pay.basis ?? '')) return true;
+  const floor = guide?.estimateFloor ?? 0;
+  return floor > 0 && pay.currency === guide.currency && pay.period === 'year' && pay.high < floor;
+}
+
+/**
+ * Pay already saved on roles that fails the same check (saved before the check, or before you set
+ * estimate_floor) becomes "none", without asking the model again. Returns how many changed.
+ */
+export function dropImplausiblePay(jobs, guide) {
+  let dropped = 0;
+  for (const job of jobs) {
+    const pay = job.score?.pay;
+    if (!pay || !implausible(pay, guide)) continue;
+    job.score.pay = { source: 'none', ...(pay.rev ? { rev: pay.rev } : {}) };
+    dropped++;
+  }
+  return dropped;
 }
 
 /**
@@ -146,7 +181,7 @@ export function payField(guide) {
     rules: PAY_RULES,
     guide: '',
     context: (job) => payContext(job, guide),
-    clean: (out, job) => cleanPay(out, job.description),
+    clean: (out, job) => cleanPay(out, job.description, guide),
     rev: guide.rev,
     example: '{"source":"estimate","currency":"INR","low":0,"high":0,"period":"year","quote":"","basis":""}',
   };
