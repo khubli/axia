@@ -78,6 +78,7 @@ export function siteData(view, { minScore, demo = false }) {
         gaps: ai ? j.score.gaps ?? [] : [],
         musts: ai ? j.score.musts ?? [] : [],
         level: ai ? levelView(j.score.level) : null,
+        pay: ai && j.score.pay?.source && j.score.pay.source !== 'none' ? j.score.pay : null,
         model: ai ? modelName(j.score.model) : null,
         resumeRev: ai ? String(j.score.resumeHash ?? '').slice(0, 6) : null,
         scoredOn: j.score?.scoredOn ?? null,

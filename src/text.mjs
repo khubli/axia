@@ -47,6 +47,17 @@ export function similarity(a, b) {
   return both / (A.size + B.size - both);
 }
 
+// Words only, so a quote still matches across punctuation, quote marks and line breaks.
+const words = (s) => String(s ?? '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+
+/** Is this quote really in the text? A quote shortened with "…" counts when every part of it is there. */
+export function inText(quote, text) {
+  if (!quote || !text) return false;
+  const hay = words(text);
+  const parts = String(quote).split(/\.{3}|…/).map(words).filter((p) => p.length >= 3);
+  return parts.length > 0 && parts.every((p) => hay.includes(p));
+}
+
 export function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 }

@@ -29,6 +29,7 @@ import { rollUpGaps } from './gaps.mjs';
 import { snapshot, runChanges, addHistory, briefLine } from './changes.mjs';
 import { loadLevels, levelField } from './levels.mjs';
 import { catchUp, catchUpQueue } from './catchup.mjs';
+import { loadPayGuide, payField } from './pay.mjs';
 
 const KEYWORD_DETAIL_BUDGET = 150; // detail fetches for keyword scoring when AI is off
 const SECOND_LOOK_MAX = 1500; // new titles the second look asks about per run; the rest wait for the next run
@@ -66,10 +67,12 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   const hash = resumeHash(resume, criteria);
   // Your levels guide is kept out of the hash: editing it re-labels roles (step 5c), never re-scores them.
   const levels = loadLevels(settings, dir);
-  const catchUpFields = [levelField(levels)];
+  // Your pay table is kept out too: only each role's own employer's lines go into its request.
+  const payGuide = loadPayGuide(settings, dir);
+  const catchUpFields = [levelField(levels), payField(payGuide)];
   const ctx = { http, today };
   const preview = args['second-look-preview'];
-  const aiScorer = dryRun ? null : makeScorer({ env, settings, resume, criteria, levels, ...scorerOverrides });
+  const aiScorer = dryRun ? null : makeScorer({ env, settings, resume, criteria, levels, payGuide, ...scorerOverrides });
   if (preview && !aiScorer?.ask) throw new ConfigError('The second-look preview needs an AI provider (see docs/setup.md, step 3).');
 
   // A title passes your title words, or the second look let it through on an earlier run.
@@ -323,7 +326,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   }
   ai.pending = open.filter((j) => j.score?.scorer !== 'ai').length;
 
-  // ── 5c. Catch-up: the level on roles scored before it existed (or before levels.md changed) ──
+  // ── 5c. Catch-up: the level and pay on roles scored before they existed (or before levels.md or pay.yml changed) ──
   // Only roles worth showing, a few dozen per run, without re-scoring them.
   if (aiScorer?.ask && !ai.stoppedBecause) {
     const calls = feedback.roles ?? {};
@@ -335,9 +338,11 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
       showFrom: settings.report.show_from,
       kept: (key) => ['applied', 'shortlist'].includes(calls[key]?.verdict),
     });
+    // Each batch is asked only for the fields its roles are missing (catchup.mjs); named here for the log.
+    const missing = catchUpFields.filter((f) => queue.some((j) => j.score?.[f.name]?.rev !== f.rev)).map((f) => f.name);
     if (queue.length) {
       await mapLimit(queue, 4, (j) => enrich(candidates.get(j.key), ctx));
-      log(`\nCatch-up: the level for ${queue.length} role(s) scored before it was asked for…`);
+      log(`\nCatch-up: ${missing.join(' and ')} for ${queue.length} role(s) scored before it was asked for…`);
       const { answers, failed, stoppedBecause } = await catchUp({
         scorer: aiScorer,
         jobs: queue.map((job) => ({ ...job, description: candidates.get(job.key).job.description })),
@@ -348,7 +353,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
       });
       for (const job of queue) if (answers.has(job.key)) Object.assign(job.score, answers.get(job.key));
       ai.caughtUp = answers.size;
-      log(`Catch-up: ${answers.size} labelled${failed ? `, ${failed} failed` : ''}${stoppedBecause ? `; stopped early: ${stoppedBecause}` : ''}.`);
+      log(`Catch-up: ${answers.size} filled in${failed ? `, ${failed} failed` : ''}${stoppedBecause ? `; stopped early: ${stoppedBecause}` : ''}.`);
     }
   }
   snapshotFeedback(feedback, state, (key) => candidates.get(key)?.job.description);

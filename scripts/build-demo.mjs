@@ -124,6 +124,15 @@ for (const j of Object.values(jobs)) {
   if (level) j.score.level = level;
 }
 
+// Pay ranges: one stated on the posting, one from the pay table, the rest AI estimates.
+const PAY = {
+  'Head of Payments Platform Engineering': { source: 'posting', currency: 'GBP', low: 140000, high: 165000, period: 'year', quote: 'Salary: £140,000 to £165,000 plus bonus' },
+  'Principal Architect, Real-Time Payments': { source: 'table', currency: 'GBP', low: 118000, high: 135000, period: 'year', basis: 'Solution Architect, Principal' },
+  'Engineering Director, Core Platform': { source: 'estimate', currency: 'GBP', low: 130000, high: 160000, period: 'year', basis: 'director level, fintech, London' },
+  'Platform Product Lead, Payments APIs': { source: 'estimate', currency: 'GBP', low: 95000, high: 115000, period: 'year', basis: 'product lead, payments, London' },
+};
+for (const j of Object.values(jobs)) if (PAY[j.title]) j.score.pay = PAY[j.title];
+
 // Gaps that keep coming up across the roles scored 55 to 89, as the weekly roll-up would group them.
 const keysOf = (...titles) => titles.map((t) => byTitle(t).key);
 const gaps = {

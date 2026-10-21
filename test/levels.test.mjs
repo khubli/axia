@@ -33,9 +33,11 @@ function fakeClaude(calls, { withLevel = true } = {}) {
     calls.push({ args, input, system, catchUp, schema: JSON.parse(args[args.indexOf('--json-schema') + 1]) });
     const jobs = [...input.matchAll(/<job id="(\d+)">\nCompany: .*\nTitle: (.*)/g)].map((m) => [m[1], m[2]]);
     const level = (title) => ({ vs: LEVEL[title], note: `≈ ${LEVEL[title]} as Director at Acme` });
+    const pay = { source: 'estimate', currency: 'INR', low: 6000000, high: 8000000, period: 'year', quote: '', basis: 'architect, Pune' };
+    const asked = Object.keys(JSON.parse(args[args.indexOf('--json-schema') + 1]).properties.results.items.properties);
     const results = catchUp
-      ? jobs.map(([id, title]) => ({ id, level: level(title) }))
-      : jobs.map(([id, title]) => ({ id, score: SCORE[title], summary: `Fit for ${title}.`, strengths: [], gaps: [], musts: [], ...(withLevel ? { level: level(title) } : {}) }));
+      ? jobs.map(([id, title]) => ({ id, ...(asked.includes('level') ? { level: level(title) } : {}), ...(asked.includes('pay') ? { pay } : {}) }))
+      : jobs.map(([id, title]) => ({ id, score: SCORE[title], summary: `Fit for ${title}.`, strengths: [], gaps: [], musts: [], ...(withLevel ? { level: level(title), pay } : {}) }));
     const structured = { results };
     return { code: 0, stderr: '', stdout: JSON.stringify({ is_error: false, structured_output: structured, modelUsage: { 'claude-sonnet-5-5': {} } }) };
   };
@@ -82,7 +84,7 @@ test('roles scored before levels existed are caught up once, without re-scoring'
   await runOnce(dir, calls, {}, '2026-10-16T03:00:00Z');
   assert.equal(calls.length, 1, 'one catch-up request and no scoring');
   assert.ok(calls[0].catchUp);
-  assert.deepEqual(Object.keys(calls[0].schema.properties.results.items.properties), ['id', 'level'], 'asks for the level only');
+  assert.deepEqual(Object.keys(calls[0].schema.properties.results.items.properties), ['id', 'level', 'pay'], 'asks for the short fields only, both in one request');
   assert.doesNotMatch(calls[0].input, /Junior-ish Architect/, 'a role below show_from is not caught up');
   const after = jobsOf(dir);
   assert.equal(after['Vice President, Solution Architect'].score.level.vs, 'up');
@@ -100,6 +102,7 @@ test('roles scored before levels existed are caught up once, without re-scoring'
   assert.equal(calls.length, 1);
   assert.ok(calls[0].catchUp);
   assert.match(calls[0].system, /<levels>\nDirector at Acme\.\n<\/levels>/);
+  assert.deepEqual(Object.keys(calls[0].schema.properties.results.items.properties), ['id', 'level'], 'pay is current, so only the level is asked again');
   assert.equal(jobsOf(dir)['Payments Architect'].score.level.rev, levelsRev('Director at Acme.'));
 });
 
