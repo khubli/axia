@@ -94,6 +94,13 @@ review:
 moonshots:
   file: moonshots.json           # [moonshots.json] stretch roles you track elsewhere, shown on their own tab; false turns it off
 
+tailor:                          # true is short for enabled: true
+  enabled: false                 # [false] a Tailor for this role button on each role and moonshot, queued for your own tailoring tool
+  done: tailored.json            # [tailored.json] the file your tool writes when a request is done
+  dispatch: ''                   # [''] owner/repo: a click also starts that repo's tailoring workflow at once
+  workflow: tailor.yml           # [tailor.yml] that workflow's file name
+  ref: main                      # [main] the branch it runs on
+
 gaps:                            # false turns it off
   min_score: 55                  # [55] the gaps that keep coming up are read from open roles scored this much or more…
   max_score: 89                  # [89] …up to this much
@@ -211,6 +218,43 @@ An optional short list of stretch roles you track outside Axia: roles beyond you
 
 Whatever writes the file commits it next to `settings.yml` (or where `moonshots.file` points); the next run publishes it.
 
+## Tailored applications
+
+Off unless you turn it on (`tailor: true`). Each role and each moonshot then gets a **Tailor for this role** button, with an optional note (what to stress, or a contact name). It saves to the same Cloudflare store as your calls.
+
+Axia doesn't write resumes or cover letters. The button queues the role for a tool of your own: a script, or a scheduled AI task that reads your resume. Each run copies the requests into `data/tailor.json`, with what that tool needs:
+
+- for a role: the posting text, and the score's summary, strengths, gaps and must-haves quoted from the posting;
+- for a moonshot: its requirements, gaps, fit and closing date from `moonshots.json`.
+
+When your tool finishes one, it records it in `tailored.json` next to `settings.yml`. Axia only reads that file, so the two never edit the same one:
+
+```json
+{ "greenhouse-acme-1": { "at": "2026-10-22T03:10:00Z", "folder": "Applications/Acme Bank/Solution Architect", "note": "cover letter names the hiring manager" } }
+```
+
+The next run marks the request done, and the role shows when it was made and where to find it. A request counts as done only when `at` is later than the click. **Tailor again** asks for a fresh version, and cancelling a fresh request goes back to the last version.
+
+Tailored versions never feed back into scoring. Every score stays against your one resume, so nothing is re-scored.
+
+### Start the tailoring at the click (optional)
+
+Without more setup, a click waits for the next run. To start your tool at once, set `tailor.dispatch` to the repository that holds your tailoring workflow, and give the action a token that may start workflows there:
+
+```yaml
+# settings.yml
+tailor: { enabled: true, dispatch: you/career-data }
+```
+
+```yaml
+# your workflow that runs Axia
+- uses: khubli/axia@v1
+  with:
+    tailor-dispatch-token: ${{ secrets.AXIA_TAILOR_TOKEN }}   # fine-grained, Actions: read and write on that repository, nothing else
+```
+
+Deploy saves the token as a secret of your dashboard's Worker; it never reaches the page. It can start workflows but not change the repository's files. Each click (not a cancel) then starts `tailor.workflow` on `tailor.ref` (`workflow_dispatch`) with the string inputs `id`, `note` and `at`, so the workflow declares those three inputs. In that workflow, `npx axia tailor-request --dir <folder> --id <id> --note <note> --at <at> --out request.json` writes the one request as `data/tailor.json` would hold it, with the posting text (from what Axia saved, else one read of the role's board). Record the result in `tailored.json` as above. If the dispatch fails, the click is still saved and the next run queues it as usual.
+
 ## calibration/roles.yml
 
 Roles you have judged yourself, so you can measure how often the model agrees with you. Your calls on the dashboard count too (above); this file is for roles you want to keep as fixed reference points, with a 1–5 score.
@@ -245,5 +289,6 @@ Roles you have judged yourself, so you can measure how often the model agrees wi
 |---|---|---|
 | `data/jobs.json` | yes | every matching role, open or recently closed, with its score and when you were told about it |
 | `data/feedback.json` | yes | your calls from the dashboard, with each posting's text and its latest score, and the date of the last weekly review |
+| `data/tailor.json` | yes | with `tailor` on: your Tailor requests, each with its posting or moonshot details, and whether your tool has done it |
 | `dashboard/README.md` | yes | the plain list, readable on GitHub |
 | `.axia/` | no | the built dashboard and its publish settings; `.axia/review/` holds what the last weekly review tried |

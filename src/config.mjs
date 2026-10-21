@@ -31,6 +31,10 @@ const DEFAULTS = {
   // Gaps that keep coming up: once a week, the gaps of open roles scored min_score to max_score,
   // grouped into themes on the dashboard. false turns it off.
   gaps: { min_score: 55, max_score: 89 },
+  // Tailor buttons: queue a role or moonshot for a tailored resume and cover letter, made by your own
+  // tool outside Axia. Off by default; `tailor: true` turns it on. `done` is the file that tool writes.
+  // dispatch: owner/repo whose tailoring workflow (workflow, on branch ref) a click starts at once.
+  tailor: { enabled: false, done: 'tailored.json', dispatch: '', workflow: 'tailor.yml', ref: 'main' },
 };
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -48,6 +52,13 @@ export function loadSettings(dir = ROOT) {
   const s = {};
   for (const [section, defaults] of Object.entries(DEFAULTS)) s[section] = { ...defaults, ...(raw[section] ?? {}) };
   s.resume = raw.resume ?? 'cv.md';
+  if (typeof raw.tailor === 'boolean') s.tailor = { ...DEFAULTS.tailor, enabled: raw.tailor };
+  if (typeof s.tailor.enabled !== 'boolean') throw new ConfigError(`settings.yml: tailor.enabled must be true or false without quotes, not "${s.tailor.enabled}"`);
+  if (typeof s.tailor.done !== 'string' || !s.tailor.done.trim()) throw new ConfigError(`settings.yml: tailor.done must be a file name (for example tailored.json), not "${s.tailor.done}"`);
+  s.tailor.dispatch = String(s.tailor.dispatch || '').trim();
+  if (s.tailor.dispatch && !/^[\w.-]+\/[\w.-]+$/.test(s.tailor.dispatch)) throw new ConfigError(`settings.yml: tailor.dispatch must be owner/repository, not "${s.tailor.dispatch}"`);
+  if (!/^[\w.-]+\.ya?ml$/.test(String(s.tailor.workflow))) throw new ConfigError(`settings.yml: tailor.workflow must be a workflow file name such as tailor.yml, not "${s.tailor.workflow}"`);
+  if (!/^[\w./-]+$/.test(String(s.tailor.ref))) throw new ConfigError(`settings.yml: tailor.ref must be a branch name, not "${s.tailor.ref}"`);
   if (raw.moonshots === false || s.moonshots.file === false) s.moonshots = { file: '' };
   s.gaps.enabled = raw.gaps !== false;
   for (const key of ['min_score', 'max_score']) {

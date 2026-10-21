@@ -7,6 +7,7 @@
 //   second-look  show which titles your title words reject today that the second look would let through (writes nothing)
 //   gaps       group the gaps of your open roles scored 55 to 89 into themes now, and print them (writes nothing)
 //   review     on review.day: check the scores against your dashboard calls; propose a criteria.md change   (--now)
+//   tailor-request  one Tailor request as JSON, with the posting text, for a tailoring job   (--id ID, --note TEXT, --out FILE)
 //   alert      tell you a run broke (used by the GitHub Action)                (--link URL)
 
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
@@ -14,7 +15,7 @@ import { resolve, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { ConfigError, loadSettings } from './config.mjs';
 
-const HELP = `Usage: axia <run|deploy|calibrate|second-look|gaps|review|alert> [--dir <folder>] [options]
+const HELP = `Usage: axia <run|deploy|calibrate|second-look|gaps|review|tailor-request|alert> [--dir <folder>] [options]
 Docs: https://github.com/khubli/axia#readme`;
 
 /** Pull --dir out of the arguments; everything else goes to the command. */
@@ -71,6 +72,29 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
       case 'review': {
         const { review } = await import('./review.mjs');
         await review(rest, env, { dir });
+        return 0;
+      }
+      case 'tailor-request': {
+        const { values } = parseArgs({ args: rest, options: { id: { type: 'string' }, note: { type: 'string', default: '' }, at: { type: 'string' }, out: { type: 'string' } } });
+        if (!values.id) throw new ConfigError('tailor-request needs --id <role id>');
+        const settings = loadSettings(dir);
+        const { loadCompanies } = await import('./config.mjs');
+        const { loadState } = await import('./state.mjs');
+        const { loadFeedback } = await import('./feedback.mjs');
+        const { loadMoonshots } = await import('./moonshots.mjs');
+        const { loadTailor, tailorRequest } = await import('./tailor.mjs');
+        const { isoDate } = await import('./text.mjs');
+        const http = await import('./http.mjs');
+        const quiet = () => {};
+        const req = await tailorRequest({
+          dir, id: values.id, note: values.note, at: values.at || new Date().toISOString(), settings,
+          companies: loadCompanies(dir), state: loadState(resolve(dir, 'data/jobs.json')),
+          moonshots: loadMoonshots(dir, settings, { log: quiet })?.report?.roles ?? [],
+          feedback: loadFeedback(dir), tailor: loadTailor(dir), http, today: isoDate(new Date(), settings.report.timezone),
+        });
+        const json = JSON.stringify(req, null, 1) + '\n';
+        if (values.out) writeFileSync(values.out, json);
+        else process.stdout.write(json);
         return 0;
       }
       case 'alert': {

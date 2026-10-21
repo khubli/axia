@@ -299,15 +299,18 @@ li.sel > .inline { display: block; }
 .btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; padding: 9px 14px; font-weight: 600; font-size: 14px; text-decoration: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .prov { margin: 0; font-size: 12px; color: var(--faint); }
-.yours { display: grid; gap: 8px; }
-.yours .opts { display: flex; flex-wrap: wrap; gap: 6px; }
-.yours .opts button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 7px 13px; font-size: 14px; cursor: pointer; }
-.yours .opts button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
-.yours .why-row { display: flex; gap: 8px; margin: 0; }
-.yours .why { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; flex: 1; min-width: 0; box-sizing: border-box; }
-.yours .why-row .btn { padding: 8px 14px; }
-.yours .why-row .btn:disabled { background: var(--surface); border-color: var(--line); color: var(--faint); cursor: default; }
-.yours .st { margin: 0; font-size: 12px; color: var(--faint); }
+:is(.yours, .tailor) { display: grid; gap: 8px; }
+:is(.yours, .tailor) .opts { display: flex; flex-wrap: wrap; gap: 6px; }
+:is(.yours, .tailor) .opts button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 7px 13px; font-size: 14px; cursor: pointer; }
+:is(.yours, .tailor) .opts button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+:is(.yours, .tailor) .why-row { display: flex; gap: 8px; margin: 0; }
+:is(.yours, .tailor) .why { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; flex: 1; min-width: 0; box-sizing: border-box; }
+:is(.yours, .tailor) .why-row .btn { padding: 8px 14px; }
+:is(.yours, .tailor) .why-row .btn:disabled { background: var(--surface); border-color: var(--line); color: var(--faint); cursor: default; }
+:is(.yours, .tailor) .st { margin: 0; font-size: 12px; color: var(--faint); }
+.tailor { display: grid; gap: 8px; }
+.tailor .ready { margin: 0; }
+.ms .tailor { margin-top: 4px; }
 /* your roles: Applied and Shortlist, open or closed */
 .mine-group { display: grid; gap: 10px; }
 .mine-group h2 { margin: 6px 0 0; font: 600 18px/1.3 var(--f-display); }
@@ -503,6 +506,14 @@ footer a { color: var(--muted); }
   // Applied and Shortlist roles live on the Your roles tab, so the Roles list leaves them out.
   const KEEP = ['applied', 'shortlist'];
   const kept = (j) => KEEP.includes(callOf(j));
+
+  // ── Tailor requests: ask your own tailoring tool for a resume and cover letter for this role ──
+  // Off unless settings.yml turns it on (D.tailor is null). Saved like your calls; the run queues them.
+  const TRK = D.tailor || null;
+  const TR = TRK ? Object.assign({}, TRK.entries) : {};
+  const trPending = store.get('trPending', {});
+  if (TRK) for (const [id, e] of Object.entries(trPending)) TR[id] = Object.assign({}, TR[id], e);
+  const trStatus = {};
 
   // ── the role's level against yours (judged by the model from your levels guide and the posting) ──
   const LEVEL = { up: 'Step up', same: 'Same level', down: 'Step down', unknown: 'Level not clear' };
@@ -838,7 +849,7 @@ footer a { color: var(--muted); }
       '<dl class="facts">' + facts.map((f) => '<dt>' + f[0] + '</dt><dd>' + f[1] + '</dd>').join('') + '</dl>' +
       gauge + body +
       '<div class="actions"><a class="btn primary" href="' + esc(j.url) + '" target="_blank" rel="noopener noreferrer">Open the posting ↗</a></div>' +
-      yoursHtml(j) +
+      yoursHtml(j) + tailorHtml(j.id) +
       (j.ai && j.scoredOn ? '<p class="prov">Scored ' + esc(day(j.scoredOn)) + ' by Claude ' + esc(j.model || '') + ' against your resume (version ' + esc(j.resumeRev) + '). Scored again only when your resume or criteria change.</p>' : '') +
       '</div>';
   }
@@ -883,6 +894,77 @@ footer a { color: var(--muted); }
     store.set('fbPending', fbPending);
     refreshRole(id);
   }
+  function tailorHtml(id, h) {
+    if (!TRK) return '';
+    h = h || 'h3';
+    const e = TR[id] || {}, st = trStatus[id];
+    const done = e.on && e.s === 'done' && e.d;
+    let html = '<section class="tailor" data-id="' + esc(id) + '" data-h="' + h + '"><' + h + '>Tailored application</' + h + '>';
+    if (done) {
+      html += '<p class="ready">Ready ' + esc(day(isoDay(new Date(e.d.at)))) + (e.d.folder ? ': <b>' + esc(e.d.folder) + '</b>' : '') + (e.d.note ? ' <span class="muted">· ' + esc(e.d.note) + '</span>' : '') + '</p>' +
+        '<div class="opts"><button type="button" data-tailor="again">Tailor again</button></div>';
+    } else {
+      html += '<div class="opts"><button type="button" data-tailor="toggle" aria-pressed="' + Boolean(e.on) + '">' + (e.on ? 'Requested' : 'Tailor for this role') + '</button></div>' +
+        (e.on ? '<form class="why-row"><input class="why" type="text" maxlength="240" enterkeyhint="done" placeholder="Anything to stress, or a contact name? (optional)" aria-label="Note for the tailoring (optional)" value="' + esc(e.n || '') + '"><button type="submit" class="btn primary" disabled>Save</button></form>' : '');
+    }
+    const note = st === 'saving' ? 'Saving…'
+      : st === 'saved' ? 'Saved. The next run queues it for your tailoring tool.'
+      : st === 'local' ? (TRK.api ? 'Not saved yet: kept on this device, and sent the next time the dashboard opens online.' : 'Saved in this browser only (demo).')
+      : e.on && !done ? 'Queued for your tailoring tool. Press Requested again to cancel.'
+      : done ? 'Made from your resume for this role. Your scores stay against your main resume.'
+      : 'Asks your tailoring tool for a resume and cover letter made for this role. Scores stay against your main resume.';
+    return html + '<p class="st" data-note="' + esc(note) + '">' + note + '</p></section>';
+  }
+  function refreshTailor(id) {
+    document.querySelectorAll('.tailor[data-id="' + id + '"]').forEach((el) => { const tmp = document.createElement('div'); tmp.innerHTML = tailorHtml(id, el.dataset.h); el.replaceWith(tmp.firstChild); });
+  }
+  async function sendTailor(id) {
+    const e = TR[id];
+    const body = { id: id, on: e.click != null ? e.click : Boolean(e.on), note: e.n || '' };
+    if (!TRK.api) { trPending[id] = e; store.set('trPending', trPending); trStatus[id] = 'local'; refreshTailor(id); return; }
+    trStatus[id] = 'saving'; refreshTailor(id);
+    try {
+      const r = await fetch('api/tailor', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      delete trPending[id]; trStatus[id] = 'saved';
+    } catch (err) { trPending[id] = e; trStatus[id] = 'local'; }
+    store.set('trPending', trPending);
+    refreshTailor(id);
+  }
+  function setTailor(id, on, note) {
+    const prev = TR[id] || {}, t = new Date().toISOString();
+    const n = note != null ? note : on ? prev.n || '' : '';
+    // Cancelling a fresh request leaves the last tailored version (if any) in place.
+    TR[id] = on ? { on: true, n: n, t: t, s: 'requested', d: prev.d || null }
+      : prev.d ? { on: true, n: '', t: t, s: 'done', d: prev.d } : { on: false, n: '', t: t, s: null, d: null };
+    TR[id].click = on; // what the store needs: the click itself
+    refreshTailor(id);
+    sendTailor(id);
+  }
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('.tailor [data-tailor]'); if (!b) return;
+    const id = b.closest('.tailor').dataset.id, cur = TR[id] || {};
+    if (b.dataset.tailor === 'again') setTailor(id, true, '');
+    else setTailor(id, !(cur.on && cur.s !== 'done'));
+  });
+  const typedNote = (inp) => inp.value.replace(/\s+/g, ' ').trim().slice(0, 240);
+  function saveTailorNote(inp) {
+    const id = inp.closest('.tailor').dataset.id, cur = TR[id];
+    if (cur && cur.on && typedNote(inp) !== (cur.n || '')) setTailor(id, true, typedNote(inp));
+  }
+  document.addEventListener('input', (e) => {
+    const inp = e.target.closest('.tailor .why'); if (!inp) return;
+    const box = inp.closest('.tailor'), cur = TR[box.dataset.id] || {}, changed = typedNote(inp) !== (cur.n || '');
+    box.querySelector('.why-row button').disabled = !changed;
+    box.querySelector('.st').textContent = changed ? 'Not saved yet. Press Save to keep your note.' : box.querySelector('.st').dataset.note;
+  });
+  document.addEventListener('submit', (e) => {
+    const form = e.target.closest('.tailor .why-row'); if (!form) return;
+    e.preventDefault();
+    saveTailorNote(form.querySelector('.why'));
+  });
+  document.addEventListener('change', (e) => { const inp = e.target.closest('.tailor .why'); if (inp) saveTailorNote(inp); });
+
   function setCall(id, v, reason) {
     const prev = FB[id] || {};
     FB[id] = { v: v, r: reason != null ? reason : v ? prev.r || '' : '', t: new Date().toISOString() };
@@ -1213,6 +1295,7 @@ footer a { color: var(--muted); }
         '<div><h3>' + esc(r.title) + pills(r) + '</h3><div class="rm">' + meta.join(sep) + '</div></div>' +
         (r.why ? '<p>' + esc(r.why) + '</p>' : '') +
         (cols ? '<div class="cols">' + cols + '</div>' : '') +
+        tailorHtml(r.id, 'h4') +
         '<div class="foot"><p class="prov">' + facts.join(' · ') + '</p>' +
         (r.url ? '<a class="btn primary" href="' + esc(r.url) + '" target="_blank" rel="noopener noreferrer">Open the posting ↗</a>' : '') + '</div></article>';
     };
@@ -1265,6 +1348,7 @@ footer a { color: var(--muted); }
     (D.gaps ? '<h2>What keeps coming up</h2><p>Once a week, when they have changed, the gaps of your open roles scored ' + D.gaps.min + ' to ' + D.gaps.max + ' are grouped into a few themes, each with the roles behind it, at the top of the Roles tab. For each theme, decide once: add the evidence to your resume if you have it, or accept the gap in criteria.md.</p>' : '') +
     '<h2 class="install-tip">Use it as an app</h2>' +
     '<p class="install-tip">On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen. On Android or a computer, use Install app at the top, or Install in the browser menu. The app opens straight to your results, and works offline with the last results it loaded.</p>' +
+    (TRK ? '<h2>Tailored applications</h2><p>Tailor for this role, on a role or a moonshot, asks your own tailoring tool for a resume and cover letter made for that role, with a note if you add one. Each run queues the requests in data/tailor.json in your private repository, with the posting. When your tool says one is done, the role shows where to find it. Tailored versions are never used for scoring: every score stays against your main resume.</p>' : '') +
     '<h2>Your calls tune the scoring</h2>' +
     '<p>Open a role and mark it Applied, Shortlist or Not for me, with a one-line reason if you like. Roles you mark Applied or Shortlist move to the Your roles tab. Roles you mark Not for me leave the list (the Not for me chip brings them back). Each run saves your calls, with the posting, in your private repository.</p>' +
     '<p>Once a week Axia looks for calls the scores disagree with: a role you skipped that scored ' + GOOD + ' or more, or one you wanted that scored below. When there are some, the model suggests a change to your criteria.md, and Axia scores your judged roles again with and without it. Only if the change agrees with you more often does it open a pull request in your repository, with the numbers, for you to merge or close. Nothing changes until you merge it.</p>' +
@@ -1304,6 +1388,22 @@ footer a { color: var(--muted); }
         FB[id] = e; changed = true;
       }
       if (changed) { paintNfm(); render(); renderMine(); }
+    } catch (e) {}
+  })();
+  // Tailor requests made on another device, or waiting on this one.
+  (async function syncTailor() {
+    if (!TRK || !TRK.api) return;
+    for (const id of Object.keys(trPending)) await sendTailor(id);
+    try {
+      const r = await fetch('api/tailor', { credentials: 'same-origin', cache: 'no-store' });
+      if (!r.ok) return;
+      const data = await r.json();
+      for (const [id, e] of Object.entries(data.entries || {})) {
+        const cur = TR[id] || {};
+        if (trPending[id] || !e.t || (cur.t && e.t <= cur.t)) continue;
+        TR[id] = Object.assign({}, cur, { on: e.on || Boolean(cur.d), n: e.n, t: e.t, s: e.on ? 'requested' : cur.d ? 'done' : null });
+        refreshTailor(id);
+      }
     } catch (e) {}
   })();
   render();

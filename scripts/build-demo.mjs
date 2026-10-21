@@ -151,6 +151,7 @@ const settings = {
   scoring: { max_ai_scores_per_run: 40 },
   dashboard: { url: '' },
   gaps: { enabled: true, min_score: 55, max_score: 89 },
+  tailor: { enabled: true, done: 'tailored.json' },
 };
 const companies = Object.fromEntries(COMPANIES.filter((c) => c.source).map((c) => [c.name, { lastReadOk: today }]));
 const summary = {
@@ -226,5 +227,14 @@ const moonshots = {
   }),
 };
 
-buildSite({ state: { jobs, companies, gaps, history }, summary, settings, feedback, moonshots }, out, { minScore: 65, demo: true });
+// Tailor requests: one tailored by the (made-up) candidate's own tool, one waiting.
+const tailored = byTitle('Head of Payments Platform Engineering');
+const tailor = {
+  requests: {
+    [tailored.key.replace(/[^A-Za-z0-9]+/g, '-')]: { id: tailored.key.replace(/[^A-Za-z0-9]+/g, '-'), note: '', at: daysAgo(2) + 'T08:00:00.000Z', status: 'done', done: { at: daysAgo(1) + 'T07:30:00.000Z', folder: 'Applications/Woodgrove Bank/Head of Payments Platform Engineering', note: null } },
+    'margie-director-payments': { id: 'margie-director-payments', note: 'Lead with instant payments', at: now.toISOString(), status: 'requested', done: null },
+  },
+};
+
+buildSite({ state: { jobs, companies, gaps, history }, summary, settings, feedback, tailor, moonshots }, out, { minScore: 65, demo: true });
 console.log(`Demo dashboard written to ${out}`);
