@@ -323,3 +323,53 @@ test('upgrading memory marks only matches scored before this run; a match scored
   assert.match(text, /<b>77<\/b> · <a href="[^"]+">Payments Architect<\/a>/, "scored today: sent");
   assert.doesNotMatch(text, /Senior Solution Architect/, 'scored before the upgrade: already seen');
 });
+
+test('a role you shortlist while it waits is scored first, ahead of stronger titles', async () => {
+  const dir = tempProject({ companies: COMPANIES.slice(0, 1) });
+  const { writeFileSync } = await import('node:fs');
+  const jobs = [gh(1, 'Senior Solution Architect', 'Pune'), gh(6, 'Data Architect', 'Pune')];
+  let stub = stubFetch([['boards-api.greenhouse.io/v1/boards/acme', () => ({ jobs })]]);
+  try {
+    await run(['--no-notify'], {}, { dir, now: new Date('2026-10-15T03:00:00Z'), log: quiet }); // keyword estimates only
+  } finally {
+    stub.restore();
+  }
+  writeFileSync(join(dir, 'data/feedback.json'), JSON.stringify({ version: 1, lastReview: null, roles: { 'greenhouse:acme:6': { id: 'greenhouse-acme-6', company: 'Acme Bank', title: 'Data Architect', verdict: 'shortlist', reason: '', at: '2026-10-15T05:00:00Z' } } }));
+  const requests = [];
+  stub = stubFetch([['boards-api.greenhouse.io/v1/boards/acme', () => ({ jobs })], claude({}, requests)]);
+  try {
+    await run(['--max-ai', '1', '--no-notify'], ENV, { dir, now: new Date('2026-10-16T03:00:00Z'), log: quiet });
+  } finally {
+    stub.restore();
+  }
+  const state = JSON.parse(readFileSync(join(dir, 'data/jobs.json'), 'utf8'));
+  assert.equal(state.jobs['greenhouse:acme:6'].score.scorer, 'ai', 'shortlisted: scored first');
+  assert.equal(state.jobs['greenhouse:acme:1'].score.scorer, 'keyword', 'the stronger title waits');
+});
+
+test('a settings.yml edit re-ranks roles already waiting for a score', async () => {
+  const jobs = [gh(1, 'Senior Architect', 'Pune', ''), gh(6, 'Technology Architect', 'Pune', '')];
+  const first = tempProject({ companies: COMPANIES.slice(0, 1), settings: { titles: { include: ['Architect'], exclude: [] } } });
+  let stub = stubFetch([['boards-api.greenhouse.io/v1/boards/acme', () => ({ jobs })]]);
+  try {
+    await run(['--no-notify'], {}, { dir: first, now: new Date('2026-10-15T03:00:00Z'), log: quiet });
+  } finally {
+    stub.restore();
+  }
+  const before = JSON.parse(readFileSync(join(first, 'data/jobs.json'), 'utf8')).jobs;
+  assert.ok(before['greenhouse:acme:1'].score.value > before['greenhouse:acme:6'].score.value, 'day one: the senior title leads');
+  // Same memory; "Technology Architect" is now a target title of its own.
+  const dir = tempProject({ companies: COMPANIES.slice(0, 1), settings: { titles: { include: ['Architect', 'Technology Architect'], exclude: [] } } });
+  const { copyFileSync, mkdirSync } = await import('node:fs');
+  mkdirSync(join(dir, 'data'));
+  copyFileSync(join(first, 'data/jobs.json'), join(dir, 'data/jobs.json'));
+  stub = stubFetch([['boards-api.greenhouse.io/v1/boards/acme', () => ({ jobs })], claude({}, [])]);
+  try {
+    await run(['--max-ai', '1', '--no-notify'], ENV, { dir, now: new Date('2026-10-16T03:00:00Z'), log: quiet });
+  } finally {
+    stub.restore();
+  }
+  const after = JSON.parse(readFileSync(join(dir, 'data/jobs.json'), 'utf8')).jobs;
+  assert.equal(after['greenhouse:acme:6'].score.scorer, 'ai');
+  assert.equal(after['greenhouse:acme:1'].score.scorer, 'keyword');
+});
