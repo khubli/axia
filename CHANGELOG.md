@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.15.0
+
+- **Shortlist a waiting role to score it next.** Tap Shortlist on a role still waiting for an AI score and the next run scores it first, within the usual `max_ai_scores_per_run`. Useful when you spot a role on a careers site that sits far back in a long queue.
+
+- **Editing settings.yml re-ranks the waiting queue.** The title estimate that orders the queue was fixed the night a role was first seen, so adding a title term never moved roles already waiting. It is now worked out again on each run from your current settings (never lower than the estimate already saved).
+
 ## 1.14.0
 
 - **Tailor for this role (optional, off by default).** With `tailor: true` in `settings.yml`, each role and each moonshot gets a **Tailor for this role** button, with an optional note. Axia doesn't write resumes. It queues the request for a tool of your own. Each run copies requests into `data/tailor.json`: for a role, the posting text and the score's must-haves quoted from the posting; for a moonshot, its requirements and gaps. When your tool records a request in `tailored.json`, the role shows when the tailored version was made and where to find it. **Tailor again** asks for a fresh one. Tailored versions never feed back into scoring, so every score stays against your one resume ([details](docs/configuration.md#tailored-applications)). The demo shows one done and one waiting.

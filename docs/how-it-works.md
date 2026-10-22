@@ -41,7 +41,7 @@ A role is kept when its title contains one of your `titles.include` words and no
 
 ## 3. Score (AI)
 
-Roles are queued for the model most promising first: new roles before re-scores, then by a free estimate from the title and your keywords, then the newest posting. Up to `max_ai_scores_per_run` roles a run.
+Roles are queued for the model most promising first: roles you shortlisted while they waited, then new roles before re-scores, then by a free estimate from the title and your keywords (worked out again each run, so a settings edit re-ranks roles already waiting), then the newest posting. Up to `max_ai_scores_per_run` roles a run.
 
 The model reads the full posting with your resume and `criteria.md` and returns a score from 0 to 100, a one-line summary, what fits and the gaps, written to you, plus up to four things the posting itself requires, quoted in its own words, each marked as shown in your resume, partly or not. A requirement whose quote isn't in the posting is dropped. In the same answer it gives the role's likely pay as a range: from the posting when it states pay (quoted, and checked like the requirements), else from your optional `pay.yml` for that employer, else a rough estimate. Pay never changes the score. Missing tools are soft gaps; a wrong function, level or location is a hard stop. Each role is scored once, and again only when `cv.md` or `criteria.md` changes, or when you run with **Re-score**.
 

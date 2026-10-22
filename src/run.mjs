@@ -303,14 +303,18 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   const open = Object.values(state.jobs).filter((j) => j.status === 'open');
   const ai = { enabled: Boolean(aiScorer), engine: aiScorer?.engine ?? null, model: aiScorer?.model ?? null, scored: 0, failed: 0, stoppedBecause: null, pending: 0 };
 
-  // Spend the daily AI budget on the most promising roles first: new before
-  // re-scores, then by a free estimate from the title (your skill words in it
-  // count: "Payment Gateways" beats "Credit Policy"), then newest posting.
-  const promise = (j) => j.score?.value ?? keywordScore({ ...j, description: j.title }, settings, j.titleMatch).value;
+  // Spend the daily AI budget on the most promising roles first: roles you
+  // shortlisted while they waited, then new before re-scores, then by a free
+  // estimate from the title (your skill words in it count: "Payment Gateways"
+  // beats "Credit Policy"), then newest posting. The estimate is worked out
+  // again each run, so a settings.yml edit also moves roles already waiting.
+  const shortlisted = (j) => (feedback.roles[j.key]?.verdict === 'shortlist' && j.score?.scorer !== 'ai' ? 0 : 1);
+  const fromTitle = (j) => keywordScore({ ...j, description: j.title }, settings, j.titleMatch).value;
+  const promise = (j) => (j.score?.scorer === 'ai' ? j.score.value : Math.max(j.score?.value ?? 0, fromTitle(j)));
   const needsAi = open
     .filter((j) => candidates.has(j.key)) // can only read the description of roles listed today
     .filter((j) => args.rescore || !j.score || j.score.scorer !== 'ai' || j.score.resumeHash !== hash)
-    .sort((a, b) => rank(a) - rank(b) || promise(b) - promise(a) || String(b.postedAt ?? '').localeCompare(String(a.postedAt ?? '')));
+    .sort((a, b) => shortlisted(a) - shortlisted(b) || rank(a) - rank(b) || promise(b) - promise(a) || String(b.postedAt ?? '').localeCompare(String(a.postedAt ?? '')));
   const budget = Number(args['max-ai'] ?? settings.scoring.max_ai_scores_per_run);
   const aiQueue = aiScorer ? needsAi.slice(0, budget) : [];
   const scoredKeys = new Set();
