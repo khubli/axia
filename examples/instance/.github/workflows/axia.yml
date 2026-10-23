@@ -18,6 +18,10 @@ on:
         description: Run the weekly review of your dashboard calls now.
         type: boolean
         default: false
+      max-ai-scores:
+        description: AI scores for this run only (for example 100 to clear a long queue faster). Empty keeps settings.yml.
+        type: string
+        default: ''
 
 concurrency:
   group: axia
@@ -38,6 +42,7 @@ jobs:
           config-dir: .
           rescore: ${{ inputs.rescore || false }}
           review: ${{ inputs.review && 'now' || 'auto' }}
+          max-ai-scores: ${{ inputs.max-ai-scores }}
           notify-min-score: ${{ vars.NOTIFY_MIN_SCORE }}
           claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}

@@ -373,3 +373,36 @@ test('a settings.yml edit re-ranks roles already waiting for a score', async () 
   assert.equal(after['greenhouse:acme:6'].score.scorer, 'ai');
   assert.equal(after['greenhouse:acme:1'].score.scorer, 'keyword');
 });
+
+test('--max-ai caps AI scores for this run only; empty keeps settings.yml', async () => {
+  const board = [gh(1, 'Senior Solution Architect', 'Pune'), gh(6, 'Payments Architect', 'Pune'), gh(7, 'Data Architect', 'Pune')];
+  const scoredWith = async (args) => {
+    const dir = tempProject({ companies: COMPANIES.slice(0, 1) });
+    const stub = stubFetch([
+      ['boards-api.greenhouse.io/v1/boards/acme', () => ({ jobs: board })],
+      claude({ 'Senior Solution Architect': 60, 'Payments Architect': 55, 'Data Architect': 50 }, []),
+    ]);
+    try {
+      await run([...args, '--no-notify'], ENV, { dir, now: new Date('2026-10-15T03:00:00Z'), log: quiet });
+    } finally {
+      stub.restore();
+    }
+    const { jobs } = JSON.parse(readFileSync(join(dir, 'data/jobs.json'), 'utf8'));
+    return Object.values(jobs).filter((j) => j.score?.scorer === 'ai').length;
+  };
+  assert.equal(await scoredWith(['--max-ai', '2']), 2);
+  assert.equal(await scoredWith(['--max-ai', '']), 3, 'empty, as the action passes when the box is left blank');
+  assert.equal(await scoredWith([]), 3);
+});
+
+test('a --max-ai that is not a whole number stops the run before anything is read', async () => {
+  const dir = tempProject({ companies: COMPANIES.slice(0, 1) });
+  const stub = stubFetch([]);
+  try {
+    await assert.rejects(run(['--max-ai', 'lots'], ENV, { dir, log: quiet }), /must be a whole number such as 100, not "lots"/);
+    await assert.rejects(run(['--max-ai=-5'], ENV, { dir, log: quiet }), /whole number/);
+  } finally {
+    stub.restore();
+  }
+  assert.equal(stub.calls.length, 0);
+});

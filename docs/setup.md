@@ -119,6 +119,10 @@ In your private repository, open **Actions → Axia → Run workflow**. The firs
 
 To re-score everything after changing your resume a lot, run the workflow with **Re-score** ticked. Changes to `cv.md` or `criteria.md` are picked up automatically, 40 roles a day.
 
+To work through a long queue faster, put a number in **AI scores for this run only** (for example 100) when you run the workflow. Only that run scores more; the daily runs keep `max_ai_scores_per_run` from `settings.yml`. On a Claude subscription, a few hundred scores in a row can reach the plan's usage limit, and roles scored before that are kept.
+
+**Preview without changing anything.** The starter repository includes `.github/workflows/axia-preview.yml`. Use **Actions → Axia preview → Run workflow** to see which titles the second look would let through today (`second-look`), how often the scorer agrees with the roles you judged (`calibrate`), or the gaps that keep coming up (`gaps`). It writes nothing and sends nothing. The result is in the run's log.
+
 **Let the weekly review propose changes.** Mark roles on the dashboard (Applied, Shortlist or Not for me, with a one-line reason if you like). Once a week Axia checks its scores against your calls and, when a change to `criteria.md` agrees with them more often, opens a pull request in your repository. To allow that: in your private repository, **Settings → Actions → General → Workflow permissions**, tick **Allow GitHub Actions to create and approve pull requests**, and keep `pull-requests: write` in the workflow's `permissions` (the example has it). Without it, the change is left on a branch and the message links to it. To run a review straight away: **Run workflow** with **Review** ticked.
 
 ## Keeping Axia up to date

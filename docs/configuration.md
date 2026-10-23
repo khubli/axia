@@ -74,7 +74,7 @@ scoring:
   criteria: criteria.md          # [criteria.md] what a good role looks like for you
   levels: levels.md              # [levels.md] your level and what it is called at the companies you watch; optional
   pay: pay.yml                   # [pay.yml] optional pay figures you know of (below); false leaves the table out
-  max_ai_scores_per_run: 40      # [40] the rest wait for the next run
+  max_ai_scores_per_run: 40      # [40] the rest wait for the next run; the action's max-ai-scores input raises it for one run
   batch_size: 8                  # [8] roles per request (Claude subscription, OpenRouter, OpenAI-compatible)
   keywords: [payments, platform] # [] make a role more promising for the AI queue, and lift keyword estimates
 

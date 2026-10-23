@@ -53,6 +53,9 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     },
   });
   const dryRun = args['dry-run'];
+  // A cap on AI scores for this run only (the action's max-ai-scores input); settings.yml keeps the usual one.
+  const maxAi = args['max-ai'] === undefined || args['max-ai'].trim() === '' ? undefined : args['max-ai'].trim();
+  if (maxAi !== undefined && !/^\d+$/.test(maxAi)) throw new ConfigError(`The AI scores for this run (--max-ai, or the action's max-ai-scores) must be a whole number such as 100, not "${maxAi}".`);
 
   const settings = loadSettings(dir);
   const companies = loadCompanies(dir);
@@ -315,7 +318,8 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     .filter((j) => candidates.has(j.key)) // can only read the description of roles listed today
     .filter((j) => args.rescore || !j.score || j.score.scorer !== 'ai' || j.score.resumeHash !== hash)
     .sort((a, b) => shortlisted(a) - shortlisted(b) || rank(a) - rank(b) || promise(b) - promise(a) || String(b.postedAt ?? '').localeCompare(String(a.postedAt ?? '')));
-  const budget = Number(args['max-ai'] ?? settings.scoring.max_ai_scores_per_run);
+  const budget = maxAi !== undefined ? Number(maxAi) : settings.scoring.max_ai_scores_per_run;
+  if (maxAi !== undefined && aiScorer) log(`This run scores up to ${budget} role(s) with AI (settings.yml: ${settings.scoring.max_ai_scores_per_run}).`);
   const aiQueue = aiScorer ? needsAi.slice(0, budget) : [];
   const scoredKeys = new Set();
   const keywordQueue = aiScorer ? [] : open.filter((j) => !j.score && candidates.has(j.key)).slice(0, KEYWORD_DETAIL_BUDGET);
