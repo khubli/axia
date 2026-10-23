@@ -39,7 +39,7 @@ Edit four files in your repository. [configuration.md](configuration.md) explain
 
 - **`cv.md`**: your resume in Markdown. Everything the scorer knows about you comes from here and from `criteria.md`.
 - **`criteria.md`**: what a good role looks like for you, in plain words. Spell out hard stops ("no pre-sales") and soft gaps ("missing a specific tool costs a few points"). This file does more for score quality than anything else.
-- **`companies.yml`**: each company's name and careers page address. Open the company's careers site, click through to the job list, and copy that address. Axia reads Workday, Greenhouse, Lever, Ashby, SmartRecruiters and Oracle Recruiting Cloud boards, Amazon's and Google's careers sites, and SAP SuccessFactors, Eightfold and TurboHire sites ([details](configuration.md#companiesyml)); anything else is listed as "check by hand".
+- **`companies.yml`**: each company's name and careers page address. Open the company's careers site, click through to the job list, and copy that address. Axia reads Workday, Greenhouse, Lever, Ashby, SmartRecruiters and Oracle Recruiting Cloud boards, Amazon's and Google's careers sites, and SAP SuccessFactors, Eightfold, TurboHire, Phenom and iCIMS (Jibe) sites ([details](configuration.md#companiesyml)); anything else is listed as "check by hand".
 - **`settings.yml`**: the title words and places to keep, your time zone, and the dashboard address.
 
 ## 3. Choose the AI that scores roles
