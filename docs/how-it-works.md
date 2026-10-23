@@ -5,7 +5,7 @@ One pass, once a day, in your own private repository's GitHub Actions:
 ```mermaid
 flowchart LR
   subgraph you["Your private repository"]
-    cfg["companies.yml · settings.yml"]
+    cfg["companies.yml · settings.yml<br/>levels.md · pay.yml (optional)"]
     cv["cv.md · criteria.md"]
     mem[("data/jobs.json<br/>memory")]
     fb[("data/feedback.json<br/>your calls")]
@@ -13,7 +13,7 @@ flowchart LR
   sites[["Employers' careers sites<br/>Workday · Greenhouse · Lever · Ashby · SmartRecruiters · Oracle · SuccessFactors · Eightfold · TurboHire · Amazon · Google"]]
   model[["Your model<br/>Claude · OpenRouter · OpenAI-compatible"]]
   subgraph run["Every morning: GitHub Actions running khubli/axia"]
-    read["1 Read"] --> filter["2 Filter<br/>titles and places"] --> score["3 Score<br/>0–100, fits, gaps"] --> remember["4 Remember<br/>new · closed · reopened"]
+    read["1 Read"] --> filter["2 Filter<br/>titles and places"] --> score["3 Score<br/>0–100, fits, gaps<br/>level · pay range"] --> remember["4 Remember<br/>new · closed · reopened"]
   end
   cfg --> read
   sites --> read

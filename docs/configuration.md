@@ -243,7 +243,7 @@ Without more setup, a click waits for the next run. To start your tool at once, 
 
 ```yaml
 # settings.yml
-tailor: { enabled: true, dispatch: you/career-data }
+tailor: { enabled: true, dispatch: you/my-axia }
 ```
 
 ```yaml
@@ -281,6 +281,7 @@ Roles you have judged yourself, so you can measure how often the model agrees wi
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | secrets | messages on Telegram |
 | `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_TO` | secrets | messages by email |
 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | secrets | publishing the dashboard |
+| `AXIA_TAILOR_TOKEN` | secret | optional, with `tailor.dispatch`: lets a Tailor click start your tailoring workflow at once (passed as the action's `tailor-dispatch-token`) |
 | `NOTIFY_MIN_SCORE` | variable | message threshold, overrides `notify.min_score` |
 
 ## Files Axia writes

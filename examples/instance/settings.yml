@@ -62,6 +62,10 @@ review:
 # dashboard's Moonshots tab (not scored). No file, no tab. See docs/configuration.md.
 # moonshots: false
 
+# Optional: a "Tailor for this role" button that queues a role, with its posting text, for your own
+# resume-tailoring tool. Axia doesn't write resumes. See docs/configuration.md#tailored-applications.
+# tailor: true
+
 # Gaps that keep coming up: once a week, the gaps of your open roles scored 55 to 89 are grouped into
 # themes at the top of the dashboard. false turns it off.
 gaps:

@@ -25,8 +25,8 @@ test('tailor is off by default, and true or { enabled } turns it on', () => {
   assert.equal(loadSettings(custom).tailor.done, 'out/done.json');
   const bad = tempProject({ companies: [], settings: { tailor: { enabled: 'yes' } } });
   assert.throws(() => loadSettings(bad), ConfigError);
-  const repo = tempProject({ companies: [], settings: { tailor: { enabled: true, dispatch: 'me/career-data' } } });
-  assert.equal(loadSettings(repo).tailor.dispatch, 'me/career-data');
+  const repo = tempProject({ companies: [], settings: { tailor: { enabled: true, dispatch: 'me/my-axia' } } });
+  assert.equal(loadSettings(repo).tailor.dispatch, 'me/my-axia');
   assert.throws(() => loadSettings(tempProject({ companies: [], settings: { tailor: { enabled: true, dispatch: 'https://x' } } })), ConfigError);
 });
 
@@ -67,8 +67,8 @@ test('the Worker keeps Tailor requests apart from your calls', async () => {
 
 test('with a repository and token set, a Tailor click starts its workflow at once', async () => {
   const kv = fakeKV();
-  const e = { FEEDBACK: kv, ASSETS: { fetch: async () => new Response('') }, TAILOR_REPO: 'me/career-data', TAILOR_TOKEN: 'ghp_x' };
-  const stub = stubFetch([['api.github.com/repos/me/career-data/actions/workflows/tailor.yml/dispatches', () => new Response(null, { status: 204 })]]);
+  const e = { FEEDBACK: kv, ASSETS: { fetch: async () => new Response('') }, TAILOR_REPO: 'me/my-axia', TAILOR_TOKEN: 'ghp_x' };
+  const stub = stubFetch([['api.github.com/repos/me/my-axia/actions/workflows/tailor.yml/dispatches', () => new Response(null, { status: 204 })]]);
   try {
     let res = await (await worker.fetch(post('tailor', { id: 'workday-acme-1', on: true, note: 'stress payments' }), e)).json();
     assert.equal(res.started, true);
@@ -103,10 +103,10 @@ test('deploy gives the Worker the repository as a setting and the token as a sec
     return '';
   };
   const cfFetch = async () => new Response(JSON.stringify({ success: true, result: [{ id: 'kv1', title: 'axia-feedback' }] }));
-  const settings = { dashboard: { worker: 'axia', domain: 'jobs.example.test', public: false, feedback: true }, tailor: { enabled: true, done: 'tailored.json', dispatch: 'me/career-data', workflow: 'tailor.yml', ref: 'main' } };
+  const settings = { dashboard: { worker: 'axia', domain: 'jobs.example.test', public: false, feedback: true }, tailor: { enabled: true, done: 'tailored.json', dispatch: 'me/my-axia', workflow: 'tailor.yml', ref: 'main' } };
   const env = { CLOUDFLARE_API_TOKEN: 't', CLOUDFLARE_ACCOUNT_ID: 'acc', AXIA_TAILOR_TOKEN: 'ghp_x' };
   await deploy({ dir, env, settings, log: quiet, wrangler, check: async () => 'private', cfFetch });
-  assert.deepEqual(configs[0].vars, { TAILOR_REPO: 'me/career-data', TAILOR_WORKFLOW: 'tailor.yml', TAILOR_REF: 'main' });
+  assert.deepEqual(configs[0].vars, { TAILOR_REPO: 'me/my-axia', TAILOR_WORKFLOW: 'tailor.yml', TAILOR_REF: 'main' });
   assert.ok(!JSON.stringify(configs[0]).includes('ghp_x'), 'the token is never in the config file');
   assert.equal(calls[1][0], 'secret');
   assert.ok(!existsSync(join(dir, '.axia/tailor-secret.json')), 'the secret file is removed');
