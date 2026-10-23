@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.17.0
+
+- **iCIMS (Jibe) career sites.** Employers whose iCIMS careers site runs on Jibe (such as careers.axa.com and jobs.aon.com) can now be read: add `platform: jibe`. Roles come from the site's own `/api/jobs` list, 100 a request, each with its full description, so no posting is read separately. `?location=India` on the address carries over as the site's own filter ([details](docs/configuration.md#companiesyml)).
+
+- **D. E. Shaw.** `https://www.deshawindia.com/careers` (D. E. Shaw India: Hyderabad, Bengaluru, Gurugram) and `https://www.deshaw.com/careers` are read from the role data inside the careers page, in one request with every description. Open applications ("All positions in …") are left out. The page gives no posting dates.
+
 ## 1.16.0
 
 - **Phenom career sites.** Employers whose careers site runs on Phenom (`careers.<company>.com/global/en/search-results`) can now be read: add `platform: phenom` to the company in `companies.yml`. Roles come from the same public search the site's own pages use, 100 a request, with each posting's full text for scoring; `?country=India` on the address reads only that country's roles. Requisition codes on the end of titles (`Technical Architect_3313`) are left off ([details](docs/configuration.md#companiesyml)).

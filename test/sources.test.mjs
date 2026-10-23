@@ -331,3 +331,52 @@ test('phenom: branded site, country filter from the address, paged search and po
 
   await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['/widgets', { status: 'error' }]]))), /no job list/);
 });
+
+test('jibe: branded iCIMS site, filters carry over, paged list with descriptions', async () => {
+  const site = detect('https://careers.woodgrove.com/careers-home/jobs?location=India&page=3', 'jibe');
+  assert.equal(detect('https://careers.woodgrove.com/careers-home/jobs?location=India'), null, 'a Jibe site needs platform: jibe');
+  assert.deepEqual([site.source.type, site.params.jobsPath, site.params.filters], ['jibe', '/careers-home/jobs', 'location=India']);
+  assert.equal(detect('https://jobs.contoso.com/', 'jibe').params.jobsPath, '/jobs');
+
+  const page2 = { totalCount: 3, jobs: [{ data: { slug: '109191', req_id: '109191', title: ' Infrastructure Architect ', city: 'Bengaluru', state: 'Karnataka', country: 'India', posted_date: '2026-10-23T04:00:00+0000', description: 'Run it.' } }] };
+  const http = fakeHttp([
+    ['page=1&', fixture('jibe-jobs.json')],
+    ['page=2&', page2],
+  ]);
+  const jobs = await site.source.list(site.params, ctx(http));
+  assert.equal(http.calls[0].url, 'https://careers.woodgrove.com/api/jobs?location=India&page=1&limit=100');
+  assert.equal(http.calls.length, 2);
+  assert.deepEqual(jobs[0], {
+    id: '104426',
+    title: 'Enterprise Architect',
+    location: 'Bengaluru, India',
+    url: 'https://careers.woodgrove.com/careers-home/jobs/104426',
+    postedAt: '2026-10-22',
+    description: 'Own the target architecture.',
+  });
+  assert.equal(jobs[1].location, 'GURUGRAM, India', 'city and country when the site gives no summary');
+  assert.deepEqual([jobs[2].title, jobs[2].location], ['Infrastructure Architect', 'Bengaluru, Karnataka, India']);
+
+  await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['/api/jobs', { error: 'nope' }]]))), /no job list/);
+});
+
+test('deshaw: India and global sites, roles from the page data, open applications left out', async () => {
+  const india = detect('https://www.deshawindia.com/careers');
+  assert.deepEqual([india.source.type, india.params.origin, india.params.india], ['deshaw', 'https://www.deshawindia.com', true]);
+  assert.deepEqual([detect('https://deshaw.com/careers').params.india, detect('https://deshaw.com/careers').params.origin], [false, 'https://www.deshaw.com']);
+
+  const http = fakeHttp([['/careers', readFileSync(new URL('./fixtures/deshaw-careers.html', import.meta.url), 'utf8')]]);
+  const jobs = await india.source.list(india.params, ctx(http));
+  assert.equal(http.calls[0].url, 'https://www.deshawindia.com/careers');
+  assert.equal(jobs.length, 1, '"All positions in …" is an open application, not a role');
+  assert.deepEqual(jobs[0], {
+    id: '7019',
+    title: 'Principal Architect (FinOp Tech - ManCo)',
+    location: 'Hyderabad, India; Gurugram, India',
+    url: 'https://www.deshawindia.com/careers/Principal-Architect-FinOp-Tech-ManCo-7019',
+    postedAt: null,
+    description: 'We seek a senior technical architect.\n\nDesign enterprise applications.\n\n' + htmlToText('<ul><li>8 years of experience</li></ul>'),
+  });
+
+  await assert.rejects(india.source.list(india.params, ctx(fakeHttp([['/careers', '<html>maintenance</html>']]))), /no job data/);
+});

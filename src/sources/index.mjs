@@ -14,11 +14,13 @@ import * as amazon from './amazon.mjs';
 import * as google from './google.mjs';
 import * as turbohire from './turbohire.mjs';
 import * as phenom from './phenom.mjs';
+import * as jibe from './jibe.mjs';
+import * as deshaw from './deshaw.mjs';
 
-export const SOURCES = [workday, greenhouse, smartrecruiters, oracle, goldman, lever, ashby, amazon, google, turbohire, eightfold, successfactors, phenom];
+export const SOURCES = [workday, greenhouse, smartrecruiters, oracle, goldman, lever, ashby, amazon, google, turbohire, eightfold, successfactors, phenom, jibe, deshaw];
 
 /** Sites the address can't identify; companies.yml names them with `platform:`. */
-export const PLATFORMS = [successfactors.type, eightfold.type, phenom.type];
+export const PLATFORMS = [successfactors.type, eightfold.type, phenom.type, jibe.type];
 
 /** @returns {{source: object, params: object} | null} */
 export function detect(rawUrl, platform) {

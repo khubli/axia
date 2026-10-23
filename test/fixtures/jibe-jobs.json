@@ -1,0 +1,8 @@
+{
+  "totalCount": 3,
+  "count": 2,
+  "jobs": [
+    { "data": { "slug": "104426", "req_id": "104426", "title": "Enterprise Architect", "city": "Bengaluru", "country": "India", "full_location": "Bengaluru, India", "posted_date": "2026-10-22T15:14:00+0000", "description": "<p>Own the target architecture.</p>" } },
+    { "data": { "slug": "20773", "req_id": "20773", "title": "Reserving Actuary, AFR", "city": "GURUGRAM", "country": "India", "posted_date": "2026-09-07T05:50:00+0000", "description": "<p>Reserving.</p>" } }
+  ]
+}
