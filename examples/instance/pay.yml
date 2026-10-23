@@ -12,9 +12,14 @@ currency: INR
 companies:
   Example Bank:
     source: made-up example figures
-    Software Engineering Manager: { L5: 8700000, L6: 5800000 }
-    Solution Architect: about 50 to 70 lakh
+    Software Engineering Manager: { L5: 5000000, L6: 7000000 }
+    Solution Architect: about 45 to 65 lakh
   Example Tech:
     currency: USD
     source: made-up example figures
     Software Engineer: { L5: 185000, L6: 240000 }
+
+# Optional: an AI estimate in INR whose yearly top is below this shows no pay, which catches a
+# model's slip such as 5 to 8 lakh for a VP role. Pay stated on a posting or taken from the table
+# above is never checked against it.
+# estimate_floor: 1500000

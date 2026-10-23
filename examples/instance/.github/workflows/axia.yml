@@ -50,3 +50,5 @@ jobs:
           email-to: ${{ secrets.EMAIL_TO }}
           cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Optional, with tailor.dispatch in settings.yml: a Tailor click starts your tailoring workflow at once.
+          # tailor-dispatch-token: ${{ secrets.AXIA_TAILOR_TOKEN }}
