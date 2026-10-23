@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.17.0
+
+- **More AI scores for one run.** The action has a new `max-ai-scores` input, and the starter workflow puts it on the **Run workflow** form: type 100 to work through a long queue faster, and that run scores up to 100 roles. Every other run keeps `max_ai_scores_per_run` from `settings.yml`, and nothing in your repository changes. Left empty, it does nothing. On a Claude subscription, a few hundred scores in a row can reach the plan's usage limit; roles scored before that are kept. The same cap is `--max-ai N` on the command line, and a value that isn't a whole number stops the run before anything is read ([details](docs/setup.md#6-run-it)).
+
+- **A preview button in the starter repository.** `examples/instance/.github/workflows/axia-preview.yml` adds **Actions → Axia preview → Run workflow**. It runs `second-look`, `calibrate` or `gaps` against your settings with any version of Axia, and the result goes in the run's log. It writes nothing, publishes nothing and sends no messages. Copy the file into your repository to get it.
+
 ## 1.16.0
 
 - **Phenom career sites.** Employers whose careers site runs on Phenom (`careers.<company>.com/global/en/search-results`) can now be read: add `platform: phenom` to the company in `companies.yml`. Roles come from the same public search the site's own pages use, 100 a request, with each posting's full text for scoring; `?country=India` on the address reads only that country's roles. Requisition codes on the end of titles (`Technical Architect_3313`) are left off ([details](docs/configuration.md#companiesyml)).

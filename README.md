@@ -83,7 +83,7 @@ Your repository's workflow is a few lines:
 The GitHub Action runs these for you. On your own computer, after `npm ci`:
 
 ```sh
-node src/cli.mjs run --dir ../my-axia [--dry-run] [--no-notify] [--rescore] [--company Name]
+node src/cli.mjs run --dir ../my-axia [--dry-run] [--no-notify] [--rescore] [--company Name] [--max-ai N]
 node src/cli.mjs deploy --dir ../my-axia
 node src/cli.mjs calibrate --dir ../my-axia
 node src/cli.mjs review --dir ../my-axia --now   # the weekly review: would a criteria change agree with your calls more often?

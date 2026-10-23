@@ -42,3 +42,20 @@ test('the starter repository in examples/instance is valid as shipped', () => {
   assert.ok(loadResume(settings, example).length > 200);
   assert.match(loadCriteria(settings, example), /What a good role looks like/);
 });
+
+test('the action and the starter workflow pass max-ai-scores through as --max-ai', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { parse } = await import('yaml');
+  const root = join(example, '..', '..');
+  const action = parse(readFileSync(join(root, 'action.yml'), 'utf8'));
+  assert.equal(action.inputs['max-ai-scores'].default, '');
+  const step = action.runs.steps.find((s) => s.name === 'Find, score and notify');
+  assert.equal(step.env.AXIA_MAX_AI, '${{ inputs.max-ai-scores }}');
+  assert.match(step.run, /"--max-ai=\$AXIA_MAX_AI"/);
+  const workflow = parse(readFileSync(join(example, '.github/workflows/axia.yml'), 'utf8'));
+  assert.equal(workflow.on.workflow_dispatch.inputs['max-ai-scores'].type, 'string');
+  assert.equal(workflow.jobs.axia.steps.find((s) => s.uses === 'khubli/axia@v1').with['max-ai-scores'], '${{ inputs.max-ai-scores }}');
+  const preview = parse(readFileSync(join(example, '.github/workflows/axia-preview.yml'), 'utf8'));
+  assert.deepEqual(preview.on.workflow_dispatch.inputs.command.options, ['second-look', 'calibrate', 'gaps']);
+  assert.deepEqual(preview.permissions, { contents: 'read' }, 'previews write nothing');
+});

@@ -1,0 +1,51 @@
+# Read-only previews of an Axia command against your settings, run by hand:
+#   second-look  which titles your title words miss today that the model would let through
+#   calibrate    how often the scorer agrees with the roles you judged (calibration/roles.yml and your dashboard calls)
+#   gaps         the gaps that keep coming up in your open roles scored 55 to 89, grouped now
+# Writes nothing, publishes nothing and sends no messages. The result is in the run's log.
+# Actions → Axia preview → Run workflow. calibrate and gaps use AI requests, like a normal run.
+
+name: Axia preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: What to preview
+        type: choice
+        options: [second-look, calibrate, gaps]
+        default: second-look
+      version:
+        description: Axia version to run (a branch or tag of khubli/axia), for example to try a change before it reaches v1
+        default: v1
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          repository: khubli/axia
+          ref: ${{ inputs.version }}
+          path: .axia-engine
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - run: npm ci --omit=dev --no-audit --no-fund --prefix .axia-engine
+      # Only needed when you score on a Claude subscription; the version matches the action's.
+      - run: npm install -g --no-audit --no-fund @anthropic-ai/claude-code@2.1.286
+        if: env.CLAUDE_CODE_OAUTH_TOKEN != '' && env.ANTHROPIC_API_KEY == ''
+      - name: Preview
+        run: node .axia-engine/src/cli.mjs "$COMMAND" --dir .
+        env:
+          COMMAND: ${{ inputs.command }}

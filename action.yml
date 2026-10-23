@@ -18,6 +18,9 @@ inputs:
   rescore:
     description: "'true' re-scores every open role with AI (still capped per run), for example after you change your resume."
     default: 'false'
+  max-ai-scores:
+    description: "AI scores for this run only, for example 100 to work through a long queue faster. Empty uses scoring.max_ai_scores_per_run from settings.yml (default 40). On a Claude subscription a few hundred in a row can reach its usage limit."
+    default: ''
   notify-min-score:
     description: Send a message when a role first scores this or more. Empty uses notify.min_score from settings.yml (default 65).
     default: ''
@@ -99,6 +102,7 @@ runs:
       env:
         AXIA_DIR: ${{ inputs.config-dir }}
         AXIA_RESCORE: ${{ inputs.rescore }}
+        AXIA_MAX_AI: ${{ inputs.max-ai-scores }}
         NOTIFY_MIN_SCORE: ${{ inputs.notify-min-score }}
         CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude-code-oauth-token }}
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
@@ -114,6 +118,7 @@ runs:
       run: |
         args=(run --dir "$AXIA_DIR")
         if [ "$AXIA_RESCORE" = "true" ]; then args+=(--rescore); fi
+        if [ -n "$AXIA_MAX_AI" ]; then args+=("--max-ai=$AXIA_MAX_AI"); fi
         node "$GITHUB_ACTION_PATH/src/cli.mjs" "${args[@]}"
 
     # On review.day: are the scores still in line with your calls on the dashboard? If a change to

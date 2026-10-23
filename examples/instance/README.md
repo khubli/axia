@@ -18,5 +18,6 @@ watching and how every role scored against me.
 | `data/feedback.json` | Written by Axia: my calls on the dashboard, with each posting |
 | `dashboard/README.md` | Written by Axia: the plain list, readable on GitHub |
 | `.github/workflows/axia.yml` | Runs Axia every morning |
+| `.github/workflows/axia-preview.yml` | Optional: read-only previews (second look, calibrate, gaps), run by hand |
 
 Setup: https://github.com/khubli/axia/blob/main/docs/setup.md
