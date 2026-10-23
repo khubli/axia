@@ -1,0 +1,26 @@
+{
+  "refineSearch": {
+    "status": 200,
+    "hits": 2,
+    "totalHits": 3,
+    "data": {
+      "jobs": [
+        {
+          "jobSeqNo": "WGIC106336EXTERNALENGLOBAL",
+          "title": "Group Technical Architect (Solution Architect)_3313",
+          "location": "Pune, Maharashtra, India, 411014",
+          "cityStateCountry": "Pune, Maharashtra, India",
+          "multi_location": ["Pune, Maharashtra, India, 411014", "India"],
+          "postedDate": "2026-10-01T09:30:00.000+0000"
+        },
+        {
+          "jobSeqNo": "WGIC106990EXTERNALENGLOBAL",
+          "title": "Application Architect(Java&AI)_D-3008",
+          "location": "India",
+          "cityStateCountry": "India",
+          "postedDate": "2026-10-09T07:45:17.000+0000"
+        }
+      ]
+    }
+  }
+}

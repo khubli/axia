@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.16.0
+
+- **Phenom career sites.** Employers whose careers site runs on Phenom (`careers.<company>.com/global/en/search-results`) can now be read: add `platform: phenom` to the company in `companies.yml`. Roles come from the same public search the site's own pages use, 100 a request, with each posting's full text for scoring; `?country=India` on the address reads only that country's roles. Requisition codes on the end of titles (`Technical Architect_3313`) are left off ([details](docs/configuration.md#companiesyml)).
+
 ## 1.15.0
 
 - **Shortlist a waiting role to score it next.** Tap Shortlist on a role still waiting for an AI score and the next run scores it first, within the usual `max_ai_scores_per_run`. Useful when you spot a role on a careers site that sits far back in a long queue.

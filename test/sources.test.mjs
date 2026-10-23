@@ -297,3 +297,37 @@ test('eightfold: hosted and branded sites, older and newer API', async () => {
   const none = fakeHttp([['/api/', { message: 'nope' }]]);
   await assert.rejects(paypal.source.list(paypal.params, ctx(none)), /no job list/);
 });
+
+test('phenom: branded site, country filter from the address, paged search and posting text', async () => {
+  const site = detect('https://careers.woodgrove.com/global/en/search-results?country=India', 'phenom');
+  assert.equal(detect('https://careers.woodgrove.com/global/en/search-results?country=India'), null, 'a Phenom site needs platform: phenom');
+  assert.deepEqual([site.source.type, site.params.country, site.params.lang, site.params.filters], ['phenom', 'global', 'en', { country: ['India'] }]);
+  assert.deepEqual([detect('https://jobs.contoso.com/', 'phenom').params.country, detect('https://jobs.contoso.com/', 'phenom').params.lang], ['us', 'en']);
+
+  const page2 = { refineSearch: { totalHits: 3, data: { jobs: [{ jobSeqNo: 'WGIC108607EXTERNALENGLOBAL', title: 'Technical Architect', cityStateCountry: 'Pune, Maharashtra, India', postedDate: '2026-10-22T10:00:00.000+0000' }] } } };
+  const http = fakeHttp([
+    ['/widgets', (_url, opts) => {
+      if (opts.body.ddoKey === 'jobDetail') return { jobDetail: { data: { job: { description: '<p>Lead <b>architecture</b> governance.</p>' } } } };
+      return opts.body.from === 0 ? fixture('phenom-search.json') : page2;
+    }],
+  ]);
+  const jobs = await site.source.list(site.params, ctx(http));
+  const first = http.calls[0];
+  assert.equal(first.url, 'https://careers.woodgrove.com/widgets');
+  assert.deepEqual([first.method, first.body.lang, first.body.country, first.body.ddoKey, first.body.selected_fields], ['POST', 'en_global', 'global', 'refineSearch', { country: ['India'] }]);
+  assert.equal(http.calls[1].body.from, 2, 'the next page starts after the roles the first returned');
+  assert.equal(jobs.length, 3);
+  assert.deepEqual(jobs[0], {
+    id: 'WGIC106336EXTERNALENGLOBAL',
+    title: 'Group Technical Architect (Solution Architect)',
+    location: 'Pune, Maharashtra, India, 411014; India',
+    url: 'https://careers.woodgrove.com/global/en/job/WGIC106336EXTERNALENGLOBAL',
+    postedAt: '2026-10-01',
+  });
+  assert.deepEqual([jobs[1].title, jobs[1].location], ['Application Architect(Java&AI)', 'India']);
+  assert.deepEqual([jobs[2].title, jobs[2].location, jobs[2].postedAt], ['Technical Architect', 'Pune, Maharashtra, India', '2026-10-22']);
+  assert.equal((await site.source.detail(site.params, jobs[0], ctx(http))).description, 'Lead architecture governance.');
+  assert.equal(http.calls.at(-1).body.jobSeqNo, 'WGIC106336EXTERNALENGLOBAL');
+
+  await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['/widgets', { status: 'error' }]]))), /no job list/);
+});
