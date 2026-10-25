@@ -141,3 +141,11 @@ test('a workflow token without pull-request access still gets the change onto a 
   assert.equal(out.status, 'proposed');
   assert.match(out.url, /compare\/main\.\.\.axia\/review-2026-10-18/);
 });
+
+test('the proposal says what merging re-scores, per scoring.rescore_on_edit', async () => {
+  const { reportMarkdown } = await import('../src/review.mjs');
+  const args = { rows: [], changes: [], agreeBefore: 0, agreeAfter: 0, good: 65, scorer: { engine: 'e', model: 'm' }, lost: [], better: true };
+  assert.match(reportMarkdown(args), /Merging re-scores your open roles/);
+  assert.match(reportMarkdown({ ...args, rescoreOnEdit: 'none' }), /Roles already scored keep their score/);
+  assert.match(reportMarkdown({ ...args, rescoreOnEdit: 50 }), /score 50 or more, and those you marked Applied or Shortlist/);
+});

@@ -140,7 +140,9 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
       if (state.titleChecks[id]) state.titleChecks[id].seen = today;
     }
     second.titles = titles.size;
-    const ask = [...titles.values()].filter((t) => preview || state.titleChecks[t.id]?.hash !== hash).slice(0, preview ? Infinity : SECOND_LOOK_MAX);
+    // Unless scoring.rescore_on_edit is all, a resume or criteria edit keeps the verdicts already given; only new titles are asked.
+    const asked = (t) => state.titleChecks[t.id] && (settings.scoring.rescore_on_edit !== 'all' || state.titleChecks[t.id].hash === hash);
+    const ask = [...titles.values()].filter((t) => preview || !asked(t)).slice(0, preview ? Infinity : SECOND_LOOK_MAX);
     if (aiScorer?.ask && ask.length) {
       log(`\nSecond look: ${ask.length} title(s) your title words rejected, asked of ${aiScorer.engine}…`);
       const { verdicts, stoppedBecause } = await secondLook(aiScorer, ask, { resume, criteria, include: settings.titles.include, exclude: settings.titles.exclude, log });
@@ -314,9 +316,13 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   const shortlisted = (j) => (feedback.roles[j.key]?.verdict === 'shortlist' && j.score?.scorer !== 'ai' ? 0 : 1);
   const fromTitle = (j) => keywordScore({ ...j, description: j.title }, settings, j.titleMatch).value;
   const promise = (j) => (j.score?.scorer === 'ai' ? j.score.value : Math.max(j.score?.value ?? 0, fromTitle(j)));
+  // What a resume or criteria edit re-scores (scoring.rescore_on_edit): all open roles, none (only roles
+  // scored from now on use the edit), or roles scoring that number or more plus those you marked Applied or Shortlist.
+  const onEdit = settings.scoring.rescore_on_edit;
+  const worthRescore = (j) => onEdit === 'all' || (onEdit !== 'none' && (j.score.value >= onEdit || ['applied', 'shortlist'].includes(feedback.roles[j.key]?.verdict)));
   const needsAi = open
     .filter((j) => candidates.has(j.key)) // can only read the description of roles listed today
-    .filter((j) => args.rescore || !j.score || j.score.scorer !== 'ai' || j.score.resumeHash !== hash)
+    .filter((j) => args.rescore || !j.score || j.score.scorer !== 'ai' || (j.score.resumeHash !== hash && worthRescore(j)))
     .sort((a, b) => shortlisted(a) - shortlisted(b) || rank(a) - rank(b) || promise(b) - promise(a) || String(b.postedAt ?? '').localeCompare(String(a.postedAt ?? '')));
   const budget = maxAi !== undefined ? Number(maxAi) : settings.scoring.max_ai_scores_per_run;
   if (maxAi !== undefined && aiScorer) log(`This run scores up to ${budget} role(s) with AI (settings.yml: ${settings.scoring.max_ai_scores_per_run}).`);

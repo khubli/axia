@@ -32,6 +32,23 @@ test('dashboard.public must be a real true/false', async () => {
   assert.throws(() => loadSettings(dir), /dashboard\.public must be true or false without quotes/);
 });
 
+test('scoring.rescore_on_edit takes all, none or a score', async () => {
+  const { mkdtempSync, writeFileSync, readFileSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const base = readFileSync(join(example, 'settings.yml'), 'utf8');
+  const withValue = (v) => {
+    const dir = mkdtempSync(join(tmpdir(), 'axia-cfg-'));
+    writeFileSync(join(dir, 'settings.yml'), base.replace(/^scoring:\n/m, `scoring:\n  rescore_on_edit: ${v}\n`));
+    return loadSettings(dir).scoring.rescore_on_edit;
+  };
+  assert.equal(loadSettings(example).scoring.rescore_on_edit, 'all', 'default: re-score everything, as before');
+  assert.equal(withValue('none'), 'none');
+  assert.equal(withValue('false'), 'none');
+  assert.equal(withValue('50'), 50);
+  assert.equal(withValue('0'), 'all');
+  assert.throws(() => withValue('some'), /rescore_on_edit must be all, none or a score/);
+});
+
 test('the starter repository in examples/instance is valid as shipped', () => {
   const settings = loadSettings(example);
   assert.equal(settings.dashboard.url, 'https://jobs.example.com');

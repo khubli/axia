@@ -117,7 +117,7 @@ After each run Axia publishes the dashboard and then opens it as a stranger woul
 
 In your private repository, open **Actions → Axia → Run workflow**. The first run reads every company and scores up to 40 roles; the rest are scored over the next days. After that it runs every morning on its own (change the time in `.github/workflows/axia.yml`).
 
-To re-score everything after changing your resume a lot, run the workflow with **Re-score** ticked. Changes to `cv.md` or `criteria.md` are picked up automatically, 40 roles a day.
+To re-score everything after changing your resume a lot, run the workflow with **Re-score** ticked. Changes to `cv.md` or `criteria.md` are picked up automatically, 40 roles a day; `scoring.rescore_on_edit` can limit that to strong roles, or to new roles only ([details](configuration.md#criteriamd)).
 
 To work through a long queue faster, put a number in **AI scores for this run only** (for example 100) when you run the workflow. Only that run scores more; the daily runs keep `max_ai_scores_per_run` from `settings.yml`. On a Claude subscription, a few hundred scores in a row can reach the plan's usage limit, and roles scored before that are kept.
 

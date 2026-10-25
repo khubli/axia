@@ -406,3 +406,51 @@ test('a --max-ai that is not a whole number stops the run before anything is rea
   }
   assert.equal(stub.calls.length, 0);
 });
+
+test('with scoring.rescore_on_edit set to a score, a criteria edit re-scores only strong roles and the ones you marked', async () => {
+  const dir = tempProject({ companies: COMPANIES.slice(0, 1), settings: { scoring: { model: 'claude-opus-5-5', effort: 'low', max_ai_scores_per_run: 10, batch_size: 2, criteria: 'criteria.md', rescore_on_edit: 50 } } });
+  const { mkdirSync, writeFileSync } = await import('node:fs');
+  mkdirSync(join(dir, 'data'), { recursive: true });
+  const role = (id, title, value) => ({ key: `greenhouse:acme:${id}`, company: 'Acme Bank', title, location: 'Pune', url: `u${id}`, firstSeen: '2026-10-14', status: 'open', titleMatch: 'Architect', score: { value, scorer: 'ai', summary: 's', strengths: [], gaps: [], resumeHash: 'older', scoredOn: '2026-10-14' } });
+  const jobs = { strong: role(1, 'Senior Solution Architect', 70), weak: role(6, 'Data Architect', 30), marked: role(7, 'Cloud Architect', 20) };
+  writeFileSync(join(dir, 'data/jobs.json'), JSON.stringify({ version: 2, lastRun: { runAt: '2026-10-14T03:00:00Z' }, jobs: Object.fromEntries(Object.values(jobs).map((j) => [j.key, j])), skipped: {}, companies: {} }));
+  writeFileSync(join(dir, 'data/feedback.json'), JSON.stringify({ version: 1, lastReview: null, roles: { 'greenhouse:acme:7': { id: 'greenhouse-acme-7', company: 'Acme Bank', title: 'Cloud Architect', verdict: 'shortlist', reason: '', at: '2026-10-14T05:00:00Z' } } }));
+  const requests = [];
+  const stub = stubFetch([
+    ['boards-api.greenhouse.io/v1/boards/acme', () => ({ jobs: [gh(1, 'Senior Solution Architect', 'Pune'), gh(6, 'Data Architect', 'Pune'), gh(7, 'Cloud Architect', 'Pune')] })],
+    claude({ 'Senior Solution Architect': 80, 'Data Architect': 60, 'Cloud Architect': 40 }, requests),
+  ]);
+  try {
+    await run(['--no-notify'], ENV, { dir, now: new Date('2026-10-15T03:00:00Z'), log: quiet });
+  } finally {
+    stub.restore();
+  }
+  const after = JSON.parse(readFileSync(join(dir, 'data/jobs.json'), 'utf8')).jobs;
+  assert.equal(after['greenhouse:acme:1'].score.value, 80, 'scored 50 or more: re-scored');
+  assert.equal(after['greenhouse:acme:7'].score.value, 40, 'shortlisted: re-scored');
+  assert.equal(after['greenhouse:acme:6'].score.value, 30, 'weak and unmarked: keeps its score');
+  assert.equal(after['greenhouse:acme:6'].score.resumeHash, 'older');
+});
+
+test('with scoring.rescore_on_edit: none, a criteria edit re-scores nothing and re-asks no title; new roles are scored', async () => {
+  const dir = tempProject({ companies: COMPANIES.slice(0, 1), settings: { scoring: { model: 'claude-opus-5-5', effort: 'low', max_ai_scores_per_run: 10, batch_size: 2, criteria: 'criteria.md', rescore_on_edit: 'none' } } });
+  const { mkdirSync, writeFileSync } = await import('node:fs');
+  mkdirSync(join(dir, 'data'), { recursive: true });
+  const old = { key: 'greenhouse:acme:1', company: 'Acme Bank', title: 'Senior Solution Architect', location: 'Pune', url: 'u1', firstSeen: '2026-10-14', status: 'open', titleMatch: 'Solution Architect', score: { value: 70, scorer: 'ai', summary: 's', strengths: [], gaps: [], resumeHash: 'older', scoredOn: '2026-10-14' } };
+  const titleChecks = { 'Acme Bank|quantum gardener': { keep: false, hash: 'older', seen: '2026-10-14' } };
+  writeFileSync(join(dir, 'data/jobs.json'), JSON.stringify({ version: 2, lastRun: { runAt: '2026-10-14T03:00:00Z' }, jobs: { [old.key]: old }, skipped: {}, companies: {}, titleChecks }));
+  const requests = [];
+  const stub = stubFetch([
+    ['boards-api.greenhouse.io/v1/boards/acme', () => ({ jobs: [gh(1, 'Senior Solution Architect', 'Pune'), gh(6, 'Payments Architect', 'Pune'), gh(8, 'Quantum Gardener', 'Pune')] })],
+    claude({ 'Senior Solution Architect': 90, 'Payments Architect': 77 }, requests),
+  ]);
+  try {
+    await run(['--no-notify'], ENV, { dir, now: new Date('2026-10-15T03:00:00Z'), log: quiet });
+  } finally {
+    stub.restore();
+  }
+  const after = JSON.parse(readFileSync(join(dir, 'data/jobs.json'), 'utf8')).jobs;
+  assert.equal(after['greenhouse:acme:1'].score.value, 70, 'already scored: keeps its score');
+  assert.equal(after['greenhouse:acme:6'].score.value, 77, 'new role: scored with the edited criteria');
+  assert.ok(!requests.some((r) => JSON.stringify(r.body).includes('Quantum Gardener')), 'no second look at the title already judged');
+});

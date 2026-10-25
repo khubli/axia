@@ -15,7 +15,7 @@ const DEFAULTS = {
   // second_look: titles in your places that your words reject get a look from the model (it can only let roles in).
   titles: { include: [], exclude: [], second_look: true },
   locations: { include: [], keep_unknown: true },
-  scoring: { provider: 'auto', model: 'sonnet', effort: 'medium', base_url: '', max_ai_scores_per_run: 40, batch_size: 8, criteria: 'criteria.md', levels: 'levels.md', pay: 'pay.yml', keywords: [] },
+  scoring: { provider: 'auto', model: 'sonnet', effort: 'medium', base_url: '', max_ai_scores_per_run: 40, rescore_on_edit: 'all', batch_size: 8, criteria: 'criteria.md', levels: 'levels.md', pay: 'pay.yml', keywords: [] },
   report: { timezone: 'UTC', good_match: 65, show_from: 50 },
   // Messages: new good matches as they are scored, problems once, and a weekly "still running" note.
   notify: { min_score: 65, weekly: 'monday' },
@@ -82,6 +82,14 @@ export function loadSettings(dir = ROOT) {
   if (typeof s.dashboard.feedback !== 'boolean') throw new ConfigError(`settings.yml: dashboard.feedback must be true or false without quotes, not "${s.dashboard.feedback}"`);
   if (typeof s.titles.second_look !== 'boolean') throw new ConfigError(`settings.yml: titles.second_look must be true or false without quotes, not "${s.titles.second_look}"`);
   if (typeof s.dashboard.public !== 'boolean') throw new ConfigError(`settings.yml: dashboard.public must be true or false without quotes, not "${s.dashboard.public}"`);
+  {
+    const v = s.scoring.rescore_on_edit;
+    const n = Number(v);
+    if (v === false || String(v).toLowerCase() === 'none') s.scoring.rescore_on_edit = 'none';
+    else if (v === true || String(v).toLowerCase() === 'all' || n === 0) s.scoring.rescore_on_edit = 'all';
+    else if (Number.isInteger(n) && n > 0 && n <= 100) s.scoring.rescore_on_edit = n;
+    else throw new ConfigError(`settings.yml: scoring.rescore_on_edit must be all, none or a score from 1 to 100, not "${v}"`);
+  }
   for (const key of ['min_score']) {
     const n = Number(s.notify[key]);
     if (!Number.isInteger(n) || n < 0 || n > 100) throw new ConfigError(`settings.yml: notify.${key} must be a whole number from 0 to 100`);

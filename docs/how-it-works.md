@@ -90,7 +90,7 @@ Once a week (`review.day`) Axia checks whether its scores still agree with your 
 2. Every judged role is scored twice in the same run, with today's criteria and with the proposal, so the comparison isn't thrown by the usual 5–10 point wobble between runs.
 3. Only if the proposal agrees with your calls more often, and loses none of your `calibration/roles.yml` roles, is it opened as a pull request in your repository, with the edit, the roles whose score moves and the before/after numbers. You get a message with the link.
 
-Nothing changes until you merge it. Merging re-scores your open roles over the next runs. Closing it turns the proposal down. One proposal is open at a time.
+Nothing changes until you merge it. Merging re-scores your open roles over the next runs, or only some or none of them with `scoring.rescore_on_edit` ([details](configuration.md#criteriamd)). Closing it turns the proposal down. One proposal is open at a time.
 
 ## Privacy
 
