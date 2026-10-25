@@ -380,3 +380,43 @@ test('deshaw: India and global sites, roles from the page data, open application
 
   await assert.rejects(india.source.list(india.params, ctx(fakeHttp([['/careers', '<html>maintenance</html>']]))), /no job data/);
 });
+
+test('avature: search pages at the size the site gives, location from the list, text from the job page', async () => {
+  const site = detect('https://woodgrove.avature.net/careers/SearchJobs?jobOffset=24');
+  assert.deepEqual([site.source.type, site.params.origin, site.params.portal], ['avature', 'https://woodgrove.avature.net', 'careers']);
+  assert.equal(detect('https://avature.net/careers'), null);
+  assert.equal(detect('https://woodgrove.avature.net/'), null, 'the portal name is needed');
+
+  const role = (id, title, location) => `
+    <article class="article article--result"><h3><a class="link" href="https://woodgrove.avature.net/careers/JobDetail/${title.replace(/\W+/g, '-')}/${id}">
+      ${title}
+    </a></h3><div class="article__header__text__subtitle"><span class="list-item-location">${location}</span></div>
+    <div class="article__footer"><a class="button button--primary" href="https://woodgrove.avature.net/careers/JobDetail/${title.replace(/\W+/g, '-')}/${id}">Apply</a></div></article>`;
+  const page = (roles) => `<div class="list-controls__text__legend" aria-label="5 results">1-2 of 5 results</div>${roles.join('')}`;
+  const http = fakeHttp([
+    ['jobOffset=0', page([role('45785', 'Senior Software Engineer &amp; Lead, Pune', 'Pune, India'), role('45808', 'Accounting Analyst', 'New York, New York, United States of America')])],
+    ['jobOffset=2', page([role('21041', 'Engineering Manager - Anomaly Platform', 'Pune, India'), role('45785', 'Senior Software Engineer &amp; Lead, Pune', 'Pune, India')])],
+    ['jobOffset=4', page([role('16486', 'Market Specialist, Commodities', 'Mumbai, Maharashtra, India')])],
+    ['/JobDetail/', `<div class="article__content__view__field tf_replaceFieldVideoTokens field--rich-text">
+      <div class="article__content__view__field__value"><p><span>A</span><span>bout the team</span></p><div><ul><li>Lead 8 engineers</li></ul></div></div></div>
+      <div class="article__content__view__field "><div class="article__content__view__field__value">Watch our podcast</div></div></article>`],
+  ]);
+  const jobs = await site.source.list(site.params, ctx(http));
+  assert.deepEqual(http.calls.map((c) => new URL(c.url).searchParams.get('jobOffset')), ['0', '2', '4'], 'steps by the page size the site gave');
+  assert.equal(http.calls[0].url, 'https://woodgrove.avature.net/careers/SearchJobs/?jobRecordsPerPage=100&jobOffset=0');
+  assert.deepEqual(jobs.map((j) => j.id), ['45785', '45808', '21041', '16486'], 'a role on two pages counts once; Apply links are not roles');
+  assert.deepEqual(jobs[0], {
+    id: '45785',
+    title: 'Senior Software Engineer & Lead, Pune',
+    location: 'Pune, India',
+    url: 'https://woodgrove.avature.net/careers/JobDetail/Senior-Software-Engineer-amp-Lead-Pune/45785',
+    postedAt: null,
+  });
+
+  const d = await site.source.detail(site.params, jobs[2], ctx(http));
+  assert.equal(d.description, 'About the team\n\n• Lead 8 engineers', 'the posting text only, words kept whole');
+
+  const none = await site.source.list(site.params, ctx(fakeHttp([['SearchJobs', '<p>No jobs found - There are currently no open roles</p>']])));
+  assert.deepEqual(none, []);
+  await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['SearchJobs', '<html>maintenance</html>']]))), /no job list/);
+});
