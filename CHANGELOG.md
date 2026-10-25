@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.19.0
+
+- **Avature career sites.** Employers whose careers site is on Avature (`<company>.avature.net/<portal>`, such as Bloomberg's `https://bloomberg.avature.net/careers`) can now be read; the address is recognised on its own. These sites have no public feed, so Axia reads their search pages, at the page size the site gives (Bloomberg's 336 roles take 28 small requests), and your `locations` keep the places you want. A posting's text is read from its page only when the role is about to be scored. The pages give no posting date ([details](docs/configuration.md#companiesyml)).
+
 ## 1.18.0
 
 - **Edit your criteria without re-scoring everything.** A new `scoring.rescore_on_edit` in `settings.yml` says what an edit to `criteria.md` or your resume re-scores. `all` (the default) re-scores every open role, as before. `none` re-scores nothing: roles already scored keep their score, the second look keeps the title verdicts it already gave, and only roles scored from the next run on use the edit. A score such as `50` re-scores open roles scoring that much or more, and roles you marked Applied or Shortlist. The weekly review's pull request says which of these merging it will do. Ticking **Re-score** on the workflow still scores everything again ([details](docs/configuration.md#criteriamd)).

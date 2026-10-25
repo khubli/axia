@@ -38,6 +38,7 @@ The address decides how a company is read:
 | Phenom | the site's search page, such as `https://careers.<company>.com/global/en/search-results?country=India`, plus `platform: phenom` |
 | iCIMS (Jibe) | the site's job list, such as `https://jobs.<company>.com/jobs?location=India`, plus `platform: jibe` |
 | D. E. Shaw | `https://www.deshawindia.com/careers` (India) or `https://www.deshaw.com/careers` |
+| Avature | `https://<company>.avature.net/<portal>`, such as `https://bloomberg.avature.net/careers` |
 
 Eightfold sites on the employer's own domain (`portal.careers.<company>.com`) also need the platform named: `platform: eightfold`. `?location=` narrows the search, and `?domain=` names the company domain the site uses when it isn't the address's own; for `<company>.eightfold.ai` it is taken to be `<company>.com`.
 
@@ -46,6 +47,8 @@ SAP SuccessFactors career sites usually sit on the employer's own domain (`caree
 Phenom career sites also sit on the employer's own domain, so add `platform: phenom`. You can tell one by `/<country>/<language>/search-results` and `/job/<id>` addresses, and `phenompeople.com` in the page's source. The country and language in the address (`/global/en/`) are kept; a site without them is read as `/us/en/`. Terms on the address work like the site's own filters: `?country=India` reads only the roles the site places in India, and other filter names the site uses (such as `city=Pune`) can be added the same way; `?keywords=` adds search words. Requisition codes some employers add to the end of a title (`Technical Architect_3313`) are left off.
 
 iCIMS career sites built on Jibe (`/jobs` and `/jobs/<number>` addresses, and an `/api/jobs` list behind the page) need `platform: jibe` too. Terms on the address carry over as the site's own filters, so `?location=India` reads only the roles the site places in India. Each role comes with its description, so no posting is read separately. The older iCIMS portals on `<company>.icims.com` are a different site and are not read.
+
+Avature career sites (`<company>.avature.net/<portal>`) have no public feed, so their search pages are read, at whatever page size the site gives (Bloomberg's is 12), and every role worldwide is listed; your `locations` then keep the ones you want. A posting's text is read from its own page only when the role is about to be scored. The pages give no posting date. Avature sites on the employer's own domain, and portals that don't use Avature's standard search page, are not read.
 
 Any other address is shown as "check by hand" with a link, so nothing silently drops out. A company whose board fails to load keeps its roles as they were; after 7 days without a successful read they close.
 

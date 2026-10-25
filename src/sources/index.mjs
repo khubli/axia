@@ -16,8 +16,9 @@ import * as turbohire from './turbohire.mjs';
 import * as phenom from './phenom.mjs';
 import * as jibe from './jibe.mjs';
 import * as deshaw from './deshaw.mjs';
+import * as avature from './avature.mjs';
 
-export const SOURCES = [workday, greenhouse, smartrecruiters, oracle, goldman, lever, ashby, amazon, google, turbohire, eightfold, successfactors, phenom, jibe, deshaw];
+export const SOURCES = [workday, greenhouse, smartrecruiters, oracle, goldman, lever, ashby, amazon, google, turbohire, eightfold, successfactors, phenom, jibe, deshaw, avature];
 
 /** Sites the address can't identify; companies.yml names them with `platform:`. */
 export const PLATFORMS = [successfactors.type, eightfold.type, phenom.type, jibe.type];
