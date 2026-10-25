@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.18.0
+
+- **Edit your criteria without re-scoring everything.** A new `scoring.rescore_on_edit` in `settings.yml` says what an edit to `criteria.md` or your resume re-scores. `all` (the default) re-scores every open role, as before. `none` re-scores nothing: roles already scored keep their score, the second look keeps the title verdicts it already gave, and only roles scored from the next run on use the edit. A score such as `50` re-scores open roles scoring that much or more, and roles you marked Applied or Shortlist. The weekly review's pull request says which of these merging it will do. Ticking **Re-score** on the workflow still scores everything again ([details](docs/configuration.md#criteriamd)).
+
 ## 1.17.0
 
 - **More AI scores for one run.** The action has a new `max-ai-scores` input, and the starter workflow puts it on the **Run workflow** form: type 100 to work through a long queue faster, and that run scores up to 100 roles. Every other run keeps `max_ai_scores_per_run` from `settings.yml`, and nothing in your repository changes. Left empty, it does nothing. On a Claude subscription, a few hundred scores in a row can reach the plan's usage limit; roles scored before that are kept. The same cap is `--max-ai N` on the command line, and a value that isn't a whole number stops the run before anything is read ([details](docs/setup.md#6-run-it)).

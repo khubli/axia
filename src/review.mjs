@@ -164,7 +164,7 @@ export async function review(argv = [], env = process.env, { dir = ROOT, now = n
   const lost = rows.filter((r) => r.source === 'yours' && agrees(r.decision, r.before, good) && !agrees(r.decision, r.after, good));
   const better = agreeAfter > agreeBefore && lost.length === 0;
 
-  const report = reportMarkdown({ rows, changes, agreeBefore, agreeAfter, good, scorer, lost, better });
+  const report = reportMarkdown({ rows, changes, agreeBefore, agreeAfter, good, scorer, lost, better, rescoreOnEdit: settings.scoring.rescore_on_edit });
   const out = resolve(dir, '.axia/review');
   mkdirSync(out, { recursive: true });
   writeFileSync(join(out, 'criteria.md'), proposed + '\n');
@@ -192,7 +192,14 @@ export async function review(argv = [], env = process.env, { dir = ROOT, now = n
   return done('proposed', null, { agreeBefore, agreeAfter, url: pr.url });
 }
 
-export function reportMarkdown({ rows, changes, agreeBefore, agreeAfter, good, scorer, lost, better }) {
+/** What merging the proposal re-scores, per scoring.rescore_on_edit. */
+function mergeNote(onEdit) {
+  if (onEdit === 'none') return 'Merging changes how roles are scored from the next run on. Roles already scored keep their score (`scoring.rescore_on_edit: none`).';
+  if (onEdit !== 'all') return `Merging re-scores open roles that score ${onEdit} or more, and those you marked Applied or Shortlist, over the next few runs (\`scoring.rescore_on_edit: ${onEdit}\`). The rest keep their score; new roles are scored with the new criteria.`;
+  return 'Merging re-scores your open roles over the next few runs.';
+}
+
+export function reportMarkdown({ rows, changes, agreeBefore, agreeAfter, good, scorer, lost, better, rescoreOnEdit = 'all' }) {
   const cell = (s) => String(s ?? '').replace(/\|/g, '\\|').replace(/\s+/g, ' ');
   const mark = (r, v) => (agrees(r.decision, v, good) ? `${v} ✓` : `${v} ✗`);
   const moved = rows
@@ -219,7 +226,7 @@ export function reportMarkdown({ rows, changes, agreeBefore, agreeAfter, good, s
     '',
     `All ${rows.length} judged roles (${fromCalls} from your dashboard calls, ${rows.length - fromCalls} from calibration/roles.yml) were scored twice in the same run, with today's criteria and with the proposed ones, by ${scorer.engine}, model ${scorer.model}. Scores move by about 5 to 10 points between runs, so small moves are noise.`,
     '',
-    'Merging re-scores your open roles over the next few runs. Close this to turn the proposal down; next week starts again from your calls.',
+    `${mergeNote(rescoreOnEdit)} Close this to turn the proposal down; next week starts again from your calls.`,
     '',
   ].join('\n');
 }

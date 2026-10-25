@@ -75,6 +75,7 @@ scoring:
   levels: levels.md              # [levels.md] your level and what it is called at the companies you watch; optional
   pay: pay.yml                   # [pay.yml] optional pay figures you know of (below); false leaves the table out
   max_ai_scores_per_run: 40      # [40] the rest wait for the next run; the action's max-ai-scores input raises it for one run
+  rescore_on_edit: all           # [all] what an edit to cv.md or criteria.md re-scores: all, none, or a score such as 50 (below)
   batch_size: 8                  # [8] roles per request (Claude subscription, OpenRouter, OpenAI-compatible)
   keywords: [payments, platform] # [] make a role more promising for the AI queue, and lift keyword estimates
 
@@ -127,6 +128,14 @@ Plain prose that the model reads with your resume for every role. What helps mos
 - **Title traps**: titles that match your words but mean something else ("Platform Architect when the platform is network infrastructure").
 
 After editing it, run `axia calibrate` (below) before trusting the change.
+
+An edit to `criteria.md` or your resume re-scores your open roles, up to `max_ai_scores_per_run` a run, new roles first. With hundreds of open roles that takes weeks of daily runs, so `scoring.rescore_on_edit` says how far an edit reaches:
+
+- `all` (the default): every open role is scored again, and the second look asks again about every title your words rejected.
+- `none`: nothing already scored is scored again, and title verdicts already given stand. Only roles scored from the next run on use the edit. Good for small edits, such as the weekly review's.
+- a score such as `50`: open roles scoring that much or more, and those you marked Applied or Shortlist, are scored again. The rest keep their score, and title verdicts stand.
+
+Ticking **Re-score** on the workflow (`--rescore`) still scores everything again, whatever this says.
 
 ## levels.md: step up, same level or step down
 
