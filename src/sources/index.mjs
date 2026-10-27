@@ -17,11 +17,13 @@ import * as phenom from './phenom.mjs';
 import * as jibe from './jibe.mjs';
 import * as deshaw from './deshaw.mjs';
 import * as avature from './avature.mjs';
+import * as talentsoft from './talentsoft.mjs';
+import * as bpce from './bpce.mjs';
 
-export const SOURCES = [workday, greenhouse, smartrecruiters, oracle, goldman, lever, ashby, amazon, google, turbohire, eightfold, successfactors, phenom, jibe, deshaw, avature];
+export const SOURCES = [workday, greenhouse, smartrecruiters, oracle, goldman, lever, ashby, amazon, google, turbohire, eightfold, successfactors, phenom, jibe, deshaw, avature, talentsoft, bpce];
 
 /** Sites the address can't identify; companies.yml names them with `platform:`. */
-export const PLATFORMS = [successfactors.type, eightfold.type, phenom.type, jibe.type];
+export const PLATFORMS = [successfactors.type, eightfold.type, phenom.type, jibe.type, talentsoft.type];
 
 /** @returns {{source: object, params: object} | null} */
 export function detect(rawUrl, platform) {

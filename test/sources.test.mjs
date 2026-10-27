@@ -420,3 +420,74 @@ test('avature: search pages at the size the site gives, location from the list, 
   assert.deepEqual(none, []);
   await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['SearchJobs', '<html>maintenance</html>']]))), /no job list/);
 });
+
+test('talentsoft: RSS feed, list-page filters carry over, reference left off the title', async () => {
+  const site = detect('https://jobs.woodgrove.com/job/list-of-jobs.aspx?changefacet=1&facet_JobCountry=96&LCID=2057', 'talentsoft');
+  assert.equal(detect('https://jobs.woodgrove.com/job/list-of-jobs.aspx'), null, 'a Talentsoft site on its own domain needs platform: talentsoft');
+  assert.equal(detect('https://contoso.talent-soft.com/job/list-of-jobs.aspx').source.type, 'talentsoft', '*.talent-soft.com is recognised');
+  assert.deepEqual([site.source.type, site.params.filters], ['talentsoft', 'Rss_JobCountry=96&LCID=2057']);
+  assert.equal(detect('https://jobs.woodgrove.com/', 'talentsoft').params.filters, 'LCID=2057', 'English unless the address says otherwise');
+
+  const item = (id, title, cats, city, date) => `<item>
+      <link>https://jobs.woodgrove.com/Pages/Offre/detailoffre.aspx?idOffre=${id}&amp;idOrigine=1533&amp;LCID=2057</link>
+      ${cats.map((c) => `<category>${c}</category>`).join('')}
+      <title>${title}</title>
+      <description>&lt;b&gt;Job description : &lt;/b&gt;Lead the platform team.&lt;br /&gt;${city ? `&lt;b&gt;City : &lt;/b&gt;${city}&lt;br /&gt;` : ''}</description>
+      <pubDate>${date}</pubDate>
+    </item>`;
+  const feed = `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>RSS export</title>
+    ${item('115049', '2026-115049 - Senior IT Team Manager', ['IT', 'Permanent Contract', 'Mumbai'], 'Mumbai', 'Tue, 01 Sep 2026 12:38:14 Z')}
+    ${item('112041', 'KYC &amp; Quality Assurance', ['Operations', 'MUMBAI'], '', 'Tue, 28 Apr 2026 10:15:42 Z')}
+    ${item('115049', '2026-115049 - Senior IT Team Manager', ['IT'], 'Mumbai', 'Tue, 01 Sep 2026 12:38:14 Z')}
+  </channel></rss>`;
+  const http = fakeHttp([['/handlers/offerRss.ashx', feed]]);
+  const jobs = await site.source.list(site.params, ctx(http));
+  assert.equal(http.calls[0].url, 'https://jobs.woodgrove.com/handlers/offerRss.ashx?Rss_JobCountry=96&LCID=2057&top=2000');
+  assert.equal(jobs.length, 2, 'a role twice in the feed counts once');
+  assert.deepEqual(jobs[0], {
+    id: '115049',
+    title: 'Senior IT Team Manager',
+    location: 'Mumbai',
+    url: 'https://jobs.woodgrove.com/Pages/Offre/detailoffre.aspx?idOffre=115049&idOrigine=1533&LCID=2057',
+    postedAt: '2026-09-01',
+    description: htmlToText('<b>Job description : </b>Lead the platform team.<br /><b>City : </b>Mumbai<br />'),
+  });
+  assert.deepEqual([jobs[1].title, jobs[1].location], ['KYC & Quality Assurance', 'MUMBAI'], 'no City field: the last category');
+
+  await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['/handlers/', '<html>Sign in</html>']]))), /no job feed/);
+});
+
+test('bpce: recrutement.natixis.com search, filters from the address, paged with descriptions', async () => {
+  const site = detect('https://recrutement.natixis.com/en/our-job-offers/?tax_place=inde&utm_source=x');
+  assert.deepEqual([site.source.type, site.params.origin, site.params.filters], ['bpce', 'https://recrutement.natixis.com', { tax_place: 'inde' }]);
+  assert.equal(detect('https://recrutement.bpce.fr/').source.type, 'bpce');
+  assert.equal(detect('https://natixis.com/careers'), null);
+
+  const role = (n, title, city, region) => ({
+    job_number: n,
+    title,
+    date: '2026-10-14',
+    link: { url: `/job/${n}` },
+    description: '<h2>Poste et missions</h2><p>Lead the office.</p>',
+    localisation: city,
+    localisations: [{ city, region, country: 'International' }],
+  });
+  const page1 = Array.from({ length: 50 }, (_, i) => role(`R${i}`, `Role ${i}`, 'Mumbai', 'Inde'));
+  const http = fakeHttp([
+    ['/search/jobs', (url, opts) => ({ code: 'all_good', data: { total: 51, items: opts.body.from === 0 ? page1 : [role('WORKDAY_PVR09171', 'Executive Director &amp; Chief Representative', 'Mumbai', 'Inde'), role('R0', 'Role 0', 'Mumbai', 'Inde')] } })],
+  ]);
+  const jobs = await site.source.list(site.params, ctx(http));
+  assert.equal(http.calls[0].url, 'https://recrutement.natixis.com/app/wp-json/bpce/v1/search/jobs');
+  assert.deepEqual(http.calls.map((c) => c.body), [{ tax_place: 'inde', from: 0, size: 50 }, { tax_place: 'inde', from: 50, size: 50 }]);
+  assert.equal(jobs.length, 51, 'a role on two pages counts once');
+  assert.deepEqual(jobs.at(-1), {
+    id: 'WORKDAY_PVR09171',
+    title: 'Executive Director & Chief Representative',
+    location: 'Mumbai, Inde',
+    url: 'https://recrutement.natixis.com/job/WORKDAY_PVR09171',
+    postedAt: '2026-10-14',
+    description: htmlToText('<h2>Poste et missions</h2><p>Lead the office.</p>'),
+  });
+
+  await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['/search/jobs', { code: 'rest_no_route' }]]))), /no job list/);
+});
