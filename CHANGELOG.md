@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.20.0
+
+- **Talentsoft career sites.** Employers whose careers site runs on Talentsoft (Cegid), such as Crédit Agricole CIB's `jobs.ca-cib.com`, can now be read: add `platform: talentsoft` (sites on `<company>.talent-soft.com` are recognised on their own). Every role comes from the site's RSS feed with its full description, in one request. Copy the job list's address after picking a country in its filters (`?facet_JobCountry=96` is India) and only that country's roles are read. The reference number at the start of each title is left off ([details](docs/configuration.md#companiesyml)).
+
+- **Groupe BPCE career sites.** `recrutement.natixis.com` (Natixis CIB) and `recrutement.bpce.fr` are recognised from the address and read through the search their own pages use, each role with its description. The site's filters carry over: `?tax_place=inde` reads only the roles in India. Some roles are posted only in French.
+
 ## 1.19.0
 
 - **Avature career sites.** Employers whose careers site is on Avature (`<company>.avature.net/<portal>`, such as Bloomberg's `https://bloomberg.avature.net/careers`) can now be read; the address is recognised on its own. These sites have no public feed, so Axia reads their search pages, at the page size the site gives (Bloomberg's 336 roles take 28 small requests), and your `locations` keep the places you want. A posting's text is read from its page only when the role is about to be scored. The pages give no posting date ([details](docs/configuration.md#companiesyml)).

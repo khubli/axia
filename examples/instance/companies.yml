@@ -3,7 +3,8 @@
 # Oracle Recruiting Cloud addresses, plus Amazon, Google, Eightfold, TurboHire
 # and Avature (see docs/configuration.md). A SAP SuccessFactors or Eightfold site on the
 # employer's own domain takes `platform: successfactors` or `platform: eightfold`,
-# and a Phenom or iCIMS (Jibe) site takes `platform: phenom` or `platform: jibe`.
+# a Phenom or iCIMS (Jibe) site takes `platform: phenom` or `platform: jibe`,
+# and a Talentsoft site on its own domain takes `platform: talentsoft`.
 # Any other address is listed as "check by hand", never silently skipped.
 #
 # A company with several boards takes a list of URLs.

@@ -39,6 +39,8 @@ The address decides how a company is read:
 | iCIMS (Jibe) | the site's job list, such as `https://jobs.<company>.com/jobs?location=India`, plus `platform: jibe` |
 | D. E. Shaw | `https://www.deshawindia.com/careers` (India) or `https://www.deshaw.com/careers` |
 | Avature | `https://<company>.avature.net/<portal>`, such as `https://bloomberg.avature.net/careers` |
+| Talentsoft | the site's job list, such as `https://jobs.ca-cib.com/job/list-of-jobs.aspx?facet_JobCountry=96`, plus `platform: talentsoft` (not needed on `<company>.talent-soft.com`) |
+| Groupe BPCE | `https://recrutement.natixis.com/en/our-job-offers/?tax_place=inde` or `https://recrutement.bpce.fr/…` (filters carry over) |
 
 Eightfold sites on the employer's own domain (`portal.careers.<company>.com`) also need the platform named: `platform: eightfold`. `?location=` narrows the search, and `?domain=` names the company domain the site uses when it isn't the address's own; for `<company>.eightfold.ai` it is taken to be `<company>.com`.
 
@@ -49,6 +51,10 @@ Phenom career sites also sit on the employer's own domain, so add `platform: phe
 iCIMS career sites built on Jibe (`/jobs` and `/jobs/<number>` addresses, and an `/api/jobs` list behind the page) need `platform: jibe` too. Terms on the address carry over as the site's own filters, so `?location=India` reads only the roles the site places in India. Each role comes with its description, so no posting is read separately. The older iCIMS portals on `<company>.icims.com` are a different site and are not read.
 
 Avature career sites (`<company>.avature.net/<portal>`) have no public feed, so their search pages are read, at whatever page size the site gives (Bloomberg's is 12), and every role worldwide is listed; your `locations` then keep the ones you want. A posting's text is read from its own page only when the role is about to be scored. The pages give no posting date. Avature sites on the employer's own domain, and portals that don't use Avature's standard search page, are not read.
+
+Talentsoft (Cegid) career sites publish every role, with its description, in an RSS feed, so one request reads the whole list. On the employer's own domain add `platform: talentsoft`; `<company>.talent-soft.com` is recognised on its own. Click a country in the site's filters and copy the address: `facet_JobCountry=96` (or the feed's own `Rss_JobCountry=96`) reads only that country's roles. `LCID` picks the language (2057, English, unless the address says otherwise).
+
+Groupe BPCE's career sites (`recrutement.natixis.com`, `recrutement.bpce.fr`) are read through the search their own pages use, each role with its description. The site's filters carry over from the address, so `?tax_place=inde` reads only the roles in India. Some roles are posted only in French.
 
 Any other address is shown as "check by hand" with a link, so nothing silently drops out. A company whose board fails to load keeps its roles as they were; after 7 days without a successful read they close.
 

@@ -29,7 +29,7 @@ flowchart LR
 
 ## 1. Read
 
-Each company's board is read through the JSON feed its own careers page uses: Workday, Greenhouse, Lever, Ashby, SmartRecruiters, Oracle Recruiting Cloud, SAP SuccessFactors, Eightfold, TurboHire, Phenom, iCIMS (Jibe), Avature, Amazon, Google, Goldman Sachs and D. E. Shaw. Older SuccessFactors sites and Avature sites have no feed, so their search pages are read instead; Google's results pages carry their roles as data inside the page. Four boards at a time, with retries and backoff on errors. A board that cannot be read is reported, never treated as "no roles".
+Each company's board is read through the JSON feed its own careers page uses: Workday, Greenhouse, Lever, Ashby, SmartRecruiters, Oracle Recruiting Cloud, SAP SuccessFactors, Eightfold, TurboHire, Phenom, iCIMS (Jibe), Avature, Talentsoft (its RSS feed), Amazon, Google, Goldman Sachs, D. E. Shaw and Groupe BPCE. Older SuccessFactors sites and Avature sites have no feed, so their search pages are read instead; Google's results pages carry their roles as data inside the page. Four boards at a time, with retries and backoff on errors. A board that cannot be read is reported, never treated as "no roles".
 
 ## 2. Filter (free)
 
