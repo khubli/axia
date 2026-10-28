@@ -29,6 +29,7 @@ Node 22 or later. No other tools are needed.
 | `src/feedback.mjs`, `src/review.mjs`, `src/calibrate.mjs` | Your calls from the dashboard, the weekly criteria review, and `axia calibrate` |
 | `src/gaps.mjs` | The weekly "what keeps coming up" themes |
 | `src/moonshots.mjs`, `src/tailor.mjs` | The optional Moonshots tab and Tailor requests |
+| `src/layoffs.mjs` | The optional Layoffs label, from your hand-kept `layoffs.yml` |
 | `src/render.mjs` | The view model shared by the dashboard and `dashboard/README.md` |
 | `src/notify.mjs` | What gets sent and when; Telegram and email |
 | `src/site.mjs`, `src/dashboard/` | The dashboard page, its Worker (saves your calls and Tailor clicks), service worker, icons and fonts |

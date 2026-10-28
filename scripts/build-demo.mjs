@@ -7,6 +7,7 @@ import { resolve } from 'node:path';
 import { buildSite } from '../src/site.mjs';
 import { isoDate } from '../src/text.mjs';
 import { normalizeMoonshots } from '../src/moonshots.mjs';
+import { normalizeLayoffs } from '../src/layoffs.mjs';
 import { briefLine } from '../src/changes.mjs';
 
 const out = resolve(process.argv[2] ?? '_site');
@@ -236,5 +237,13 @@ const tailor = {
   },
 };
 
-buildSite({ state: { jobs, companies, gaps, history }, summary, settings, feedback, tailor, moonshots }, out, { minScore: 65, demo: true });
+// Recent layoffs, as a layoffs.yml would list them (made up, like everything here).
+const layoffs = normalizeLayoffs({
+  layoffs: [
+    { company: 'Litware Insurance', announced: daysAgo(20), where: 'global', size: 'about 1,200 roles (4%)', note: 'mostly claims operations', link: 'https://news.example.com/litware-cuts' },
+    { company: 'Fabrikam Capital', announced: daysAgo(70).slice(0, 7), where: 'UK', size: 'about 300 roles', link: 'https://news.example.com/fabrikam' },
+  ],
+}, { companies: COMPANIES.map((c) => c.name), today: daysAgo(0), months: 6 }).byCompany;
+
+buildSite({ state: { jobs, companies, gaps, history }, summary, settings, feedback, tailor, moonshots, layoffs }, out, { minScore: 65, demo: true });
 console.log(`Demo dashboard written to ${out}`);

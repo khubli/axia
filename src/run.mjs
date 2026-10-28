@@ -25,6 +25,7 @@ import { notifyMinScore, seedNotified, trackProblems, planMessages, deliver, app
 import { isoDate, normalize, similarity } from './text.mjs';
 import { loadFeedback, saveFeedback, pullFeedback, applyFeedback, snapshotFeedback } from './feedback.mjs';
 import { loadMoonshots } from './moonshots.mjs';
+import { loadLayoffs } from './layoffs.mjs';
 import { loadTailor, saveTailor, pullTailor, applyTailor, snapshotTailor, loadDone, tailorEnabled } from './tailor.mjs';
 import { rollUpGaps } from './gaps.mjs';
 import { snapshot, runChanges, addHistory, briefLine } from './changes.mjs';
@@ -440,7 +441,9 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   state.lastRun.changes = summary.changes;
   state.history = addHistory(state.history, { summary, changes, state, settings });
 
-  const view = { state, summary, settings, feedback, tailor, moonshots };
+  // Recent layoffs (layoffs.yml, kept by hand): a label only, read fresh each run so old news drops off.
+  const layoffs = loadLayoffs(dir, settings, { companies: companies.map((c) => c.name), today, log });
+  const view = { state, summary, settings, feedback, tailor, moonshots, layoffs };
   if (!dryRun) {
     saveState(statePath, state);
     saveFeedback(dir, feedback);

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.21.0
+
+- **A label for recent layoffs.** Add a line to a new, optional `layoffs.yml` when you read that one of your companies is cutting jobs (company, date, India or elsewhere, size, link), and a **Layoffs** label shows on the company on the **Companies** tab and on each of its roles, with the details and the link in the role's details. Cuts in India are shown more strongly than cuts elsewhere. Each line drops off by itself 6 months after it was announced (`layoffs.months`). The label never changes a score or hides a role, and Axia does not search the news, so it costs no AI requests ([details](docs/configuration.md#recent-layoffs-and-layoffsyml)).
+
 ## 1.20.0
 
 - **Talentsoft career sites.** Employers whose careers site runs on Talentsoft (Cegid), such as Crédit Agricole CIB's `jobs.ca-cib.com`, can now be read: add `platform: talentsoft` (sites on `<company>.talent-soft.com` are recognised on their own). Every role comes from the site's RSS feed with its full description, in one request. Copy the job list's address after picking a country in its filters (`?facet_JobCountry=96` is India) and only that country's roles are read. The reference number at the start of each title is left off ([details](docs/configuration.md#companiesyml)).

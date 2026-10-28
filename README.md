@@ -31,6 +31,7 @@ Most job-search tools start from a job board and a keyword search, then give you
 - **Your choice of model.** Claude through your subscription or API key, or any model on OpenRouter (GPT, Gemini, Llama, Mistral…), or any OpenAI-compatible API. Switch with one line in `settings.yml`, and check the new model against your own verdicts with `axia calibrate`.
 - **Shaped by plain files.** Companies, titles, places, thresholds, schedule, messages and criteria are text files in your repository. A new job site is one small file.
 - **An app on your phone.** The dashboard installs as an app, opens instantly, works offline and refreshes itself, in light or dark.
+- **Recent layoffs, as a heads-up (optional).** List layoff news you read in a `layoffs.yml` and the company and its roles carry a **Layoffs** label, India cuts shown more strongly, until it drops off six months later. Kept by hand, so it costs no AI requests and never touches a score.
 - **Room for your own tools (optional).** A Moonshots tab shows stretch roles another tool of yours tracks, from a `moonshots.json` file. A Tailor button queues a role, with its posting text, for your own resume-tailoring workflow, and can start it at the click. Axia writes no resumes itself.
 
 **What Axia is not:** not an auto-apply bot, not a LinkedIn or job-board scraper, not a resume rewriter, and not a hosted service. It tells you where to look and why. You decide, and you apply.

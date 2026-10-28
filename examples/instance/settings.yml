@@ -62,6 +62,11 @@ review:
 # dashboard's Moonshots tab (not scored). No file, no tab. See docs/configuration.md.
 # moonshots: false
 
+# Optional: a Layoffs label on companies that announced job cuts, from a layoffs.yml you keep by hand
+# next to this file (company, date, where, link). Never changes a score. See docs/configuration.md.
+# layoffs:
+#   months: 6              # how long a label shows after the announcement
+
 # Optional: a "Tailor for this role" button that queues a role, with its posting text, for your own
 # resume-tailoring tool. Axia doesn't write resumes. See docs/configuration.md#tailored-applications.
 # tailor: true

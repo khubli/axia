@@ -111,6 +111,10 @@ review:
 moonshots:
   file: moonshots.json           # [moonshots.json] stretch roles you track elsewhere, shown on their own tab; false turns it off
 
+layoffs:                         # false turns it off
+  file: layoffs.yml              # [layoffs.yml] recent layoffs at your companies, kept by hand (below); no file, no labels
+  months: 6                      # [6] a label shows for this many calendar months after the month it was announced
+
 tailor:                          # true is short for enabled: true
   enabled: false                 # [false] a Tailor for this role button on each role and moonshot, queued for your own tailoring tool
   done: tailored.json            # [tailored.json] the file your tool writes when a request is done
@@ -200,6 +204,28 @@ estimate_floor: 1500000                # [none] AI estimates whose yearly top is
 ```
 
 Fill it from what you can see yourself: offers, recruiters, colleagues, or salary sites you read (credit them in `source`; many, such as Levels.fyi, ask for attribution and don't allow bulk collection). Axia never fetches pay data from any site. `estimate_floor` catches a model's slip, such as ₹5 to 8 lakh for a VP role (a zero dropped). An AI estimate in the table's currency whose yearly top is below it shows no pay instead; so does an estimate the model marks "placeholder". Pay stated on a posting or taken from your table is never checked against it. Setting or changing the floor asks the model nothing: pay already saved is checked on the next run, and the floor's line doesn't count as a change to the table. Pay is filled on roles as they are scored. Roles scored before, and roles on the dashboard after you change `pay.yml`, get it from the same catch-up as the level (see levels.md above).
+
+## Recent layoffs, and layoffs.yml
+
+A short file you keep by hand that puts a **Layoffs** label on companies that have announced job cuts: on the company's row on the **Companies** tab (with where and when), on each of its roles under the score, and in a role's details with your note and a link to the report. The Companies tab also lists them all under **Recent layoffs**, cuts in India first. The label is a heads-up for you only. It never changes a score, never hides a role and is not in any message.
+
+Axia does not search the news. You add a line when you read a report, so the label costs nothing at run time and no AI request. Each run reads the file again, and a line drops off by itself `layoffs.months` (6) calendar months after the month it was announced: a line for October 2026 shows until the end of March 2027.
+
+```yaml
+layoffs:
+  - company: Example Bank          # as named in companies.yml (any capitals)
+    announced: 2026-10-22          # the date, or just the month: 2026-10
+    where: global                  # india, global, or a place such as UK or US
+    size: about 5,000 jobs (5%)    # optional, in your words
+    note: mostly UK retail         # optional
+    link: https://news.example.com/example-bank-cuts   # the report you read
+  - company: Example Bank
+    announced: 2026-08
+    where: India
+    size: about 200 roles at the Pune centre
+```
+
+A company can have several lines; the newest leads. When any line says India, the label is filled in rather than outlined and names India first, because cuts where you would work matter more than cuts elsewhere. A line for a company that isn't in `companies.yml`, without a usable date, or dated in the future is skipped with the reason in the run log, and a file that isn't valid YAML only means no labels that run.
 
 ## moonshots.json
 
