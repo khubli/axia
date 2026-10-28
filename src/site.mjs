@@ -121,6 +121,9 @@ export function siteData(view, { minScore, demo = false }) {
     gaps: pageGaps(state, settings),
     // What the last run changed (changes.mjs); null before the first run that records it.
     brief: pageBrief(summary.changes, state),
+    // Recent layoffs from your layoffs.yml, by company name: a label only, never part of the score.
+    layoffs: view.layoffs ?? {},
+    layoffMonths: settings.layoffs?.months ?? 6,
     moonshots: view.moonshots ? (view.moonshots.problem ? { problem: view.moonshots.problem } : { ...view.moonshots.report, dropped: undefined }) : null,
   };
 }

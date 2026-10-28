@@ -28,6 +28,9 @@ const DEFAULTS = {
   // Moonshots: stretch roles you track outside Axia (another tool or a research task writes the file),
   // shown on their own dashboard tab, not scored. No file, no tab. false turns it off.
   moonshots: { file: 'moonshots.json' },
+  // Recent layoffs: a heads-up label on companies you list in this file (kept by hand, no AI),
+  // shown for `months` calendar months after the announcement. No file, no labels. false turns it off.
+  layoffs: { file: 'layoffs.yml', months: 6 },
   // Gaps that keep coming up: once a week, the gaps of open roles scored min_score to max_score,
   // grouped into themes on the dashboard. false turns it off.
   gaps: { min_score: 55, max_score: 89 },
@@ -67,6 +70,13 @@ export function loadSettings(dir = ROOT) {
     s.gaps[key] = n;
   }
   if (s.gaps.min_score > s.gaps.max_score) throw new ConfigError('settings.yml: gaps.min_score must not be above gaps.max_score');
+  if (raw.layoffs === false || s.layoffs.file === false) s.layoffs = { ...DEFAULTS.layoffs, file: '' };
+  if (typeof s.layoffs.file !== 'string') throw new ConfigError(`settings.yml: layoffs.file must be a file name (for example layoffs.yml) or false, not "${s.layoffs.file}"`);
+  {
+    const n = Number(s.layoffs.months);
+    if (!Number.isInteger(n) || n < 1 || n > 36) throw new ConfigError(`settings.yml: layoffs.months must be a whole number of months from 1 to 36, not "${s.layoffs.months}"`);
+    s.layoffs.months = n;
+  }
   if (typeof s.moonshots.file !== 'string') throw new ConfigError(`settings.yml: moonshots.file must be a file name (for example moonshots.json) or false, not "${s.moonshots.file}"`);
   // Older settings kept the dashboard link under report.
   if (!s.dashboard.url && s.dashboard.domain) s.dashboard.url = `https://${s.dashboard.domain}`;
