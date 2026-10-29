@@ -57,6 +57,9 @@ inputs:
   cloudflare-account-id:
     description: Your Cloudflare account id.
     default: ''
+  x-bearer-token:
+    description: "Optional, for hiring heat: an X API Bearer Token (developer console → your app → Keys and tokens). Once a week Axia reads at most heat.x_max_posts posts (X bills per post read)."
+    default: ''
   tailor-dispatch-token:
     description: "With tailor.dispatch in settings.yml: a GitHub token that may start workflows in that repository (fine-grained, Actions: read and write only). The dashboard's Tailor button then starts your tailoring workflow at once."
     default: ''
@@ -115,6 +118,7 @@ runs:
         EMAIL_TO: ${{ inputs.email-to }}
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+        X_BEARER_TOKEN: ${{ inputs.x-bearer-token }}
       run: |
         args=(run --dir "$AXIA_DIR")
         if [ "$AXIA_RESCORE" = "true" ]; then args+=(--rescore); fi
