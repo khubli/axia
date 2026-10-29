@@ -18,6 +18,10 @@ companies:
   - name: Branded Co               # a SuccessFactors site on the employer's own domain
     url: https://careers.branded.example/search/?locationsearch=India
     platform: successfactors
+  - name: JP Morgan
+    url: https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs
+    rank: 4                        # optional: your own ranking, 1 = favourite (for hiring heat)
+    news: JPMorgan Chase           # optional: the name the news uses, when it differs (for hiring heat)
 ```
 
 The address decides how a company is read:
@@ -123,6 +127,14 @@ layoffs:                         # false turns it off
   file: layoffs.yml              # [layoffs.yml] recent layoffs at your companies, kept by hand (below); no file, no labels
   months: 6                      # [6] a label shows for this many calendar months after the month it was announced
 
+heat:                            # hiring heat per company (below); false turns it off
+  news: true                     # [true] once a week, a free Google News search per company for hiring news
+  signals: signals.yml           # [signals.yml] hiring signals you add by hand (below); no file, none
+  days: 60                       # [60] how long a signal counts
+  x_handles: []                  # [[]] recruiters on X whose hiring posts to read weekly (needs X_BEARER_TOKEN)
+  x_companies: 10                # [10] also read X posts naming your top companies by rank with hiring words
+  x_max_posts: 40                # [40] posts read from X a week at most (X bills per post read)
+
 tailor:                          # true is short for enabled: true
   enabled: false                 # [false] a Tailor for this role button on each role and moonshot, queued for your own tailoring tool
   done: tailored.json            # [tailored.json] the file your tool writes when a request is done
@@ -217,7 +229,7 @@ Fill it from what you can see yourself: offers, recruiters, colleagues, or salar
 
 A short file you keep by hand that puts a **Layoffs** label on companies that have announced job cuts: on the company's row on the **Companies** tab (with where and when), on each of its roles under the score, and in a role's details with your note and a link to the report. The Companies tab also lists them all under **Recent layoffs**, cuts in India first. The label is a heads-up for you only. It never changes a score, never hides a role and is not in any message.
 
-Axia does not search the news. You add a line when you read a report, so the label costs nothing at run time and no AI request. Each run reads the file again, and a line drops off by itself `layoffs.months` (6) calendar months after the month it was announced: a line for October 2026 shows until the end of March 2027.
+Axia does not add layoffs from the news. (The weekly hiring heat scan may flag layoff news on a company for you to check; only this file lowers its heat.) You add a line when you read a report, so the label costs nothing at run time and no AI request. Each run reads the file again, and a line drops off by itself `layoffs.months` (6) calendar months after the month it was announced: a line for October 2026 shows until the end of March 2027.
 
 ```yaml
 layoffs:
@@ -234,6 +246,42 @@ layoffs:
 ```
 
 A company can have several lines; the newest leads. When any line says India, the label is filled in rather than outlined and names India first, because cuts where you would work matter more than cuts elsewhere. A line for a company that isn't in `companies.yml`, without a usable date, or dated in the future is skipped with the reason in the run log, and a file that isn't valid YAML only means no labels that run.
+
+## Hiring heat, and signals.yml
+
+How hard each of your companies seems to be hiring right now, so you can see where an extra push (a note to a hiring manager or an ex-colleague, a cold email) is most likely to land. Axia only points; the outreach is yours. Heat never changes a score, never hides a role and never decides which roles are messaged.
+
+Each company gets points, worked out every run from Axia's own memory at no AI cost:
+
+| Signal | Points |
+|---|---|
+| New senior roles in your places in the last 14 days (roles found in a company's first week in Axia don't count) | +1 each, up to +10 |
+| Open roles scoring `report.show_from` (50) or more | +3 each, up to +15 |
+| All the postings on its site against about four weeks ago (once three weeks of history exist) | +5 when up a third, −5 when down a third |
+| Hiring signals from the last `heat.days` (60) days | +5 each, up to +10 |
+| Open roles posted 45 days ago or more | −1 each, down to −3 |
+| Layoffs in your `layoffs.yml` | −5, or −8 when they mention India |
+
+**Hot** is 20 points or more, **Warm** 10 to 19, **Cool** 1 to 9 and **Quiet** 0 or less. The **Companies** tab has a Heat column (the table is sorted by it) and a **Hiring heat** list of the hot and warm companies with what earned the points and the signals behind them. The **Roles** tab has **Where to put effort this week**: the five hottest, with your `rank` in `companies.yml` breaking near ties (up to 10 extra points for your favourite), each with a button to show its roles. The weekly message names them too.
+
+Hiring signals come from three places:
+
+- **News**, once a week (`heat.news`): a Google News search per company for hiring words (hiring, new office, GCC, expansion, funding, appoints, layoffs and so on) over the last seven days. Only headlines that name the company are kept, up to five each. The search is free and needs no key; `news:` in `companies.yml` sets the name searched for.
+- **X**, once a week, with an `X_BEARER_TOKEN` secret (the action's `x-bearer-token`): posts from the recruiters in `heat.x_handles` that use hiring words, and posts naming your `heat.x_companies` (10) top-ranked companies with hiring words, since the last scan. X bills per post read, so `heat.x_max_posts` (40) is a cap on the cost, split between the two searches. A token that is refused or out of credits is named on the dashboard and the rest goes on.
+- **Your own `signals.yml`**, read every run, for anything the others miss, such as a post you saw:
+
+```yaml
+signals:
+  - company: Razorpay              # as named in companies.yml (any capitals)
+    date: 2026-10-29
+    note: a recruiter lists Razorpay as hiring
+    link: https://x.com/…          # optional
+    kind: hiring                   # optional: gcc, hiring, funding or leader (hiring when left out)
+```
+
+The news and posts go to the model in one small request a week, which keeps only real signals: a new GCC, tech centre or office; a hiring drive; funding; a senior technology leader joining; or job cuts. Product launches, partnerships, results and passing mentions are left out. Layoff news shows as a flag on the company for you to check and add to `layoffs.yml` if it is real; it doesn't change the heat by itself. When the request fails, the posts already read wait for the next run so they are not paid for twice.
+
+`axia heat --dir <your folder>` (or **Axia preview** with `heat`) runs the weekly scan now and prints every company's heat with its signals. It writes nothing and sends nothing; with an X token it does read up to `heat.x_max_posts` posts.
 
 ## moonshots.json
 
@@ -341,6 +389,7 @@ Roles you have judged yourself, so you can measure how often the model agrees wi
 | `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_TO` | secrets | messages by email |
 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | secrets | publishing the dashboard |
 | `AXIA_TAILOR_TOKEN` | secret | optional, with `tailor.dispatch`: lets a Tailor click start your tailoring workflow at once (passed as the action's `tailor-dispatch-token`) |
+| `X_BEARER_TOKEN` | secret | optional, for hiring heat: reads recruiters' hiring posts on X once a week (passed as the action's `x-bearer-token`) |
 | `NOTIFY_MIN_SCORE` | variable | message threshold, overrides `notify.min_score` |
 
 ## Files Axia writes

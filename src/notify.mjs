@@ -11,6 +11,7 @@ import { daysBetween } from './state.mjs';
 import { escapeHtml, truncate, jobId, decodeEntities } from './text.mjs';
 import { citiesOf } from './site.mjs';
 import { gapsView } from './gaps.mjs';
+import { effortLine } from './heat.mjs';
 
 const MAX_ITEMS = 8;
 const UNREAD_ALERT_DAYS = 2; // first failure + 2 more days = the third day in a row
@@ -97,7 +98,7 @@ const TELEGRAM_LIMIT = 4000;
  * (new good matches, problems, the weekly note). Pure: reads state, changes nothing.
  * @returns {Array<{kind: 'digest', parts: string[], subject: string, html: string, silent: boolean, keys: string[], problemKeys: string[], weekly: boolean}>}
  */
-export function planMessages({ state, summary, settings, minScore, today }) {
+export function planMessages({ state, summary, settings, minScore, today, heat = null }) {
   const dash = settings.dashboard.url;
   const a = (href, text) => `<a href="${escapeHtml(href)}">${text}</a>`;
   const open = Object.values(state.jobs).filter((j) => j.status === 'open');
@@ -156,6 +157,7 @@ export function planMessages({ state, summary, settings, minScore, today }) {
       `Open now: ${plural(ai.filter((j) => j.score.value >= good).length, 'good match')} (${good}+) · ${ai.filter((j) => j.score.value >= floor && j.score.value < good).length} worth a look · ${open.length} in all`,
       summary.ai.enabled ? (waiting ? `${waiting} waiting for an AI score` : 'Every open role has an AI score') : 'AI scoring is off: scores are title estimates',
       ...(gaps?.themes.length ? [`Gap that comes up most in your ${gaps.min}–${gaps.max} roles: ${gaps.themes[0].theme} (${gaps.themes[0].keys.length} of ${gaps.total})`] : []),
+      ...(effortLine(heat) ? [effortLine(heat)] : []),
     ].map(escapeHtml);
   }
 

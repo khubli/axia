@@ -32,6 +32,7 @@ import { snapshot, runChanges, addHistory, briefLine } from './changes.mjs';
 import { loadLevels, levelField } from './levels.mjs';
 import { catchUp, catchUpQueue } from './catchup.mjs';
 import { loadPayGuide, payField, dropImplausiblePay } from './pay.mjs';
+import { recordListed, scanSignals, loadSignals, computeHeat } from './heat.mjs';
 
 const KEYWORD_DETAIL_BUDGET = 150; // detail fetches for keyword scoring when AI is off
 const SECOND_LOOK_MAX = 1500; // new titles the second look asks about per run; the rest wait for the next run
@@ -270,6 +271,8 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   const openBefore = new Set(Object.values(state.jobs).filter((j) => j.status === 'open').map((j) => j.key));
   const watched = new Set(companies.filter((c) => c.enabled).map((c) => c.name));
   closeAndPrune(state, { seenKeys: listedKeys, okCompanies, watched, today });
+  // For hiring heat: each company's postings today (all titles), for the four-week trend.
+  if (settings.heat.enabled) recordListed(state, reads, today, watched);
   const closedToday = [...openBefore].filter((k) => state.jobs[k]?.status === 'closed');
 
   // Coming from a version that sent a daily digest: the good matches scored before
@@ -395,6 +398,9 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   // ── 5b. Gaps that keep coming up: once a week, when your close calls have changed ──
   if (aiScorer) await rollUpGaps({ state, settings, scorer: aiScorer, today, log });
 
+  // ── 5d. Hiring heat: once a week, this week's hiring news (and X posts) checked by one model call ──
+  if (aiScorer && !wanted.size) await scanSignals({ state, settings, companies, scorer: aiScorer, env, http, today, now, log });
+
   // ── 6. Report ─────────────────────────────────────────────────────────────
   const summary = {
     runAt,
@@ -427,10 +433,16 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   );
   if (ai.stoppedBecause) log(`AI scoring stopped early: ${ai.stoppedBecause}`);
 
+  // Recent layoffs (layoffs.yml, kept by hand): a label only, read fresh each run so old news drops off.
+  const companyNames = companies.map((c) => c.name);
+  const layoffs = loadLayoffs(dir, settings, { companies: companyNames, today, log });
+  // Hiring heat per company: free, from this memory, your signals.yml and the weekly scan's signals.
+  const heat = computeHeat({ state, settings, companies, layoffs: layoffs ?? {}, signals: loadSignals(dir, settings, { companies: companyNames, today, log }), today });
+
   let delivery = [];
   let messages = [];
   if (!dryRun && !args['no-notify']) {
-    messages = planMessages({ state, summary, settings, minScore, today });
+    messages = planMessages({ state, summary, settings, minScore, today, heat });
     delivery = await deliver(messages, env, { log });
     applyDelivery(state, messages, delivery, today);
   }
@@ -441,9 +453,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   state.lastRun.changes = summary.changes;
   state.history = addHistory(state.history, { summary, changes, state, settings });
 
-  // Recent layoffs (layoffs.yml, kept by hand): a label only, read fresh each run so old news drops off.
-  const layoffs = loadLayoffs(dir, settings, { companies: companies.map((c) => c.name), today, log });
-  const view = { state, summary, settings, feedback, tailor, moonshots, layoffs };
+  const view = { state, summary, settings, feedback, tailor, moonshots, layoffs, heat };
   if (!dryRun) {
     saveState(statePath, state);
     saveFeedback(dir, feedback);
