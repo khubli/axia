@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   parseNewsFeed, namesCompany, newsUrl, readNews, xQueries, readX, cleanSignals, normalizeSignals, loadSignals,
-  recordListed, trendOf, computeHeat, scanSignals, scanDue, effortLine, reasonOf, levelOf, itemsText,
+  recordListed, backfillSince, trendOf, computeHeat, scanSignals, scanDue, effortLine, reasonOf, levelOf, itemsText,
 } from '../src/heat.mjs';
 import { loadSettings, loadCompanies, ConfigError } from '../src/config.mjs';
 import { siteData, renderSite } from '../src/site.mjs';
@@ -292,4 +292,15 @@ test('the page and the weekly message carry the heat', () => {
   const weekly = { ...settings, notify: { ...settings.notify, weekly: 'monday' } };
   const msgs = planMessages({ state: { ...state, problems: {}, lastWeekly: null }, summary: view.summary, settings: weekly, minScore: 65, today: '2026-11-02', heat });
   assert.match(msgs[0].html, /Where to put effort: Big Bank \(Hot\), PhonePe \(Hot\)/);
+});
+
+test('backfillSince dates each company from its oldest role and keeps an earlier date', () => {
+  const state = {
+    jobs: { a: { company: 'Big Bank', firstSeen: '2026-09-01' }, b: { company: 'Big Bank', firstSeen: '2026-10-20' }, c: { company: 'Old Co', firstSeen: '2026-10-01' } },
+    companies: { 'Big Bank': {}, 'Old Co': { since: '2026-08-01' }, 'Empty Co': {} },
+  };
+  backfillSince(state, '2026-10-29');
+  assert.equal(state.companies['Big Bank'].since, '2026-09-01');
+  assert.equal(state.companies['Old Co'].since, '2026-08-01');
+  assert.equal(state.companies['Empty Co'].since, '2026-10-29');
 });
