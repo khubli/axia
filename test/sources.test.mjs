@@ -491,3 +491,59 @@ test('bpce: recrutement.natixis.com search, filters from the address, paged with
 
   await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['/search/jobs', { code: 'rest_no_route' }]]))), /no job list/);
 });
+
+test('oracle: a site over 10,000 postings also reads each category, so the oldest are not cut off', async () => {
+  const { source, params } = detect('https://hcbt.fa.em2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX/jobs');
+  const req = (id) => ({ Id: id, Title: `Role ${id}`, PrimaryLocation: 'Mumbai, Maharashtra, India', PostedDate: '2026-10-01' });
+  const http = fakeHttp([
+    ['facetsList%3DCATEGORIES', { items: [{ TotalJobsCount: 10250, categoriesFacet: [{ Id: 11, TotalCount: 2 }, { Id: 22, TotalCount: 0 }] }] }],
+    ['selectedCategoriesFacet%3D11', { items: [{ TotalJobsCount: 2, requisitionList: [req('5'), req('old-1')] }] }],
+    ['recruitingCEJobRequisitions', (url) => {
+      const offset = Number(decodeURIComponent(url).match(/offset=(\d+)/)[1]);
+      const reqs = offset >= 10000 ? [] : Array.from({ length: 200 }, (_, i) => req(String(offset + i)));
+      return { items: [{ TotalJobsCount: offset >= 10000 ? 0 : 10250, requisitionList: reqs }] };
+    }],
+  ]);
+  const jobs = await source.list(params, ctx(http));
+  assert.equal(jobs.length, 10001, 'the newest 10,000 plus the one older posting its category adds');
+  assert.equal(jobs.at(-1).id, 'old-1');
+  assert.equal(http.calls.filter((c) => c.url.includes('selectedCategoriesFacet')).length, 1, 'an empty category is skipped');
+
+  // Under 10,000: one read, no category pass.
+  const small = fakeHttp([['recruitingCEJobRequisitions', fixture('oracle-list.json')]]);
+  await source.list(params, ctx(small));
+  assert.equal(small.calls.length, 1);
+});
+
+test('ripplehire: list paged without descriptions, detail adds description and date', async () => {
+  const site = detect('https://axisbank.ripplehire.com/candidate/?token=WIXhCuz0XRZ7H0GZCwjJ&source=CAREERSITE#list');
+  assert.deepEqual([site.source.type, site.params.origin, site.params.token, site.params.source], ['ripplehire', 'https://axisbank.ripplehire.com', 'WIXhCuz0XRZ7H0GZCwjJ', 'CAREERSITE']);
+  assert.equal(detect('https://axisbank.ripplehire.com/auth/saml2/authenticate/axisbank'), null, 'no token: not a public job list');
+
+  const role = (n, title, locations) => ({ jobSeq: String(n), jobTitle: title, jobLocation: 'India', locations });
+  const page1 = Array.from({ length: 1000 }, (_, i) => role(i, `Branch:Teller ${i}`, 'PHAGWARA, Phagwara'));
+  const http = fakeHttp([
+    ['candidatejobsearch', (url) => {
+      const p = JSON.parse(new URL(url).searchParams.get('careerSiteUrlParams'));
+      return { errorStatus: 'success', totalJobCount: 1002, jobVoList: p.page === 0 ? page1 : [role(777777, 'IT:Head - Technology Solution', 'Mumbai'), role(0, 'Branch:Teller 0', 'x'), role(5, 'x', null)] };
+    }],
+    ['candidatejobdetail', { jobVO: { jobDesc: '<p>Lead the <b>payments</b> platform.</p>', jobSkills: 'Refer to the Job Description', jobPostingDate: '29-Oct-2026', publishDetails: { CAREER_SITE: '2026-10-28T20:50:06Z' } } }],
+  ]);
+  const jobs = await site.source.list(site.params, ctx(http));
+  const first = JSON.parse(new URL(http.calls[0].url).searchParams.get('careerSiteUrlParams'));
+  assert.deepEqual(first, { page: 0, search: '*:*', token: 'WIXhCuz0XRZ7H0GZCwjJ', source: 'CAREERSITE', pagesize: 1000 });
+  assert.equal(http.calls.length, 2);
+  assert.equal(jobs.length, 1001, 'a role on two pages counts once');
+  assert.deepEqual(jobs[1000], {
+    id: '777777',
+    title: 'IT:Head - Technology Solution',
+    location: 'Mumbai',
+    url: 'https://axisbank.ripplehire.com/candidate/?token=WIXhCuz0XRZ7H0GZCwjJ&source=CAREERSITE#detail/job/777777',
+    postedAt: null,
+  });
+  const d = await site.source.detail(site.params, jobs[1000], ctx(http));
+  assert.deepEqual(d, { description: 'Lead the payments platform.', postedAt: '2026-10-28' });
+  assert.match(http.calls.at(-1).url, /candidatejobdetail\?token=WIXhCuz0XRZ7H0GZCwjJ&jobSeq=777777&source=CAREERSITE&lang=en/);
+
+  await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['candidatejobsearch', { errorStatus: 'failure' }]]))), /no job list/);
+});
