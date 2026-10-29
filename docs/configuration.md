@@ -28,7 +28,7 @@ The address decides how a company is read:
 
 | Job site | Address looks like |
 |---|---|
-| Workday | `https://<company>.wd<N>.myworkdayjobs.com/<site>` (a language part such as `/en-US` is fine) |
+| Workday | `https://<company>.wd<N>.myworkdayjobs.com/<site>` (a language part such as `/en-US` is fine; filters picked on the site, such as `?locations=<id>`, carry over) |
 | Greenhouse | `https://job-boards.greenhouse.io/<company>` or `boards.greenhouse.io/<company>` |
 | Lever | `https://jobs.lever.co/<company>` (also `jobs.eu.lever.co`) |
 | Ashby | `https://jobs.ashbyhq.com/<company>` |

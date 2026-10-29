@@ -72,6 +72,15 @@ test('workday: pages through every posting using the first page total', async ()
   assert.equal(jobs[0].postedAt, '2026-10-12');
 });
 
+test('workday: filters picked on the career site carry over from the address', async () => {
+  const { source, params } = detect('https://capitalone.wd12.myworkdayjobs.com/en-US/Capital_One?locations=0f05&locations=9a1b&jobFamilyGroup=77c&q=architect');
+  assert.equal(params.site, 'Capital_One');
+  assert.equal(params.scope, 'capitalone');
+  const http = fakeHttp([['/Capital_One/jobs', { total: 0, jobPostings: [] }]]);
+  await source.list(params, ctx(http));
+  assert.deepEqual(http.calls[0].body, { appliedFacets: { locations: ['0f05', '9a1b'], jobFamilyGroup: ['77c'] }, limit: 20, offset: 0, searchText: 'architect' });
+});
+
 test('workday "posted" text becomes a date', () => {
   assert.equal(postedOnToDay('Posted Today', '2026-10-15'), '2026-10-15');
   assert.equal(postedOnToDay('Posted Yesterday', '2026-10-15'), '2026-10-14');

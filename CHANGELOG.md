@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.25.0
+
+- **Workday filters carry over from the address.** Pick a filter on a Workday career site, such as a location, and copy the address: `https://capitalone.wd12.myworkdayjobs.com/en-US/Capital_One?locations=…` now reads only the roles that filter shows (search words in `q=` carry over too). Large sites that list most roles as "N Locations", such as Capital One's (about 2,000 roles, 1,360 of them US roles listed that way), no longer need every such posting opened and its title judged just to find the 19 in Bengaluru. Addresses without filters are read as before ([details](docs/configuration.md#companiesyml)).
+
 ## 1.24.0
 
 - **Hiring heat: where to put extra effort.** Every company now gets a heat level (Hot, Warm, Cool or Quiet) from points Axia works out each run at no AI cost: new senior roles in your places in the last 14 days, open roles scoring 50+, the four-week trend in all its postings, hiring signals, less roles open 45+ days and layoffs in your `layoffs.yml`. Once a week, a free Google News search per company and, with an `X_BEARER_TOKEN`, recruiters' hiring posts on X (`heat.x_handles`, at most `heat.x_max_posts` a week) go to the model in one small request, which keeps only real hiring signals: a new GCC or office, a hiring drive, funding or a senior tech leader joining. You can add your own in `signals.yml`. The **Companies** tab gets a Heat column and a **Hiring heat** list with the reasons and links; the **Roles** tab gets **Where to put effort this week**, the five hottest with your `rank` in `companies.yml` breaking near ties; the weekly message names them. Heat never changes a score. `axia heat` previews it without writing anything ([details](docs/configuration.md#hiring-heat-and-signalsyml)).
