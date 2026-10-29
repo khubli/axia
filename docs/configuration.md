@@ -41,6 +41,7 @@ The address decides how a company is read:
 | Avature | `https://<company>.avature.net/<portal>`, such as `https://bloomberg.avature.net/careers` |
 | Talentsoft | the site's job list, such as `https://jobs.ca-cib.com/job/list-of-jobs.aspx?facet_JobCountry=96`, plus `platform: talentsoft` (not needed on `<company>.talent-soft.com`) |
 | Groupe BPCE | `https://recrutement.natixis.com/en/our-job-offers/?tax_place=inde` or `https://recrutement.bpce.fr/…` (filters carry over) |
+| RippleHire | `https://<company>.ripplehire.com/candidate/?token=<token>&source=CAREERSITE` (the link on the employer's careers page) |
 
 Eightfold sites on the employer's own domain (`portal.careers.<company>.com`) also need the platform named: `platform: eightfold`. `?location=` narrows the search, and `?domain=` names the company domain the site uses when it isn't the address's own; for `<company>.eightfold.ai` it is taken to be `<company>.com`.
 
@@ -55,6 +56,10 @@ Avature career sites (`<company>.avature.net/<portal>`) have no public feed, so 
 Talentsoft (Cegid) career sites publish every role, with its description, in an RSS feed, so one request reads the whole list. On the employer's own domain add `platform: talentsoft`; `<company>.talent-soft.com` is recognised on its own. Click a country in the site's filters and copy the address: `facet_JobCountry=96` (or the feed's own `Rss_JobCountry=96`) reads only that country's roles. `LCID` picks the language (2057, English, unless the address says otherwise).
 
 Groupe BPCE's career sites (`recrutement.natixis.com`, `recrutement.bpce.fr`) are read through the search their own pages use, each role with its description. The site's filters carry over from the address, so `?tax_place=inde` reads only the roles in India. Some roles are posted only in French.
+
+RippleHire career sites (`<company>.ripplehire.com`) are read through the list their own pages use. Copy the link from the employer's careers page: its `token` names the company's public job list, and an address without one (such as a sign-in page) is not read. Every role is listed, a thousand per request, and your `locations` keep the ones you want. A posting's text and date are read from its own page only when the role is about to be scored. If the employer changes its token, the company shows as unreadable until the address is updated.
+
+Oracle's job list pages only as far as 10,000 postings. On a site listing more, the older postings are read by posting date as well, in date ranges small enough for the list, so none are missed.
 
 Any other address is shown as "check by hand" with a link, so nothing silently drops out. A company whose board fails to load keeps its roles as they were; after 7 days without a successful read they close.
 

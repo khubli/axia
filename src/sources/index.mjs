@@ -19,8 +19,9 @@ import * as deshaw from './deshaw.mjs';
 import * as avature from './avature.mjs';
 import * as talentsoft from './talentsoft.mjs';
 import * as bpce from './bpce.mjs';
+import * as ripplehire from './ripplehire.mjs';
 
-export const SOURCES = [workday, greenhouse, smartrecruiters, oracle, goldman, lever, ashby, amazon, google, turbohire, eightfold, successfactors, phenom, jibe, deshaw, avature, talentsoft, bpce];
+export const SOURCES = [workday, greenhouse, smartrecruiters, oracle, goldman, lever, ashby, amazon, google, turbohire, eightfold, successfactors, phenom, jibe, deshaw, avature, talentsoft, bpce, ripplehire];
 
 /** Sites the address can't identify; companies.yml names them with `platform:`. */
 export const PLATFORMS = [successfactors.type, eightfold.type, phenom.type, jibe.type, talentsoft.type];

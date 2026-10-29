@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.22.0
+
+- **RippleHire career sites.** Employers whose careers site runs on RippleHire, such as Axis Bank's (`axisbank.ripplehire.com`), can now be read; the address is recognised on its own. Use the address the employer's careers page links to, which carries the site's token: `https://<company>.ripplehire.com/candidate/?token=…&source=CAREERSITE`. The whole list is read a thousand roles at a time (Axis Bank's 10,300 take 11 requests), and your `locations` keep the places you want. A posting's text and date are read from its own page only when the role is about to be scored ([details](docs/configuration.md#companiesyml)).
+
+- **Oracle sites with more than 10,000 postings are read in full.** Oracle's job list stops at 10,000, so on a site listing more (Kotak Mahindra Bank lists about 11,600) the oldest postings were missed and could look closed. Such a site now also has its older postings read by posting date, in date ranges small enough for the list. Sites under 10,000 are read as before.
+
 ## 1.21.0
 
 - **A label for recent layoffs.** Add a line to a new, optional `layoffs.yml` when you read that one of your companies is cutting jobs (company, date, India or elsewhere, size, link), and a **Layoffs** label shows on the company on the **Companies** tab and on each of its roles, with the details and the link in the role's details. Cuts in India are shown more strongly than cuts elsewhere. Each line drops off by itself 6 months after it was announced (`layoffs.months`). The label never changes a score or hides a role, and Axia does not search the news, so it costs no AI requests ([details](docs/configuration.md#recent-layoffs-and-layoffsyml)).

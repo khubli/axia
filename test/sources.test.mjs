@@ -491,3 +491,82 @@ test('bpce: recrutement.natixis.com search, filters from the address, paged with
 
   await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['/search/jobs', { code: 'rest_no_route' }]]))), /no job list/);
 });
+
+test('oracle: a site over 10,000 postings also reads the older ones by posting date', async () => {
+  const { source, params } = detect('https://hcbt.fa.em2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX/jobs');
+  const req = (id, day) => ({ Id: id, Title: `Role ${id}`, PrimaryLocation: 'Mumbai, Maharashtra, India', PostedDate: day });
+  const http = fakeHttp([
+    ['recruitingCEJobRequisitions', (url) => {
+      const f = decodeURIComponent(url);
+      const offset = Number(f.match(/offset=(\d+)/)[1]);
+      const window = f.match(/postingStartDate=([\d-]+),postingEndDate=([\d-]+)/);
+      if (!window) {
+        // The newest 10,000, the last 200 of them posted on 1 Oct; nothing past offset 10,000.
+        const reqs = offset >= 10000 ? [] : Array.from({ length: 200 }, (_, i) => req(String(offset + i), offset === 9800 ? '2026-10-01' : '2026-10-20'));
+        return { items: [{ TotalJobsCount: offset >= 10000 ? 0 : 10300, requisitionList: reqs }] };
+      }
+      const [, from, to] = window;
+      // Up to 1 Oct: 10,100 postings in all, too many for one read, so the reader halves the window.
+      if (from === '2000-01-01' && to === '2026-10-01') return { items: [{ TotalJobsCount: 10100, requisitionList: [req('x', '2026-10-01')] }] };
+      if (to < '2026-01-01') return { items: [{ TotalJobsCount: 1, requisitionList: [req('old-1', '2024-05-02')] }] };
+      return { items: [{ TotalJobsCount: 2, requisitionList: [req('9999', '2026-10-01'), req('oct-1', '2026-10-01')] }] };
+    }],
+  ]);
+  const jobs = await source.list(params, ctx(http));
+  assert.equal(jobs.length, 10002, 'the newest 10,000 plus the two older postings, each once');
+  assert.deepEqual(jobs.slice(-2).map((j) => j.id), ['old-1', 'oct-1']);
+  const windows = http.calls.map((c) => decodeURIComponent(c.url).match(/postingStartDate=([\d-]+),postingEndDate=([\d-]+)/)?.slice(1).join('..')).filter(Boolean);
+  assert.deepEqual(windows, ['2000-01-01..2026-10-01', '2000-01-01..2013-05-17', '2013-05-18..2026-10-01']);
+
+  // Under 10,000: one read, no date windows.
+  const small = fakeHttp([['recruitingCEJobRequisitions', fixture('oracle-list.json')]]);
+  await source.list(params, ctx(small));
+  assert.equal(small.calls.length, 1);
+});
+
+test('ripplehire: list paged without descriptions, detail adds description and date', async () => {
+  const site = detect('https://axisbank.ripplehire.com/candidate/?token=WIXhCuz0XRZ7H0GZCwjJ&source=CAREERSITE#list');
+  assert.deepEqual([site.source.type, site.params.origin, site.params.token, site.params.source], ['ripplehire', 'https://axisbank.ripplehire.com', 'WIXhCuz0XRZ7H0GZCwjJ', 'CAREERSITE']);
+  assert.equal(detect('https://axisbank.ripplehire.com/auth/saml2/authenticate/axisbank'), null, 'no token: not a public job list');
+
+  const role = (n, title, locations) => ({ jobSeq: String(n), jobTitle: title, jobLocation: 'India', locations });
+  const page1 = Array.from({ length: 1000 }, (_, i) => role(i, `Branch:Teller ${i}`, 'PHAGWARA, Phagwara'));
+  const http = fakeHttp([
+    ['candidatejobsearch', (url) => {
+      const p = JSON.parse(new URL(url).searchParams.get('careerSiteUrlParams'));
+      return { errorStatus: 'success', totalJobCount: 1002, jobVoList: p.page === 0 ? page1 : [role(777777, 'IT:Head - Technology Solution', 'Mumbai'), role(0, 'Branch:Teller 0', 'x'), role(5, 'x', null)] };
+    }],
+    ['candidatejobdetail', { jobVO: { jobDesc: '<p>Lead the <b>payments</b> platform.</p>', jobSkills: 'Refer to the Job Description', jobPostingDate: '29-Oct-2026', publishDetails: { CAREER_SITE: '2026-10-28T20:50:06Z' } } }],
+  ]);
+  const jobs = await site.source.list(site.params, ctx(http));
+  const first = JSON.parse(new URL(http.calls[0].url).searchParams.get('careerSiteUrlParams'));
+  assert.deepEqual(first, { page: 0, search: '*:*', token: 'WIXhCuz0XRZ7H0GZCwjJ', source: 'CAREERSITE', pagesize: 1000 });
+  assert.equal(http.calls.length, 2);
+  assert.equal(jobs.length, 1001, 'a role on two pages counts once');
+  assert.deepEqual(jobs[1000], {
+    id: '777777',
+    title: 'IT:Head - Technology Solution',
+    location: 'Mumbai',
+    url: 'https://axisbank.ripplehire.com/candidate/?token=WIXhCuz0XRZ7H0GZCwjJ&source=CAREERSITE#detail/job/777777',
+    postedAt: null,
+  });
+  const d = await site.source.detail(site.params, jobs[1000], ctx(http));
+  assert.deepEqual(d, { description: 'Lead the payments platform.', postedAt: '2026-10-28' });
+  assert.match(http.calls.at(-1).url, /candidatejobdetail\?token=WIXhCuz0XRZ7H0GZCwjJ&jobSeq=777777&source=CAREERSITE&lang=en/);
+
+  await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['candidatejobsearch', { errorStatus: 'failure' }]]))), /no job list/);
+});
+
+test('oracle: a short page does not end the list early', async () => {
+  const { source, params } = detect('https://efgh.fa.em2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1/jobs');
+  const req = (id) => ({ Id: id, Title: `Role ${id}`, PrimaryLocation: 'Pune, India', PostedDate: '2026-10-01' });
+  const http = fakeHttp([['recruitingCEJobRequisitions', (url) => {
+    const offset = Number(decodeURIComponent(url).match(/offset=(\d+)/)[1]);
+    // Oracle often returns fewer than asked for, mid-list.
+    const n = offset === 0 ? 150 : 90;
+    return { items: [{ TotalJobsCount: 300, requisitionList: Array.from({ length: n }, (_, i) => req(String(offset + i))) }] };
+  }]]);
+  const jobs = await source.list(params, ctx(http));
+  assert.equal(http.calls.length, 2);
+  assert.equal(jobs.length, 240);
+});
