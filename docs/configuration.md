@@ -59,7 +59,7 @@ Groupe BPCE's career sites (`recrutement.natixis.com`, `recrutement.bpce.fr`) ar
 
 RippleHire career sites (`<company>.ripplehire.com`) are read through the list their own pages use. Copy the link from the employer's careers page: its `token` names the company's public job list, and an address without one (such as a sign-in page) is not read. Every role is listed, a thousand per request, and your `locations` keep the ones you want. A posting's text and date are read from its own page only when the role is about to be scored. If the employer changes its token, the company shows as unreadable until the address is updated.
 
-Oracle's job list pages only as far as 10,000 postings. On a site listing more, each job category is read on its own as well, so older postings are not missed; a posting with no category is read only if it is among the newest 10,000.
+Oracle's job list pages only as far as 10,000 postings. On a site listing more, the older postings are read by posting date as well, in date ranges small enough for the list, so none are missed.
 
 Any other address is shown as "check by hand" with a link, so nothing silently drops out. A company whose board fails to load keeps its roles as they were; after 7 days without a successful read they close.
 

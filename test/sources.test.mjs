@@ -492,24 +492,33 @@ test('bpce: recrutement.natixis.com search, filters from the address, paged with
   await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['/search/jobs', { code: 'rest_no_route' }]]))), /no job list/);
 });
 
-test('oracle: a site over 10,000 postings also reads each category, so the oldest are not cut off', async () => {
+test('oracle: a site over 10,000 postings also reads the older ones by posting date', async () => {
   const { source, params } = detect('https://hcbt.fa.em2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX/jobs');
-  const req = (id) => ({ Id: id, Title: `Role ${id}`, PrimaryLocation: 'Mumbai, Maharashtra, India', PostedDate: '2026-10-01' });
+  const req = (id, day) => ({ Id: id, Title: `Role ${id}`, PrimaryLocation: 'Mumbai, Maharashtra, India', PostedDate: day });
   const http = fakeHttp([
-    ['facetsList%3DCATEGORIES', { items: [{ TotalJobsCount: 10250, categoriesFacet: [{ Id: 11, TotalCount: 2 }, { Id: 22, TotalCount: 0 }] }] }],
-    ['selectedCategoriesFacet%3D11', { items: [{ TotalJobsCount: 2, requisitionList: [req('5'), req('old-1')] }] }],
     ['recruitingCEJobRequisitions', (url) => {
-      const offset = Number(decodeURIComponent(url).match(/offset=(\d+)/)[1]);
-      const reqs = offset >= 10000 ? [] : Array.from({ length: 200 }, (_, i) => req(String(offset + i)));
-      return { items: [{ TotalJobsCount: offset >= 10000 ? 0 : 10250, requisitionList: reqs }] };
+      const f = decodeURIComponent(url);
+      const offset = Number(f.match(/offset=(\d+)/)[1]);
+      const window = f.match(/postingStartDate=([\d-]+),postingEndDate=([\d-]+)/);
+      if (!window) {
+        // The newest 10,000, the last 200 of them posted on 1 Oct; nothing past offset 10,000.
+        const reqs = offset >= 10000 ? [] : Array.from({ length: 200 }, (_, i) => req(String(offset + i), offset === 9800 ? '2026-10-01' : '2026-10-20'));
+        return { items: [{ TotalJobsCount: offset >= 10000 ? 0 : 10300, requisitionList: reqs }] };
+      }
+      const [, from, to] = window;
+      // Up to 1 Oct: 10,100 postings in all, too many for one read, so the reader halves the window.
+      if (from === '2000-01-01' && to === '2026-10-01') return { items: [{ TotalJobsCount: 10100, requisitionList: [req('x', '2026-10-01')] }] };
+      if (to < '2026-01-01') return { items: [{ TotalJobsCount: 1, requisitionList: [req('old-1', '2024-05-02')] }] };
+      return { items: [{ TotalJobsCount: 2, requisitionList: [req('9999', '2026-10-01'), req('oct-1', '2026-10-01')] }] };
     }],
   ]);
   const jobs = await source.list(params, ctx(http));
-  assert.equal(jobs.length, 10001, 'the newest 10,000 plus the one older posting its category adds');
-  assert.equal(jobs.at(-1).id, 'old-1');
-  assert.equal(http.calls.filter((c) => c.url.includes('selectedCategoriesFacet')).length, 1, 'an empty category is skipped');
+  assert.equal(jobs.length, 10002, 'the newest 10,000 plus the two older postings, each once');
+  assert.deepEqual(jobs.slice(-2).map((j) => j.id), ['old-1', 'oct-1']);
+  const windows = http.calls.map((c) => decodeURIComponent(c.url).match(/postingStartDate=([\d-]+),postingEndDate=([\d-]+)/)?.slice(1).join('..')).filter(Boolean);
+  assert.deepEqual(windows, ['2000-01-01..2026-10-01', '2000-01-01..2013-05-17', '2013-05-18..2026-10-01']);
 
-  // Under 10,000: one read, no category pass.
+  // Under 10,000: one read, no date windows.
   const small = fakeHttp([['recruitingCEJobRequisitions', fixture('oracle-list.json')]]);
   await source.list(params, ctx(small));
   assert.equal(small.calls.length, 1);
@@ -546,4 +555,18 @@ test('ripplehire: list paged without descriptions, detail adds description and d
   assert.match(http.calls.at(-1).url, /candidatejobdetail\?token=WIXhCuz0XRZ7H0GZCwjJ&jobSeq=777777&source=CAREERSITE&lang=en/);
 
   await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['candidatejobsearch', { errorStatus: 'failure' }]]))), /no job list/);
+});
+
+test('oracle: a short page does not end the list early', async () => {
+  const { source, params } = detect('https://efgh.fa.em2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1/jobs');
+  const req = (id) => ({ Id: id, Title: `Role ${id}`, PrimaryLocation: 'Pune, India', PostedDate: '2026-10-01' });
+  const http = fakeHttp([['recruitingCEJobRequisitions', (url) => {
+    const offset = Number(decodeURIComponent(url).match(/offset=(\d+)/)[1]);
+    // Oracle often returns fewer than asked for, mid-list.
+    const n = offset === 0 ? 150 : 90;
+    return { items: [{ TotalJobsCount: 300, requisitionList: Array.from({ length: n }, (_, i) => req(String(offset + i))) }] };
+  }]]);
+  const jobs = await source.list(params, ctx(http));
+  assert.equal(http.calls.length, 2);
+  assert.equal(jobs.length, 240);
 });
