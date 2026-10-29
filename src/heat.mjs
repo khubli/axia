@@ -351,8 +351,8 @@ Keep an item when it says the company is, or soon will be, adding experienced te
 Leave out everything else, including:
 - offices, centres and hiring outside India
 - graduate, fresher, intern or campus hiring, and non-tech hiring (sales, branches, operations)
-- new leaders who are not technology leaders (CEO, HR, sales, retail, a regional president), and anyone leaving a company
-- outsourcing deals, product launches, partnerships, results, share price, awards and opinion pieces
+- new leaders who are not technology leaders (CEO, HR, sales, retail, a regional president), and anyone leaving a company (a former employee joining somewhere else is not a signal for the old company)
+- outsourcing deals and one firm taking over another's operations work, product launches, partnerships, results, share price, awards and opinion pieces
 - lists of many unrelated companies, and items about a company only in passing
 
 A post that names several companies on the list as hiring counts for each of them. When unsure, leave it out.
