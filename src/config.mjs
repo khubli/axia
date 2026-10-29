@@ -34,6 +34,11 @@ const DEFAULTS = {
   // Gaps that keep coming up: once a week, the gaps of open roles scored min_score to max_score,
   // grouped into themes on the dashboard. false turns it off.
   gaps: { min_score: 55, max_score: 89 },
+  // Hiring heat per company (heat.mjs): worked out free each run, plus a weekly scan of hiring news
+  // (news: true) and, with an X_BEARER_TOKEN, X posts from x_handles and about your x_companies
+  // top-ranked companies, at most x_max_posts a week. signals is your own file; days is how long a
+  // signal counts. false turns it all off.
+  heat: { news: true, signals: 'signals.yml', days: 60, x_handles: [], x_companies: 10, x_max_posts: 40 },
   // Tailor buttons: queue a role or moonshot for a tailored resume and cover letter, made by your own
   // tool outside Axia. Off by default; `tailor: true` turns it on. `done` is the file that tool writes.
   // dispatch: owner/repo whose tailoring workflow (workflow, on branch ref) a click starts at once.
@@ -70,6 +75,19 @@ export function loadSettings(dir = ROOT) {
     s.gaps[key] = n;
   }
   if (s.gaps.min_score > s.gaps.max_score) throw new ConfigError('settings.yml: gaps.min_score must not be above gaps.max_score');
+  s.heat.enabled = raw.heat !== false;
+  if (raw.heat === false) s.heat = { ...DEFAULTS.heat, enabled: false };
+  if (typeof s.heat.news !== 'boolean') throw new ConfigError(`settings.yml: heat.news must be true or false without quotes, not "${s.heat.news}"`);
+  if (s.heat.signals === false) s.heat.signals = '';
+  if (typeof s.heat.signals !== 'string') throw new ConfigError(`settings.yml: heat.signals must be a file name (for example signals.yml) or false, not "${s.heat.signals}"`);
+  if (!Array.isArray(s.heat.x_handles)) throw new ConfigError('settings.yml: heat.x_handles must be a list of X handles, such as [narayani07]');
+  s.heat.x_handles = s.heat.x_handles.map((h) => String(h).trim().replace(/^@/, '')).filter(Boolean);
+  for (const h of s.heat.x_handles) if (!/^\w{1,15}$/.test(h)) throw new ConfigError(`settings.yml: heat.x_handles has "${h}", which is not an X handle (letters, digits and _ only, at most 15)`);
+  for (const [key, min, max] of [['days', 1, 365], ['x_companies', 0, 50], ['x_max_posts', 0, 500]]) {
+    const n = Number(s.heat[key]);
+    if (!Number.isInteger(n) || n < min || n > max) throw new ConfigError(`settings.yml: heat.${key} must be a whole number from ${min} to ${max}, not "${s.heat[key]}"`);
+    s.heat[key] = n;
+  }
   if (raw.layoffs === false || s.layoffs.file === false) s.layoffs = { ...DEFAULTS.layoffs, file: '' };
   if (typeof s.layoffs.file !== 'string') throw new ConfigError(`settings.yml: layoffs.file must be a file name (for example layoffs.yml) or false, not "${s.layoffs.file}"`);
   {
@@ -124,9 +142,13 @@ export function loadCompanies(dir = ROOT) {
     if (urls.length === 0) throw new ConfigError(`companies.yml: ${c.name} has no url`);
     const platform = c.platform ? String(c.platform).toLowerCase() : undefined;
     if (platform && !PLATFORMS.includes(platform)) throw new ConfigError(`companies.yml: ${c.name} has platform "${c.platform}"; known platforms: ${PLATFORMS.join(', ')}`);
+    if (c.rank != null && !(Number.isInteger(c.rank) && c.rank > 0)) throw new ConfigError(`companies.yml: ${c.name} has rank "${c.rank}"; a rank is a whole number from 1 (your favourite)`);
     return {
       name: String(c.name),
       enabled: c.enabled !== false,
+      // For hiring heat: your rank (1 = favourite) and the name the news uses, when it differs.
+      ...(c.rank != null ? { rank: c.rank } : {}),
+      ...(c.news ? { news: String(c.news) } : {}),
       boards: urls.map((url) => ({ url, ...(detect(url, platform) ?? { source: null, params: null }) })),
     };
   });

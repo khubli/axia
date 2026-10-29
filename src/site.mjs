@@ -12,6 +12,7 @@ import { feedbackEnabled, pageFeedback } from './feedback.mjs';
 import { tailorEnabled, tailorApi, pageTailor } from './tailor.mjs';
 import { gapsView } from './gaps.mjs';
 import { MOVE_POINTS } from './changes.mjs';
+import { reasonOf } from './heat.mjs';
 
 const ASSETS = join(dirname(fileURLToPath(import.meta.url)), 'dashboard');
 const ICONS = ['icon.svg', 'icon-32.png', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
@@ -124,6 +125,8 @@ export function siteData(view, { minScore, demo = false }) {
     // Recent layoffs from your layoffs.yml, by company name: a label only, never part of the score.
     layoffs: view.layoffs ?? {},
     layoffMonths: settings.layoffs?.months ?? 6,
+    // Hiring heat per company (heat.mjs) and this week's companies to put effort into; null when off.
+    heat: view.heat ? pageHeat(view.heat) : null,
     moonshots: view.moonshots ? (view.moonshots.problem ? { problem: view.moonshots.problem } : { ...view.moonshots.report, dropped: undefined }) : null,
   };
 }
@@ -146,6 +149,12 @@ function pageBrief(changes, state) {
     // Recent runs, one line each, newest (this run) first.
     history: state.history ?? [],
   };
+}
+
+function pageHeat(heat) {
+  const companies = {};
+  for (const [name, v] of Object.entries(heat.companies)) companies[name] = { points: v.points, level: v.level, reason: reasonOf(v), rank: v.rank, signals: v.signals, layoffNews: Boolean(v.layoffNews) };
+  return { companies, effort: heat.effort, scannedOn: heat.scannedOn, x: heat.x, xProblem: heat.xProblem };
 }
 
 /** The role's level against yours, for the page: { vs, note } without the guide version. */

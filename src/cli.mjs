@@ -6,6 +6,7 @@
 //   calibrate  score the roles in calibration/roles.yml and compare with your own verdicts
 //   second-look  show which titles your title words reject today that the second look would let through (writes nothing)
 //   gaps       group the gaps of your open roles scored 55 to 89 into themes now, and print them (writes nothing)
+//   heat       run the weekly hiring-news (and X) scan now and print each company's hiring heat (writes nothing)
 //   review     on review.day: check the scores against your dashboard calls; propose a criteria.md change   (--now)
 //   tailor-request  one Tailor request as JSON, with the posting text, for a tailoring job   (--id ID, --note TEXT, --out FILE)
 //   alert      tell you a run broke (used by the GitHub Action)                (--link URL)
@@ -15,7 +16,7 @@ import { resolve, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { ConfigError, loadSettings } from './config.mjs';
 
-const HELP = `Usage: axia <run|deploy|calibrate|second-look|gaps|review|tailor-request|alert> [--dir <folder>] [options]
+const HELP = `Usage: axia <run|deploy|calibrate|second-look|gaps|heat|review|tailor-request|alert> [--dir <folder>] [options]
 Docs: https://github.com/khubli/axia#readme`;
 
 /** Pull --dir out of the arguments; everything else goes to the command. */
@@ -57,6 +58,11 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
       case 'gaps': {
         const { previewGaps } = await import('./gaps.mjs');
         await previewGaps({ dir, env });
+        return 0;
+      }
+      case 'heat': {
+        const { previewHeat } = await import('./heat.mjs');
+        await previewHeat({ dir, env });
         return 0;
       }
       case 'deploy': {

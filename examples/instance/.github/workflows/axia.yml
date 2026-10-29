@@ -57,3 +57,5 @@ jobs:
           cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           # Optional, with tailor.dispatch in settings.yml: a Tailor click starts your tailoring workflow at once.
           # tailor-dispatch-token: ${{ secrets.AXIA_TAILOR_TOKEN }}
+          # Optional, for hiring heat: recruiters' hiring posts on X, read once a week (X bills per post).
+          # x-bearer-token: ${{ secrets.X_BEARER_TOKEN }}
