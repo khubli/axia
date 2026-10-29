@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.23.0
+
+- **Radancy (TalentBrew) career sites.** Employers whose careers site runs on Radancy, such as Charles Schwab's (`www.schwabjobs.com`), can now be read with `platform: radancy`. Open the site, search for the place you want (for example India), and copy that search page's address: the same search is read from the site's own results list, 100 roles a request (Schwab's 69 India roles take one). A posting's text and date are read from its own page only when the role is about to be scored ([details](docs/configuration.md#companiesyml)).
+
 ## 1.22.0
 
 - **RippleHire career sites.** Employers whose careers site runs on RippleHire, such as Axis Bank's (`axisbank.ripplehire.com`), can now be read; the address is recognised on its own. Use the address the employer's careers page links to, which carries the site's token: `https://<company>.ripplehire.com/candidate/?token=…&source=CAREERSITE`. The whole list is read a thousand roles at a time (Axis Bank's 10,300 take 11 requests), and your `locations` keep the places you want. A posting's text and date are read from its own page only when the role is about to be scored ([details](docs/configuration.md#companiesyml)).

@@ -570,3 +570,48 @@ test('oracle: a short page does not end the list early', async () => {
   assert.equal(http.calls.length, 2);
   assert.equal(jobs.length, 240);
 });
+
+test('radancy: the search page names the search, results read 100 a page, text and date from the job page', async () => {
+  const pageUrl = 'https://www.woodgrovejobs.com/search-jobs/India/33995/2/1269750/22/79/50/2';
+  assert.equal(detect(pageUrl), null, 'a Radancy site on its own domain needs platform: radancy');
+  const site = detect(pageUrl, 'radancy');
+  assert.deepEqual([site.source.type, site.params.origin], ['radancy', 'https://www.woodgrovejobs.com']);
+
+  const searchPage = `<section id="search-results" data-keywords="" data-location="India" data-total-results="3"
+    data-location-type="2" data-location-path="1269750" data-organization-ids="33995"></section>`;
+  const role = (id, title, location) => `<li><a href="/job/hyderabad/${id}-role/33995/${id}" data-job-id="${id}">
+      <h2>${title}</h2><span class="job-location">${location}</span>
+      <div><span class="job-req-id"><b>Requisition ID: </b> 2026-1</span></div>
+      <button type="button" class="js-save-job-btn" data-job-id="${id}" data-org-id="33995">Save for Later</button></a></li>`;
+  const results = (roles) => ({ results: `<section id="search-results" data-total-results="101"><ul>${roles.join('')}</ul></section>`, hasJobs: true });
+  const http = fakeHttp([
+    ['/search-jobs/results?', (url) =>
+      new URL(url).searchParams.get('CurrentPage') === '1'
+        ? results([role('111', '&#x200B;&#x200B;Sr Manager, Software Development &amp; Engineering', 'Hyderabad, Telangana'), role('222', 'Solutions Architect', 'Hyderabad, Telangana')])
+        : results([role('222', 'Solutions Architect', 'Hyderabad, Telangana'), role('333', 'Manager, Facilities', 'Hyderabad, Telangana')])],
+    ['/search-jobs/India/', searchPage],
+    ['/job/', `<script type="application/ld+json">{"@context":"http://schema.org","@type":"JobPosting","title":"Solutions Architect",
+      "datePosted":"2026-10-16","description":"<h2>Your opportunity</h2><p>Lead the design.</p>","qualifications":"<ul><li>10 years</li></ul>",
+      "jobLocation":[{"@type":"Place","address":{"addressLocality":"Hyderabad","addressRegion":"Telangana","addressCountry":"India"}}]}</script>`],
+  ]);
+  const jobs = await site.source.list(site.params, ctx(http));
+  const asked = http.calls.slice(1).map((c) => new URL(c.url).searchParams);
+  assert.equal(http.calls[0].url, pageUrl, 'the configured page is read first, for its search');
+  assert.deepEqual(asked.map((q) => q.get('CurrentPage')), ['1', '2'], '101 roles at 100 a page');
+  assert.deepEqual([asked[0].get('Location'), asked[0].get('LocationType'), asked[0].get('LocationPath'), asked[0].get('RecordsPerPage')], ['India', '2', '1269750', '100']);
+  assert.deepEqual(jobs.map((j) => j.id), ['111', '222', '333'], 'a role on two pages counts once');
+  assert.deepEqual(jobs[0], {
+    id: '111',
+    title: 'Sr Manager, Software Development & Engineering',
+    location: 'Hyderabad, Telangana',
+    url: 'https://www.woodgrovejobs.com/job/hyderabad/111-role/33995/111',
+    postedAt: null,
+  });
+
+  const d = await site.source.detail(site.params, jobs[1], ctx(http));
+  assert.equal(d.postedAt, '2026-10-16');
+  assert.equal(d.location, 'Hyderabad, Telangana, India');
+  assert.match(d.description, /Your opportunity[\s\S]*Lead the design\.[\s\S]*10 years/);
+
+  await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['/search-jobs/', '<html>maintenance</html>']]))), /no search results section/);
+});
