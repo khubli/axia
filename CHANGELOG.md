@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.25.0
+
+- **Workday filters carry over from the address.** Pick a filter on a Workday career site, such as a location, and copy the address: `https://capitalone.wd12.myworkdayjobs.com/en-US/Capital_One?locations=…` now reads only the roles that filter shows (search words in `q=` carry over too). Large sites that list most roles as "N Locations", such as Capital One's (about 2,000 roles, 1,360 of them US roles listed that way), no longer need every such posting opened and its title judged just to find the 19 in Bengaluru. Addresses without filters are read as before ([details](docs/configuration.md#companiesyml)).
+
 ## 1.23.0
 
 - **Radancy (TalentBrew) career sites.** Employers whose careers site runs on Radancy, such as Charles Schwab's (`www.schwabjobs.com`), can now be read with `platform: radancy`. Open the site, search for the place you want (for example India), and copy that search page's address: the same search is read from the site's own results list, 100 roles a request (Schwab's 69 India roles take one). A posting's text and date are read from its own page only when the role is about to be scored ([details](docs/configuration.md#companiesyml)).

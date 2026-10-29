@@ -15,9 +15,19 @@ export function match(url) {
   const site = parts[0];
   if (!site) return null;
   const tenant = m[1].toLowerCase();
+  // Filters picked on the career site carry over from its address
+  // ("?locations=<id>&jobFamilyGroup=<id>", "q=" is the search box), so a large
+  // site can be narrowed to the places you want before anything is read.
+  const facets = {};
+  let searchText = '';
+  for (const [k, v] of url.searchParams) {
+    if (!v) continue;
+    if (k === 'q') searchText = v;
+    else (facets[k] ??= []).push(v);
+  }
   // Scope on host+tenant, not site: one requisition published on two sites of the
   // same tenant (some employers do this) must count once.
-  return { host: url.hostname.toLowerCase(), tenant, site, scope: tenant };
+  return { host: url.hostname.toLowerCase(), tenant, site, scope: tenant, facets, searchText };
 }
 
 const api = (p) => `https://${p.host}/wday/cxs/${p.tenant}/${p.site}`;
@@ -26,7 +36,7 @@ export async function list(p, { http, today }) {
   const fetchPage = (page) =>
     http.fetchJson(`${api(p)}/jobs`, {
       method: 'POST',
-      body: { appliedFacets: {}, limit: PAGE, offset: page * PAGE, searchText: '' },
+      body: { appliedFacets: p.facets ?? {}, limit: PAGE, offset: page * PAGE, searchText: p.searchText ?? '' },
     });
   // Workday only reports `total` reliably on the first page; the rest are then
   // fetched a few at a time (polite, and ~4x faster than one by one).
