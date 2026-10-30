@@ -114,6 +114,22 @@ const MUSTS = {
 for (const j of Object.values(jobs)) {
   if (MUSTS[j.title]) j.score.musts = MUSTS[j.title].map(([requirement, quote, match]) => ({ requirement, quote, match }));
 }
+// The other scored roles get two or three must-haves from a small pool, so the Insights tab has something to count.
+const POOL = [
+  ['Public cloud platforms', 'experience designing services on AWS or Azure', ['no', 'partly', 'no']],
+  ['Payments domain', 'deep knowledge of payments and clearing', ['yes', 'yes', 'partly']],
+  ['Leading teams', 'proven people leadership of engineering teams', ['yes', 'yes', 'partly']],
+  ['Java and Spring', 'strong Java and Spring Boot skills', ['no', 'partly', 'no']],
+  ['Architecture governance', 'run design authority and architecture standards', ['yes', 'partly', 'yes']],
+  ['Event-driven design', 'event-driven systems with Kafka', ['partly', 'no', 'partly']],
+  ['GenAI adoption', 'drive adoption of GenAI tools across engineering', ['partly', 'partly', 'no']],
+  ['Regulated delivery', 'delivery under regulatory and audit scrutiny', ['yes', 'partly', 'yes']],
+];
+for (const j of Object.values(jobs)) {
+  if (j.score.scorer !== 'ai' || j.score.musts) continue;
+  const k = 2 + Math.floor(rand() * 2), start = Math.floor(rand() * POOL.length);
+  j.score.musts = Array.from({ length: k }, (_, i) => POOL[(start + i * 3) % POOL.length]).map(([requirement, quote, m]) => ({ requirement, quote, match: pick(m) }));
+}
 
 // The role's level against the candidate's (Lead Architect at a bank), as the model would label it.
 const levelFor = (title) =>

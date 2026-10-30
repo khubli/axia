@@ -5,6 +5,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parse } from 'yaml';
 import { detect, PLATFORMS } from './sources/index.mjs';
+import { checkThemes } from './insights.mjs';
 
 /** Where your settings live when no --dir is given: the folder you run axia from. */
 export const ROOT = process.cwd();
@@ -34,6 +35,10 @@ export const DEFAULTS = {
   // Gaps that keep coming up: once a week, the gaps of open roles scored min_score to max_score,
   // grouped into themes on the dashboard. false turns it off.
   gaps: { min_score: 55, max_score: 89 },
+  // Insights tab: what your companies' roles keep asking for, counted from the must-haves each AI
+  // score quotes, against these themes (null = Axia's own list in insights.mjs). No AI requests.
+  // false turns the tab off.
+  insights: { themes: null },
   // Hiring heat per company (heat.mjs): worked out free each run, plus a weekly scan of hiring news
   // (news: true) and, with an X_BEARER_TOKEN, X posts from x_handles and about your x_companies
   // top-ranked companies, at most x_max_posts a week. signals is your own file; days is how long a
@@ -89,6 +94,15 @@ export function loadSettings(dir = ROOT) {
     s.gaps[key] = n;
   }
   if (s.gaps.min_score > s.gaps.max_score) throw new ConfigError('settings.yml: gaps.min_score must not be above gaps.max_score');
+  if (raw.insights === false) s.insights = { themes: null, enabled: false };
+  else {
+    s.insights.enabled = true;
+    if (s.insights.themes != null) {
+      const checked = checkThemes(s.insights.themes);
+      if (checked.error) throw new ConfigError(`settings.yml: ${checked.error}`);
+      s.insights.themes = checked.themes;
+    }
+  }
   s.heat.enabled = raw.heat !== false;
   if (raw.heat === false) s.heat = { ...DEFAULTS.heat, enabled: false };
   if (typeof s.heat.news !== 'boolean') throw new ConfigError(`settings.yml: heat.news must be true or false without quotes, not "${s.heat.news}"`);

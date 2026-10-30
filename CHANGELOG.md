@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.27.0
+
+- **An Insights tab: what the roles ask for.** A new **Insights** tab shows, across every role Axia has scored, which themes the postings ask for (public cloud, payments, people leadership, Java, AI and about 20 more) and how often your resume shows each, as one bar per theme: green where your resume shows it, red where it doesn't. A line on top names your biggest gap and your strongest theme. Switch between your best-fit roles (`report.show_from`+) and all scored roles, and tap a theme to see the open roles that ask for it. Below that: the cities where your best-fit roles are, and how fast those roles close. It is counted from the must-haves each score already quotes, so it costs no AI requests and never changes a score. Change the themes, or the words that mark them, in `settings.yml` (`insights.themes`); `insights: false` hides the tab. A weekly snapshot of the shares is kept for trends in a later version. `axia insights` prints the counts ([details](docs/configuration.md#insights-what-the-roles-ask-for)).
+
+- **"What keeps coming up" moved to the Insights tab**, beside the theme counts, so everything about your gaps is in one place. It works as before.
+
 ## 1.26.0
 
 - **Rejected or Turned down, with a reason.** When you hear back on an application, open the role and set its **Outcome**: **Rejected** (the company said no) or **Turned down** (you said no), with a reason from your list, and if you like the stage it happened at and a note. A role you never marked Applied can be marked Rejected or Turned down straight away, which marks it Applied too. The **Your roles** tab shows Rejected and Turned down as their own groups under a running tally of the reasons. The reasons and stages are yours to change in `settings.yml` (`outcomes`). Outcomes are saved with the Applied call and kept in `data/feedback.json`, so they last after the posting closes. They cost no AI requests and never change a score ([details](docs/configuration.md#your-calls-on-the-dashboard)).

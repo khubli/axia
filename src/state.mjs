@@ -18,7 +18,8 @@ export function emptyState() {
   // titleChecks: the second look's verdict per employer + title, so each title is asked about once.
   // gaps: the weekly themes of gaps that keep coming up (gaps.mjs).
   // history: one line per recent run, newest first (changes.mjs).
-  return { version: STATE_VERSION, lastRun: null, jobs: {}, skipped: {}, companies: {}, problems: {}, lastWeekly: null, titleChecks: {}, gaps: null, history: [] };
+  // insights: weekly snapshots of what your best-fit roles ask for (insights.mjs).
+  return { version: STATE_VERSION, lastRun: null, jobs: {}, skipped: {}, companies: {}, problems: {}, lastWeekly: null, titleChecks: {}, gaps: null, history: [], insights: null };
 }
 
 export function loadState(path) {

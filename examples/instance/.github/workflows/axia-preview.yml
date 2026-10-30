@@ -2,6 +2,7 @@
 #   second-look  which titles your title words miss today that the model would let through
 #   calibrate    how often the scorer agrees with the roles you judged (calibration/roles.yml and your dashboard calls)
 #   gaps         the gaps that keep coming up in your open roles scored 55 to 89, grouped now
+#   insights     what your roles ask for, by theme, and how often your resume shows it (no AI requests)
 #   heat         this week's hiring news (and X posts, with X_BEARER_TOKEN) checked now, and each company's hiring heat
 # Writes nothing, publishes nothing and sends no messages. The result is in the run's log.
 # Actions → Axia preview → Run workflow. calibrate, gaps and heat use AI requests, like a normal run; heat also reads X posts if you set a token.
@@ -14,7 +15,7 @@ on:
       command:
         description: What to preview
         type: choice
-        options: [second-look, calibrate, gaps, heat]
+        options: [second-look, calibrate, gaps, insights, heat]
         default: second-look
       version:
         description: Axia version to run (a branch or tag of khubli/axia), for example to try a change before it reaches v1

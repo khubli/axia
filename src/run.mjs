@@ -28,6 +28,7 @@ import { loadMoonshots } from './moonshots.mjs';
 import { loadLayoffs } from './layoffs.mjs';
 import { loadTailor, saveTailor, pullTailor, applyTailor, snapshotTailor, loadDone, tailorEnabled } from './tailor.mjs';
 import { rollUpGaps } from './gaps.mjs';
+import { recordInsights } from './insights.mjs';
 import { snapshot, runChanges, addHistory, briefLine } from './changes.mjs';
 import { loadLevels, levelField } from './levels.mjs';
 import { catchUp, catchUpQueue } from './catchup.mjs';
@@ -397,6 +398,8 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
 
   // ── 5b. Gaps that keep coming up: once a week, when your close calls have changed ──
   if (aiScorer) await rollUpGaps({ state, settings, scorer: aiScorer, today, log });
+  // ── 5c. Insights: a weekly snapshot of what your best-fit roles ask for, for trends (free) ──
+  recordInsights(state, settings, today);
 
   // ── 5d. Hiring heat: once a week, this week's hiring news (and X posts) checked by one model call ──
   if (aiScorer && !wanted.size) await scanSignals({ state, settings, companies, scorer: aiScorer, env, http, today, now, log });

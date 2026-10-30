@@ -375,6 +375,45 @@ td.co { font-weight: 600; white-space: nowrap; }
 .muted { color: var(--muted); }
 .note { font-size: 13px; color: var(--muted); margin: 0; }
 
+/* insights: what your roles ask for, and how often your resume shows it */
+.ins { display: grid; gap: 12px; }
+.ins .tablebox { max-width: 640px; }
+.ins th, .ins td { padding: 10px 14px; }
+.ins h2 { margin: 0; font: 600 18px/1.3 var(--f-display); }
+.ins .say { margin: 0; font-size: 15px; max-width: 80ch; }
+.ins .sets { display: flex; flex-wrap: wrap; gap: 6px; }
+.ins .sets button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+.ins .sets button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.ins .key { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: var(--muted); }
+.ins .key i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.ithemes { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 18px 10px; display: grid; }
+.ithemes .head, .ithemes summary { display: grid; grid-template-columns: minmax(0, 16rem) minmax(0, 1fr) 3.4rem 3.6rem; align-items: center; gap: 12px; }
+.ithemes .head { font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); padding: 6px 0; border-bottom: 1px solid var(--line); }
+.ithemes .head span:nth-child(n+3) { text-align: right; }
+.ithemes details { border-bottom: 1px solid var(--line); }
+.ithemes details:last-child { border-bottom: 0; }
+.ithemes summary { list-style: none; cursor: pointer; padding: 7px 0; font-size: 14px; }
+.ithemes summary::-webkit-details-marker { display: none; }
+.ithemes summary:hover .t { color: var(--accent); }
+.ithemes .t { min-width: 0; }
+.ithemes .ibar { display: flex; height: 12px; border-radius: 3px; overflow: hidden; }
+.ithemes .ibar .m { background: var(--good); opacity: 0.75; }
+.ithemes .ibar .x { background: var(--bad); opacity: 0.55; }
+.ithemes .a, .ithemes .p { font: 500 13px/1.2 var(--f-mono); font-variant-numeric: tabular-nums; text-align: right; }
+.ithemes .a { color: var(--muted); }
+.ithemes .p.lo { color: var(--bad); }
+.ithemes .p.mid { color: var(--look); }
+.ithemes .body { padding: 0 0 10px; display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+.ithemes .who { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.ithemes .who button { border: 0; background: var(--hover); color: var(--ink); border-radius: 6px; padding: 2px 8px; font-size: 12px; cursor: pointer; text-align: left; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.ithemes .who button:hover { color: var(--accent); }
+@media (max-width: 639px) {
+  .ithemes { padding: 6px 14px 8px; }
+  .ithemes .head, .ithemes summary { grid-template-columns: minmax(0, 1fr) 3rem 3.4rem; grid-template-areas: "t a p" "b b b"; row-gap: 5px; }
+  .ithemes .head span:nth-child(2) { display: none; }
+  .ithemes .t { grid-area: t; } .ithemes .ibar { grid-area: b; } .ithemes .a { grid-area: a; } .ithemes .p { grid-area: p; }
+}
+
 /* left out: what never reached scoring */
 .nm { display: grid; gap: 12px; margin-top: 28px; }
 .nm h2 { margin: 0; font: 600 18px/1.3 var(--f-display); }
@@ -452,6 +491,7 @@ footer a { color: var(--muted); }
   <nav class="tabs" role="tablist" aria-label="Views">
     <button role="tab" id="tab-roles" aria-controls="view-roles" aria-selected="true">Roles</button>
     <button role="tab" id="tab-mine" aria-controls="view-mine" aria-selected="false" hidden>Your roles<span class="num" id="mine-num"></span></button>
+    <button role="tab" id="tab-insights" aria-controls="view-insights" aria-selected="false" hidden>Insights</button>
     <button role="tab" id="tab-moonshots" aria-controls="view-moonshots" aria-selected="false" hidden>Moonshots</button>
     <button role="tab" id="tab-companies" aria-controls="view-companies" aria-selected="false">Companies</button>
     <button role="tab" id="tab-about" aria-controls="view-about" aria-selected="false">How scoring works</button>
@@ -464,7 +504,6 @@ footer a { color: var(--muted); }
     <details class="themes brief" id="brief" hidden></details>
     <figure class="strip" id="strip"></figure>
     <details class="themes" id="effort" hidden></details>
-    <details class="themes" id="themes" hidden></details>
     <div class="bar">
       <div class="chips" id="chips" role="group" aria-label="Score bands"></div>
       <div class="controls">
@@ -485,6 +524,12 @@ footer a { color: var(--muted); }
   </section>
 
   <section id="view-mine" role="tabpanel" aria-labelledby="tab-mine" class="view" hidden></section>
+
+  <section id="view-insights" role="tabpanel" aria-labelledby="tab-insights" class="view" hidden>
+    <section class="ins" id="ins-themes" hidden></section>
+    <details class="themes" id="themes" hidden></details>
+    <section class="ins" id="ins-places" hidden></section>
+  </section>
 
   <section id="view-moonshots" role="tabpanel" aria-labelledby="tab-moonshots" class="view" hidden></section>
 
@@ -1229,6 +1274,68 @@ footer a { color: var(--muted); }
     el.addEventListener('click', (e) => { const b = e.target.closest('.who button'); if (b) reveal(b.dataset.id); });
   })();
 
+  // ── insights: what your companies' roles keep asking for, counted free from the scored must-haves ──
+  (function insightsView() {
+    const I = D.insights;
+    const tab = $('#tab-insights');
+    tab.hidden = !I && $('#themes').hidden;
+    if (!I) return;
+    const pct = (n) => n + '%';
+    const SETS = { fit: 'Scored ' + I.floor + '+', all: 'All scored' };
+    let which = store.get('insSet', 'fit');
+    if (!I[which] || !I[which].themes.length) which = 'fit';
+    const top = $('#ins-themes');
+    // The one-sentence answer: the most-asked theme your resume misses most, and the one it shows best.
+    function verdict(S) {
+      const big = S.themes.filter((t) => t.askedPct >= 10 && t.matchPct != null);
+      const gap = big.slice().sort((a, b) => b.askedPct * (100 - b.matchPct) - a.askedPct * (100 - a.matchPct))[0];
+      const strong = big.filter((t) => t.matchPct >= 70).sort((a, b) => b.askedPct * b.matchPct - a.askedPct * a.matchPct)[0];
+      const of = which === 'fit' ? 'the ' + S.withMusts + ' roles you scored ' + I.floor + '+' : 'all ' + S.withMusts.toLocaleString('en-IN') + ' scored roles';
+      return (gap ? 'Across ' + of + ', the biggest gap is <b>' + esc(gap.name) + '</b>: asked in ' + pct(gap.askedPct) + ' of them, and your resume shows it ' + pct(gap.matchPct) + ' of the time.' : '') +
+        (strong ? ' Your strongest is <b>' + esc(strong.name) + '</b>: asked in ' + pct(strong.askedPct) + ', shown ' + pct(strong.matchPct) + '.' : '');
+    }
+    const who = (id) => byId[id] ? '<button type="button" data-id="' + id + '">' + esc(byId[id].title) + ' · ' + esc(byId[id].company) + '</button>' : '';
+    function paint() {
+      const S = I[which];
+      if (!S.themes.length) { top.hidden = true; return; }
+      const max = Math.max(...S.themes.map((t) => t.askedPct), 1);
+      top.innerHTML =
+        '<h2>What your roles ask for</h2><p class="say">' + verdict(S) + '</p>' +
+        '<div class="sets" role="group" aria-label="Which roles">' + Object.keys(SETS).map((k) => '<button type="button" data-set="' + k + '" aria-pressed="' + (k === which) + '">' + SETS[k] + ' · ' + I[k].withMusts.toLocaleString('en-IN') + '</button>').join('') + '</div>' +
+        '<div class="key"><span><i style="background:var(--good);opacity:.75"></i>your resume shows it</span><span><i style="background:var(--bad);opacity:.55"></i>it doesn\'t (partly counts half)</span><span>Bar length: how often it is asked</span></div>' +
+        '<div class="ithemes"><div class="head"><span>Theme</span><span>How often asked</span><span>Asked</span><span>You</span></div>' +
+        S.themes.map((t) => {
+          const m = t.matchPct == null ? 0 : t.matchPct;
+          const tone = t.matchPct == null ? '' : t.matchPct < 50 ? ' lo' : t.matchPct < 70 ? ' mid' : '';
+          const open = t.ids.length;
+          return '<details><summary title="' + esc(t.name + ': in ' + t.asked + ' roles; must-haves shown ' + t.yes + ', partly ' + t.partly + ', not shown ' + t.no) + '">' +
+            '<span class="t">' + esc(t.name) + '</span>' +
+            '<span class="ibar" style="width:' + (100 * t.askedPct / max).toFixed(1) + '%"><span class="m" style="width:' + m + '%"></span><span class="x" style="width:' + (100 - m) + '%"></span></span>' +
+            '<span class="a">' + pct(t.askedPct) + '</span><span class="p' + tone + '">' + (t.matchPct == null ? '–' : pct(t.matchPct)) + '</span></summary>' +
+            '<div class="body"><span>' + t.asked + ' role' + (t.asked === 1 ? '' : 's') + ' ask for it. Your resume shows it in ' + t.yes + ' must-have' + (t.yes === 1 ? '' : 's') + ', partly in ' + t.partly + ', not in ' + t.no + '.' +
+            (open ? ' Open ones, best score first:' : ' None of them is open now.') + '</span>' + (open ? '<div class="who">' + t.ids.map(who).join('') + '</div>' : '') + '</div></details>';
+        }).join('') + '</div>' +
+        '<p class="note">Counted from the must-haves each AI score quotes from the posting, by the theme words in settings.yml (insights.themes). A role counts once per theme. Covers the roles Axia remembers: open ones, and closed ones for 45 days' + (I.since ? ', since ' + esc(day(I.since)) : '') + '. No AI requests.</p>';
+      top.hidden = false;
+    }
+    paint();
+    top.addEventListener('click', (e) => {
+      const s = e.target.closest('button[data-set]');
+      if (s) { which = s.dataset.set; store.set('insSet', which); paint(); return; }
+      const b = e.target.closest('.who button');
+      if (b) reveal(b.dataset.id);
+    });
+    // Where the best-fit roles are, and how fast they go.
+    const C = I.closing, places = $('#ins-places');
+    const cities = I.cities.length ? '<div class="tablebox"><table><thead><tr><th>City</th><th class="n">Scored</th><th class="n">' + I.floor + '+</th><th class="n">Share</th></tr></thead><tbody>' +
+      I.cities.map((c) => '<tr><td class="co">' + esc(c.city) + '</td><td class="n">' + c.scored.toLocaleString('en-IN') + '</td><td class="n">' + c.fit + '</td><td class="n">' + c.fitPct + '%</td></tr>').join('') + '</tbody></table></div>' : '';
+    const fast = C.closed ? '<p class="say">' + C.closed + ' of the ' + C.of + ' roles you scored ' + I.floor + '+ have already closed: a median of <b>' + C.medianDays + ' day' + (C.medianDays === 1 ? '' : 's') + '</b> after Axia first saw them, ' + C.withinWeek + ' within a week. Apply within days of a good role appearing.</p>' : '';
+    if (cities || fast) {
+      places.innerHTML = '<h2>Where your best-fit roles are</h2>' + (cities ? '<p class="note">Roles scored per city, how many scored ' + I.floor + '+, and the share. Cities with at least 10 scored roles; a role in two cities counts in both.</p>' + cities : '') + fast;
+      places.hidden = false;
+    }
+  })();
+
   // ── what the last run changed: worked out by comparing memory before and after the run ──
   (function briefView() {
     const B = D.brief;
@@ -1543,7 +1650,8 @@ footer a { color: var(--muted); }
     '<p>Scores move by about 5 to 10 points between runs, so treat anything within 5 of ' + GOOD + ' as on the line.</p>' +
     '<p>Under the gaps, a role lists up to four things the posting itself requires, in its own words, and whether your resume shows each. One the model can\'t quote from the posting is left out.</p>' +
     (D.heat ? '<h2>Hiring heat</h2><p>Each company gets points for new senior roles in your places in the last 14 days (up to 10), open roles scoring ' + FROM + '+ (3 each, up to 15), its postings rising or falling by a third over four weeks (5 either way), and hiring signals from the last 60 days (5 each, up to 10): a new GCC or office, a hiring drive, funding or a senior tech leader joining, found in the news' + (D.heat.x ? ' and on X' : '') + ' once a week or added by you in signals.yml. Roles open 45+ days take a point each (up to 3) and layoffs in your layoffs.yml take 5, or 8 in India. Hot is 20 or more, Warm 10 to 19, Cool 1 to 9. The hottest five, with your rank breaking near ties, are on the Roles tab as where to put effort this week. Heat never changes a score.</p>' : '') +
-    (D.gaps ? '<h2>What keeps coming up</h2><p>Once a week, when they have changed, the gaps of your open roles scored ' + D.gaps.min + ' to ' + D.gaps.max + ' are grouped into a few themes, each with the roles behind it, at the top of the Roles tab. For each theme, decide once: add the evidence to your resume if you have it, or accept the gap in criteria.md.</p>' : '') +
+    (D.insights ? '<h2>Insights</h2><p>The Insights tab counts what the roles at your companies keep asking for. Each AI score already quotes up to four must-haves from the posting and says whether your resume shows each; Axia sorts those into themes by the words in settings.yml (insights.themes) and shows, per theme, how often it is asked and how often your resume shows it, a partly counting half. Below that: the cities where your best-fit roles are, and how fast those roles close. All of it is counted on the page from your scores, with no AI requests, and none of it changes a score.</p>' : '') +
+    (D.gaps ? '<h2>What keeps coming up</h2><p>Once a week, when they have changed, the gaps of your open roles scored ' + D.gaps.min + ' to ' + D.gaps.max + ' are grouped into a few themes, each with the roles behind it, on the Insights tab. For each theme, decide once: add the evidence to your resume if you have it, or accept the gap in criteria.md.</p>' : '') +
     '<h2 class="install-tip">Use it as an app</h2>' +
     '<p class="install-tip">On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen. On Android or a computer, use Install app at the top, or Install in the browser menu. The app opens straight to your results, and works offline with the last results it loaded.</p>' +
     (TRK ? '<h2>Tailored applications</h2><p>Tailor for this role, on a role or a moonshot, asks your own tailoring tool for a resume and cover letter made for that role, with a note if you add one. Each run queues the requests in data/tailor.json in your private repository, with the posting. When your tool says one is done, the role shows where to find it. Tailored versions are never used for scoring: every score stays against your main resume.</p>' : '') +
@@ -1556,7 +1664,7 @@ footer a { color: var(--muted); }
     '</div>';
 
   // ── tabs ──
-  const TABS = ['roles', 'mine', 'moonshots', 'companies', 'about'];
+  const TABS = ['roles', 'mine', 'insights', 'moonshots', 'companies', 'about'];
   const tabs = () => TABS.filter((t) => !$('#tab-' + t).hidden);
   function showTab(name) {
     if (!tabs().includes(name)) name = 'roles';
