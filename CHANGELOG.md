@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.28.0
+
+- **Your to-do list, ticked off on the Insights tab.** Keep the things you mean to do for your search (a resume rewrite, a certification, people to write to) in a short `todo.yml` beside your settings, each with an optional group, priority (now, next or later), details and link. The **Insights** tab lists them by priority above the theme counts, so the gaps and what you are doing about them sit together. Tick an item when it is done, and tap it to read its details and add a short note (240 characters) such as "booked for 12 Nov". Ticks and notes save to the same Cloudflare store as your calls on roles, so they show on every device at once, and each run copies them into `data/todo.json` so they last. Done items fold into a **Done** group, newest first. No file, no list; `todo: false` turns it off. It costs no AI requests ([details](docs/configuration.md#your-to-do-list-and-todoyml)).
+
 ## 1.27.0
 
 - **An Insights tab: what the roles ask for.** A new **Insights** tab shows, across every role Axia has scored, which themes the postings ask for (public cloud, payments, people leadership, Java, AI and about 20 more) and how often your resume shows each, as one bar per theme: green where your resume shows it, red where it doesn't. A line on top names your biggest gap and your strongest theme. Switch between your best-fit roles (`report.show_from`+) and all scored roles, and tap a theme to see the open roles that ask for it. Below that: the cities where your best-fit roles are, and how fast those roles close. It is counted from the must-haves each score already quotes, so it costs no AI requests and never changes a score. Change the themes, or the words that mark them, in `settings.yml` (`insights.themes`); `insights: false` hides the tab. A weekly snapshot of the shares is kept for trends in a later version. `axia insights` prints the counts ([details](docs/configuration.md#insights-what-the-roles-ask-for)).

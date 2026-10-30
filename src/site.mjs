@@ -13,6 +13,7 @@ import { feedbackEnabled, pageFeedback } from './feedback.mjs';
 import { tailorEnabled, tailorApi, pageTailor } from './tailor.mjs';
 import { gapsView } from './gaps.mjs';
 import { pageInsights } from './insights.mjs';
+import { pageTodo } from './todo.mjs';
 import { MOVE_POINTS } from './changes.mjs';
 import { reasonOf } from './heat.mjs';
 
@@ -108,6 +109,9 @@ export function siteData(view, { minScore, demo = false }) {
     gaps: pageGaps(state, settings),
     // What your companies' roles keep asking for, where your best-fit roles are, how fast they close (insights.mjs).
     insights: pageInsights(state, settings),
+    // Your to-do list (todo.yml) with the ticks and notes you made; null when there is no file.
+    // With `api`, ticks save to your Cloudflare account like your calls; otherwise (the demo) only in this browser.
+    todo: view.todo ? pageTodo(view.todo.items, view.todo.ticks, { api: !demo && feedbackEnabled(settings) }) : null,
     // What the last run changed (changes.mjs); null before the first run that records it.
     brief: pageBrief(summary.changes, state),
     // Recent layoffs from your layoffs.yml, by company name: a label only, never part of the score.

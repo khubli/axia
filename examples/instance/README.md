@@ -12,11 +12,13 @@ watching and how every role scored against me.
 | `levels.md` | Optional: my level, and what it is called at the companies I watch |
 | `pay.yml` | Optional: pay figures I know of, by employer and level |
 | `layoffs.yml` | Optional: layoff news I've read about my companies, for a heads-up label |
+| `todo.yml` | Optional: my to-do list for the search, ticked off on the dashboard's Insights tab |
 | `settings.yml` | Titles, places, scoring, messages and the dashboard address |
 | `calibration/` | Optional: roles I judged myself, to check the scorer |
 | `moonshots.json`, `tailored.json` | Optional: written by my own tools, for the Moonshots tab and Tailor requests |
 | `data/jobs.json` | Written by Axia: every matching role and its score |
 | `data/feedback.json` | Written by Axia: my calls on the dashboard, with each posting |
+| `data/todo.json` | Written by Axia: the to-do items I ticked off, with my notes |
 | `dashboard/README.md` | Written by Axia: the plain list, readable on GitHub |
 | `.github/workflows/axia.yml` | Runs Axia every morning |
 | `.github/workflows/axia-preview.yml` | Optional: read-only previews (second look, calibrate, gaps), run by hand |

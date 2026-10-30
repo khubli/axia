@@ -29,6 +29,7 @@ import { loadLayoffs } from './layoffs.mjs';
 import { loadTailor, saveTailor, pullTailor, applyTailor, snapshotTailor, loadDone, tailorEnabled } from './tailor.mjs';
 import { rollUpGaps } from './gaps.mjs';
 import { recordInsights } from './insights.mjs';
+import { loadTodo, loadTicks, saveTicks, pullTicks, applyTicks } from './todo.mjs';
 import { snapshot, runChanges, addHistory, briefLine } from './changes.mjs';
 import { loadLevels, levelField } from './levels.mjs';
 import { catchUp, catchUpQueue } from './catchup.mjs';
@@ -309,6 +310,14 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     await mapLimit(tr.needText.filter((k) => !fb.needText.includes(k)).map((k) => candidates.get(k)).filter(Boolean), 4, (c) => enrich(c, ctx));
   }
 
+  // ── 4d. Your to-do list (todo.yml) and the ticks you made on the dashboard ──
+  const todoItems = loadTodo(dir, settings, { log });
+  const ticks = loadTicks(dir);
+  if (todoItems) {
+    const changedTicks = applyTicks(ticks, dryRun ? null : await pullTicks({ env, settings, log }));
+    if (changedTicks) log(`To-do: ${changedTicks} tick(s) or note(s) from the dashboard.`);
+  }
+
   // ── 5. Score ──────────────────────────────────────────────────────────────
   const open = Object.values(state.jobs).filter((j) => j.status === 'open');
   const ai = { enabled: Boolean(aiScorer), engine: aiScorer?.engine ?? null, model: aiScorer?.model ?? null, scored: 0, failed: 0, stoppedBecause: null, pending: 0 };
@@ -456,10 +465,11 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   state.lastRun.changes = summary.changes;
   state.history = addHistory(state.history, { summary, changes, state, settings });
 
-  const view = { state, summary, settings, feedback, tailor, moonshots, layoffs, heat };
+  const view = { state, summary, settings, feedback, tailor, moonshots, layoffs, heat, todo: todoItems ? { items: todoItems, ticks } : null };
   if (!dryRun) {
     saveState(statePath, state);
     saveFeedback(dir, feedback);
+    if (todoItems) saveTicks(dir, ticks);
     if (tailor) saveTailor(dir, tailor);
     mkdirSync(resolve(dir, 'dashboard'), { recursive: true });
     writeFileSync(resolve(dir, 'dashboard/README.md'), renderMarkdown(view));

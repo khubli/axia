@@ -39,6 +39,9 @@ export const DEFAULTS = {
   // score quotes, against these themes (null = Axia's own list in insights.mjs). No AI requests.
   // false turns the tab off.
   insights: { themes: null },
+  // Your to-do list: a short file you keep by hand, ticked off (with a note) on the Insights tab and
+  // saved like your calls on roles. No file, no list. false turns it off.
+  todo: { file: 'todo.yml' },
   // Hiring heat per company (heat.mjs): worked out free each run, plus a weekly scan of hiring news
   // (news: true) and, with an X_BEARER_TOKEN, X posts from x_handles and about your x_companies
   // top-ranked companies, at most x_max_posts a week. signals is your own file; days is how long a
@@ -94,6 +97,8 @@ export function loadSettings(dir = ROOT) {
     s.gaps[key] = n;
   }
   if (s.gaps.min_score > s.gaps.max_score) throw new ConfigError('settings.yml: gaps.min_score must not be above gaps.max_score');
+  if (raw.todo === false || s.todo.file === false) s.todo = { file: '' };
+  if (typeof s.todo.file !== 'string') throw new ConfigError(`settings.yml: todo.file must be a file name (for example todo.yml) or false, not "${s.todo.file}"`);
   if (raw.insights === false) s.insights = { themes: null, enabled: false };
   else {
     s.insights.enabled = true;

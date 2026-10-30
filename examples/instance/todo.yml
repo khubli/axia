@@ -1,0 +1,19 @@
+# Your to-do list for the search, shown at the top of the dashboard's Insights tab. Tick an item there when
+# it is done, and tap it for its details and a short note. Edit this file to add, reword or reorder items;
+# the dashboard shows the change after the next run. Everything here is made up.
+todo:
+  - task: Rewrite the resume summary around payments platforms
+    id: summary
+    group: Resume
+    priority: now
+    details: Lead with outcomes (what changed for the business), then how. Tools last.
+  - task: Put numbers on scale in the resume (teams, systems, budget)
+    group: Resume
+    priority: now
+  - task: Book a cloud architect certification
+    group: Learning
+    priority: next
+    details: Public cloud is the most common gap on the Insights tab.
+  - task: Ask two former colleagues for referrals
+    group: Network
+    priority: later
