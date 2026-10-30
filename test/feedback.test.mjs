@@ -165,3 +165,43 @@ test('each run copies your calls into data/feedback.json with the posting, and s
   const judged = judgedRoles({ dir });
   assert.deepEqual(judged.map((r) => [r.source, r.decision, r.call]), [['dashboard', 'Apply', 'Applied']]);
 });
+
+// ── what came of an application: Rejected or Turned down ──────────────────
+
+test('the Worker keeps an outcome on an Applied call only, and fits it in the metadata', async () => {
+  const e = env();
+  const outcome = { kind: 'rejected', reason: 'No reason given', stage: 'Before any call', note: '  LinkedIn   email ', at: '2026-10-26T18:10:00Z' };
+  let res = await worker.fetch(post({ id: 'a', verdict: 'applied', reason: 'Good match', outcome }), e);
+  assert.equal(res.status, 200);
+  assert.deepEqual(e.FEEDBACK.data.get('fb:a').metadata.o, { k: 'rejected', r: 'No reason given', s: 'Before any call', n: 'LinkedIn email', t: '2026-10-26T18:10:00Z' });
+  // Back to In process: the outcome goes, the call stays.
+  await worker.fetch(post({ id: 'a', verdict: 'applied', reason: 'Good match', outcome: null }), e);
+  assert.equal(e.FEEDBACK.data.get('fb:a').metadata.o, undefined);
+  assert.equal(e.FEEDBACK.data.get('fb:a').metadata.v, 'applied');
+  assert.equal((await worker.fetch(post({ id: 'b', verdict: 'shortlist', outcome }), e)).status, 400, 'an outcome needs Applied');
+  assert.equal((await worker.fetch(post({ id: 'b', verdict: 'applied', outcome: { kind: 'ghosted' } }), e)).status, 400);
+  // Long reason and note are cut so the whole entry stays under 1024 bytes.
+  await worker.fetch(post({ id: 'c', verdict: 'applied', reason: 'é'.repeat(240), outcome: { ...outcome, reason: 'é'.repeat(200), stage: 'é'.repeat(200), note: 'é'.repeat(240) } }), e);
+  const big = e.FEEDBACK.data.get('fb:c').metadata;
+  assert.ok(new TextEncoder().encode(JSON.stringify(big)).length <= 1000);
+  assert.equal(big.o.k, 'rejected');
+});
+
+test('outcomes are copied into data/feedback.json and back to the page; a call that leaves Applied drops it', async () => {
+  const dir = tempProject({ companies: COMPANIES, settings: { titles: { include: ['Solution Architect'], exclude: [] } } });
+  const o = { k: 'turned-down', r: 'Pay below expectations', s: 'After an offer', n: '', t: '2026-10-16T08:00:00Z' };
+  await day(dir, '2026-10-16', { 'greenhouse-acme-1': { v: 'applied', r: '', t: '2026-10-16T08:00:00Z', o } });
+  let r = feedbackFile(dir).roles['greenhouse:acme:1'];
+  assert.deepEqual(r.outcome, { kind: 'turned-down', reason: 'Pay below expectations', stage: 'After an offer', note: '', at: '2026-10-16T08:00:00Z' });
+  assert.ok(r.description, 'the posting is kept as before');
+  const html = readFileSync(join(dir, '.axia/site/index.html'), 'utf8');
+  assert.match(html, /"greenhouse-acme-1":\{"v":"applied","r":"","t":"2026-10-16T08:00:00Z","o":\{"k":"turned-down","r":"Pay below expectations"/);
+  assert.match(html, /"outcomes":\{"rejected":\["No reason given",/, 'the reason lists reach the page');
+  // A rejected role still counts as one you judged worth applying.
+  assert.deepEqual(judgedRoles({ dir }).map((x) => x.decision), ['Apply']);
+
+  await day(dir, '2026-10-17', { 'greenhouse-acme-1': { v: 'shortlist', r: '', t: '2026-10-17T08:00:00Z', o } });
+  r = feedbackFile(dir).roles['greenhouse:acme:1'];
+  assert.equal(r.verdict, 'shortlist');
+  assert.equal(r.outcome, undefined);
+});

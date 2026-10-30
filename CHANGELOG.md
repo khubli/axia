@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.26.0
+
+- **Rejected or Turned down, with a reason.** When you hear back on an application, open the role and set its **Outcome**: **Rejected** (the company said no) or **Turned down** (you said no), with a reason from your list, and if you like the stage it happened at and a note. A role you never marked Applied can be marked Rejected or Turned down straight away, which marks it Applied too. The **Your roles** tab shows Rejected and Turned down as their own groups under a running tally of the reasons. The reasons and stages are yours to change in `settings.yml` (`outcomes`). Outcomes are saved with the Applied call and kept in `data/feedback.json`, so they last after the posting closes. They cost no AI requests and never change a score ([details](docs/configuration.md#your-calls-on-the-dashboard)).
+
 ## 1.25.0
 
 - **Workday filters carry over from the address.** Pick a filter on a Workday career site, such as a location, and copy the address: `https://capitalone.wd12.myworkdayjobs.com/en-US/Capital_One?locations=…` now reads only the roles that filter shows (search words in `q=` carry over too). Large sites that list most roles as "N Locations", such as Capital One's (about 2,000 roles, 1,360 of them US roles listed that way), no longer need every such posting opened and its title judged just to find the 19 in Bengaluru. Addresses without filters are read as before ([details](docs/configuration.md#companiesyml)).

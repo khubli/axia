@@ -11,7 +11,7 @@ export const ROOT = process.cwd();
 
 export class ConfigError extends Error {}
 
-const DEFAULTS = {
+export const DEFAULTS = {
   // second_look: titles in your places that your words reject get a look from the model (it can only let roles in).
   titles: { include: [], exclude: [], second_look: true },
   locations: { include: [], keep_unknown: true },
@@ -43,6 +43,20 @@ const DEFAULTS = {
   // tool outside Axia. Off by default; `tailor: true` turns it on. `done` is the file that tool writes.
   // dispatch: owner/repo whose tailoring workflow (workflow, on branch ref) a click starts at once.
   tailor: { enabled: false, done: 'tailored.json', dispatch: '', workflow: 'tailor.yml', ref: 'main' },
+  // What came of an application: the reasons you can pick when you mark an Applied role Rejected
+  // (the company said no) or Turned down (you said no), and the stages it can happen at (optional).
+  outcomes: {
+    rejected: [
+      'No reason given', 'Not a match for the role', 'Role closed, on hold or cancelled', 'Went with another candidate',
+      'Seen as overqualified', 'Seen as not senior enough', 'Missing skill or domain', 'Pay expectations',
+      'Location or notice period', 'No reply', 'Other',
+    ],
+    turned_down: [
+      'Pay below expectations', 'Level or title too low', 'Role differs from the posting', 'Location, relocation or office days',
+      'Company or team concerns', 'Took another offer', 'Staying where I am', 'Process too long', 'Other',
+    ],
+    stages: ['Before any call', 'After the recruiter call', 'After interviews', 'After the final round', 'After an offer'],
+  },
 };
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -122,6 +136,13 @@ export function loadSettings(dir = ROOT) {
     const n = Number(s.notify[key]);
     if (!Number.isInteger(n) || n < 0 || n > 100) throw new ConfigError(`settings.yml: notify.${key} must be a whole number from 0 to 100`);
     s.notify[key] = n;
+  }
+  for (const key of ['rejected', 'turned_down', 'stages']) {
+    const v = s.outcomes[key];
+    if (!Array.isArray(v) || (key !== 'stages' && !v.length)) throw new ConfigError(`settings.yml: outcomes.${key} must be a list${key === 'stages' ? '' : ' with at least one reason'}`);
+    const long = v.find((x) => String(x).trim().length > 80);
+    if (long) throw new ConfigError(`settings.yml: outcomes.${key} entries must be 80 characters or fewer: "${String(long).slice(0, 40)}…"`);
+    s.outcomes[key] = [...new Set(v.map((x) => String(x).replace(/\s+/g, ' ').trim()).filter(Boolean))];
   }
   for (const [section, key] of [['titles', 'include'], ['titles', 'exclude'], ['locations', 'include'], ['scoring', 'keywords']]) {
     const v = s[section][key] ?? [];

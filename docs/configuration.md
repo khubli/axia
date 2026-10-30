@@ -188,6 +188,23 @@ Editing `levels.md` doesn't re-score anything. Instead, each run catches up up t
 
 Open a role and mark it **Applied**, **Shortlist** or **Not for me**, with a one-line reason if you like. Applied and Shortlist count as "worth applying", Not for me as "skip". Roles you mark Applied or Shortlist move from the Roles list to the **Your roles** tab. Roles you mark Not for me leave the list; the **Not for me** chip brings them back.
 
+**When you hear back.** An Applied role also gets an **Outcome** row: **In process**, **Rejected** (the company said no) or **Turned down** (you said no). Pick one and choose a reason from your list, and if you like the stage it happened at and a one-line note. A role you never marked Applied shows **Heard back already?** with Rejected and Turned down, which mark it Applied too. The **Your roles** tab groups Rejected and Turned down roles on their own and keeps a tally of the reasons, so the pattern shows as the outcomes build up. Outcomes never change a score: a rejected role still counts as one you judged worth applying.
+
+The reasons and stages come from `settings.yml`; Axia's defaults are below, and a list you set replaces that list only:
+
+```yaml
+outcomes:
+  rejected: [No reason given, Not a match for the role, "Role closed, on hold or cancelled", Went with another candidate,
+             Seen as overqualified, Seen as not senior enough, Missing skill or domain, Pay expectations,
+             Location or notice period, No reply, Other]
+  turned_down: [Pay below expectations, Level or title too low, Role differs from the posting,
+                "Location, relocation or office days", Company or team concerns, Took another offer,
+                Staying where I am, Process too long, Other]
+  stages: [Before any call, After the recruiter call, After interviews, After the final round, After an offer]
+```
+
+Each entry is at most 80 characters. Renaming a reason later leaves the roles that already have it as they are. Most rejection emails give no reason, which is why **No reason given** comes first.
+
 The buttons save to a Workers KV store in your Cloudflare account, behind the same login as the dashboard. Each run copies the calls into `data/feedback.json` with the posting text, so they last after the role closes. They count as judged roles for `axia calibrate` and the weekly review. If a call can't be saved (offline, or signed out), it waits on your device and is sent the next time the dashboard opens online.
 
 **The weekly review** (`review.day`) runs when some of your calls disagree with the scores: a role you skipped that scored `report.good_match` or more, or one you wanted that scored below. The model reads your calls, reasons and postings with your resume and `criteria.md`, and proposes the smallest edit to `criteria.md` that would fix them. Axia then scores every judged role twice in the same run, with today's criteria and with the proposal. Only if the proposal agrees with your calls more often, and loses none of your `calibration/roles.yml` roles, does it open a pull request with the edit and the numbers, and message you. Nothing changes until you merge it; one proposal is open at a time. It needs at least 3 calls with their posting saved. A review uses about two AI scores per judged role.

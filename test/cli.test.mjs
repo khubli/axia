@@ -77,3 +77,23 @@ test('the action and the starter workflow pass max-ai-scores through as --max-ai
   assert.equal(action.runs.steps.find((s) => s.name === 'Find, score and notify').env.X_BEARER_TOKEN, '${{ inputs.x-bearer-token }}');
   assert.deepEqual(preview.permissions, { contents: 'read' }, 'previews write nothing');
 });
+
+test('outcomes: reason lists default, can be replaced, and must be short lists', async () => {
+  const { mkdtempSync, writeFileSync, readFileSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const base = readFileSync(join(example, 'settings.yml'), 'utf8');
+  const withOutcomes = (yaml) => {
+    const dir = mkdtempSync(join(tmpdir(), 'axia-cfg-'));
+    writeFileSync(join(dir, 'settings.yml'), base + yaml);
+    return dir;
+  };
+  const d = loadSettings(example).outcomes;
+  assert.equal(d.rejected[0], 'No reason given');
+  assert.ok(d.turned_down.includes('Pay below expectations'));
+  assert.ok(d.stages.length);
+  const mine = loadSettings(withOutcomes('\noutcomes:\n  turned_down: ["Staying at UBS", "Staying at UBS", " Pay "]\n')).outcomes;
+  assert.deepEqual(mine.turned_down, ['Staying at UBS', 'Pay']);
+  assert.deepEqual(mine.rejected, d.rejected, 'lists you leave out keep their defaults');
+  assert.throws(() => loadSettings(withOutcomes('\noutcomes:\n  rejected: []\n')), /outcomes\.rejected must be a list with at least one reason/);
+  assert.throws(() => loadSettings(withOutcomes(`\noutcomes:\n  stages: ["${'x'.repeat(90)}"]\n`)), /80 characters or fewer/);
+});

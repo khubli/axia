@@ -82,7 +82,7 @@ It is also an installable app (PWA): add it to your phone's home screen or insta
 
 ## 7. Learn from your calls
 
-Each role on the dashboard has three buttons: **Applied**, **Shortlist** and **Not for me**, with a one-line reason if you like. They save to a Workers KV store in your Cloudflare account through the dashboard's own Worker, behind your login. Each run copies them into `data/feedback.json` in your repository, with the posting text, so they outlive the role.
+Each role on the dashboard has three buttons: **Applied**, **Shortlist** and **Not for me**, with a one-line reason if you like. An Applied role also takes an outcome when you hear back (Rejected or Turned down, a reason from your list, the stage and a note), saved with the call. They save to a Workers KV store in your Cloudflare account through the dashboard's own Worker, behind your login. Each run copies them into `data/feedback.json` in your repository, with the posting text, so they outlive the role.
 
 Once a week (`review.day`) Axia checks whether its scores still agree with your calls. A call disagrees when you skipped a role that scored a good match, or wanted one that scored below. When some do:
 

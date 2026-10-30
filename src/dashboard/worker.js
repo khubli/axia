@@ -1,8 +1,11 @@
 // The dashboard Worker: serves the published page, and saves your calls on roles
-// (Applied, Shortlist, Not for me) from its buttons to a KV namespace.
+// (Applied, Shortlist, Not for me) from its buttons to a KV namespace, with what came of
+// an application (Rejected or Turned down, a reason from your list, the stage and a note).
 //
-//   GET  /api/feedback   every saved call: { entries: { <role id>: { v, r, t } } }
-//   POST /api/feedback   { id, verdict: 'applied' | 'shortlist' | 'not-for-me' | null, reason }
+//   GET  /api/feedback   every saved call: { entries: { <role id>: { v, r, t, o? } } }
+//   POST /api/feedback   { id, verdict: 'applied' | 'shortlist' | 'not-for-me' | null, reason,
+//                          outcome: { kind: 'rejected' | 'turned-down', reason, stage, note } | null }
+//                        An outcome is kept only on an Applied call; o is { k, r, s, n, t }.
 //   GET  /api/tailor     every Tailor request: { entries: { <role id>: { on, n, t } } }
 //   POST /api/tailor     { id, on: true | false, note }   (only when settings.yml turns tailor on)
 //                        With TAILOR_REPO and TAILOR_TOKEN set (tailor.dispatch), a request also starts
@@ -14,7 +17,9 @@
 // must come from the dashboard's own page.
 
 const VERDICTS = ['applied', 'shortlist', 'not-for-me'];
+const OUTCOMES = ['rejected', 'turned-down'];
 const MAX_REASON = 240;
+const MAX_LABEL = 80; // a reason or stage from your lists in settings.yml
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' } });
@@ -82,10 +87,18 @@ export default {
       }
       const verdict = body.verdict ?? null;
       if (verdict !== null && !VERDICTS.includes(verdict)) return json({ error: 'bad verdict' }, 400);
-      let reason = String(body.reason ?? '').replace(/\s+/g, ' ').trim().slice(0, MAX_REASON);
+      const clean = (x, max) => String(x ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
+      let reason = clean(body.reason, MAX_REASON);
+      const oc = body.outcome ?? null;
+      if (oc !== null && (typeof oc !== 'object' || !OUTCOMES.includes(oc.kind))) return json({ error: 'bad outcome' }, 400);
+      if (oc && verdict !== 'applied') return json({ error: 'an outcome needs an Applied call' }, 400);
+      const at = new Date().toISOString();
+      const o = oc ? { k: oc.kind, r: clean(oc.reason, MAX_LABEL), s: clean(oc.stage, MAX_LABEL), n: clean(oc.note, MAX_REASON), t: clean(oc.at, 40) || at } : null;
       // KV metadata holds at most 1024 bytes; the call lives there so one list reads them all.
-      const entry = () => ({ v: verdict, r: reason, t: new Date().toISOString() });
-      while (new TextEncoder().encode(JSON.stringify(entry())).length > 1000) reason = reason.slice(0, -10);
+      const entry = () => ({ v: verdict, r: reason, t: at, ...(o ? { o } : {}) });
+      const size = () => new TextEncoder().encode(JSON.stringify(entry())).length;
+      while (size() > 1000 && o?.n) o.n = o.n.slice(0, -10);
+      while (size() > 1000 && reason) reason = reason.slice(0, -10);
       const e = entry();
       // A cleared call is kept as verdict null, so the next run knows to drop it.
       await env.FEEDBACK.put(`fb:${id}`, JSON.stringify(e), { metadata: e });
