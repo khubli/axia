@@ -105,6 +105,8 @@ button, a, select, input { -webkit-tap-highlight-color: transparent; }
 .brand { display: flex; align-items: baseline; gap: 10px; }
 .brand b { font: 700 22px/1 var(--f-display); letter-spacing: -0.02em; }
 .brand span { color: var(--muted); font-size: 14px; }
+a.brand { color: inherit; text-decoration: none; border-radius: 6px; }
+@media (hover: hover) { a.brand:hover b { color: var(--accent); } }
 .fresh { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
 .fresh strong { color: var(--ink); font-weight: 600; }
 .fresh .more::before { content: "· "; }
@@ -503,7 +505,7 @@ footer a { color: var(--muted); }
 <body>
 <div class="wrap">
   <header class="top">
-    <div class="brand"><img src="icon.svg" alt=""><b>Axia</b><span id="brandline">Open roles at your companies</span></div>
+    <a class="brand" id="home" href="./" title="Back to Roles"><img src="icon.svg" alt=""><b>Axia</b><span id="brandline">Open roles at your companies</span></a>
     <div class="fresh" id="fresh"></div>
     <div class="top-right"><button class="btn small" id="install" hidden>Install app</button><button class="icon-btn" id="theme" type="button"></button></div>
   </header>
@@ -1768,6 +1770,16 @@ footer a { color: var(--muted); }
     store.set('tab', name);
   }
   document.querySelector('.tabs').addEventListener('click', (e) => { const b = e.target.closest('[role=tab]'); if (b) showTab(b.id.slice(4)); });
+  // The logo goes home: the Roles tab, scrolled to the top, no role picked and no #link left in the address.
+  $('#home').addEventListener('click', (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;
+    e.preventDefault();
+    showTab('roles');
+    document.querySelector('.tabs').scrollLeft = 0;
+    if (sel) { sel = null; render(); }
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (err) {}
+    scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  });
 
   if (D.demo) $('#foot').textContent = 'Demo data: every company, role and score on this page is made up.';
   drawStrip();
