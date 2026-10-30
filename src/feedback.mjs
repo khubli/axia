@@ -1,4 +1,5 @@
-// Your calls on roles, from the dashboard's buttons: Applied, Shortlist, Not for me (with an optional reason).
+// Your calls on roles, from the dashboard's buttons: Applied, Shortlist, Not for me (with an optional reason),
+// and for an Applied role what came of it: Rejected or Turned down, with a reason from your list, the stage and a note.
 //
 // The dashboard saves each click in a Cloudflare KV namespace next to the dashboard Worker (src/dashboard/worker.js).
 // Every run copies them into data/feedback.json in your private repository, with the posting text, so they last
@@ -6,6 +7,7 @@
 //
 // data/feedback.json:
 //   { version, lastReview, roles: { <role key>: { id, company, title, location, url, verdict, reason, at,
+//                                                  outcome: { kind, reason, stage, note, at } (Applied roles, when you hear back),
 //                                                  score: { value, scorer, model, resumeHash } | null, description } } }
 
 import { existsSync, readFileSync, writeFileSync, renameSync, mkdirSync } from 'node:fs';
@@ -17,6 +19,8 @@ export const LABEL = { applied: 'Applied', shortlist: 'Shortlist', 'not-for-me':
 /** Applied and Shortlist mean "worth applying"; Not for me means "skip". */
 export const decisionOf = (verdict) => (verdict === 'not-for-me' ? 'Skip' : 'Apply');
 export const MAX_REASON = 240;
+export const OUTCOMES = ['rejected', 'turned-down'];
+export const OUTCOME_LABEL = { rejected: 'Rejected', 'turned-down': 'Turned down' };
 const MAX_TEXT = 15000;
 const CF_API = 'https://api.cloudflare.com/client/v4';
 
@@ -87,7 +91,7 @@ export async function pullFeedback({ env, settings, log = console.log, fetchImpl
       for (const k of data.result ?? []) {
         const m = k.metadata ?? {};
         if (m.v !== null && !VERDICTS.includes(m.v)) continue;
-        out.set(k.name.slice(3), { verdict: m.v, reason: truncate(String(m.r ?? ''), MAX_REASON), at: m.t ?? null });
+        out.set(k.name.slice(3), { verdict: m.v, reason: truncate(String(m.r ?? ''), MAX_REASON), at: m.t ?? null, outcome: m.v === 'applied' ? outcomeOf(m.o) : null });
       }
       cursor = data.result_info?.cursor;
       if (!cursor) break;
@@ -98,6 +102,15 @@ export async function pullFeedback({ env, settings, log = console.log, fetchImpl
     return null;
   }
 }
+
+/** A saved outcome ({ k, r, s, n, t } in the store) as kept in data/feedback.json, or null. */
+export function outcomeOf(o) {
+  if (!o || !OUTCOMES.includes(o.k)) return null;
+  const text = (x, max) => truncate(String(x ?? ''), max);
+  return { kind: o.k, reason: text(o.r, 80), stage: text(o.s, 80), note: text(o.n, MAX_REASON), at: o.t ?? null };
+}
+
+const sameOutcome = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
 /**
  * Bring the clicks into data/feedback.json. A role is matched by its dashboard id; one that has left memory
@@ -125,9 +138,11 @@ export function applyFeedback(feedback, pulled, state) {
       }
       continue;
     }
-    if (prev && prev.verdict === f.verdict && prev.reason === f.reason) continue;
+    const outcome = f.verdict === 'applied' ? f.outcome ?? null : null;
+    if (prev && prev.verdict === f.verdict && prev.reason === f.reason && sameOutcome(prev.outcome, outcome)) continue;
+    const { outcome: _, ...kept } = prev ?? {};
     feedback.roles[job.key] = {
-      ...(prev ?? {}),
+      ...kept,
       id,
       company: job.company,
       title: job.title,
@@ -136,6 +151,7 @@ export function applyFeedback(feedback, pulled, state) {
       verdict: f.verdict,
       reason: f.reason || '',
       at: f.at,
+      ...(outcome ? { outcome } : {}),
     };
     prev ? changed++ : added++;
   }
@@ -158,6 +174,9 @@ export function snapshotFeedback(feedback, state, describe) {
 /** For the dashboard: { role id: { v, r, t } } for the roles it shows. */
 export function pageFeedback(feedback) {
   const out = {};
-  for (const r of Object.values(feedback?.roles ?? {})) out[r.id] = { v: r.verdict, r: r.reason || '', t: r.at };
+  for (const r of Object.values(feedback?.roles ?? {})) {
+    const o = r.outcome;
+    out[r.id] = { v: r.verdict, r: r.reason || '', t: r.at, ...(o ? { o: { k: o.kind, r: o.reason || '', s: o.stage || '', n: o.note || '', t: o.at } } : {}) };
+  }
   return out;
 }

@@ -334,6 +334,18 @@ li.sel > .inline { display: block; }
 .tailor { display: grid; gap: 8px; }
 .tailor .ready { margin: 0; }
 .ms .tailor { margin-top: 4px; }
+/* what came of an application: Rejected or Turned down, with a reason from your list */
+.yours .outcome { display: grid; gap: 8px; margin-top: 4px; }
+.yours .outcome h4 { margin: 0; font-size: 13px; font-weight: 600; color: var(--muted); }
+.yours .oc-row, .yours .oc-form { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+.yours :is(.oc-reason, .oc-stage, .oc-note) { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; min-width: 0; max-width: 100%; box-sizing: border-box; }
+.yours .oc-reason { flex: 2 1 200px; }
+.yours .oc-stage { flex: 1 1 150px; }
+.yours .oc-note { flex: 1 1 180px; }
+.yours .oc-form .btn { padding: 8px 14px; }
+.yours .oc-form .btn:disabled { background: var(--surface); border-color: var(--line); color: var(--faint); cursor: default; }
+.mine-tally { margin: 0; font-size: 14px; color: var(--ink); overflow-wrap: anywhere; }
+.mine-tally .muted { color: var(--muted); }
 /* your roles: Applied and Shortlist, open or closed */
 .mine-group { display: grid; gap: 10px; }
 .mine-group h2 { margin: 6px 0 0; font: 600 18px/1.3 var(--f-display); }
@@ -530,6 +542,12 @@ footer a { color: var(--muted); }
   // Applied and Shortlist roles live on the Your roles tab, so the Roles list leaves them out.
   const KEEP = ['applied', 'shortlist'];
   const kept = (j) => KEEP.includes(callOf(j));
+  // What came of an application: Rejected (they said no) or Turned down (you said no), with a reason
+  // from your lists (settings.yml → outcomes), an optional stage and note. Kept only on an Applied call.
+  const OC = D.outcomes || { rejected: [], turnedDown: [], stages: [] };
+  const OUTCOME = { rejected: 'Rejected', 'turned-down': 'Turned down' };
+  const ocOf = (j) => { const e = FB[j.id]; return e && e.v === 'applied' && e.o && OUTCOME[e.o.k] ? e.o : null; };
+  const reasonsFor = (k) => (k === 'rejected' ? OC.rejected : OC.turnedDown);
 
   // ── Tailor requests: ask your own tailoring tool for a resume and cover letter for this role ──
   // Off unless settings.yml turns it on (D.tailor is null). Saved like your calls; the run queues them.
@@ -933,7 +951,25 @@ footer a { color: var(--muted); }
     return '<section class="yours" data-id="' + j.id + '"><h3>Your call</h3><div class="opts" role="group" aria-label="Your call">' +
       CALLS.map((k) => '<button type="button" data-call="' + k + '" aria-pressed="' + (v === k) + '">' + CALL[k] + '</button>').join('') + '</div>' +
       (v ? '<form class="why-row"><input class="why" type="text" maxlength="240" enterkeyhint="done" placeholder="Why? One line helps the weekly review" aria-label="Why (optional)" value="' + esc(e.r || '') + '"><button type="submit" class="btn primary" disabled>Save</button></form>' : '') +
+      outcomeHtml(j) +
       '<p class="st" data-note="' + esc(note) + '">' + note + '</p></section>';
+  }
+  // Applied roles get In process / Rejected / Turned down; any other role you have not ruled out can be
+  // marked Rejected or Turned down straight away, which marks it Applied too.
+  function outcomeHtml(j) {
+    const v = callOf(j), o = ocOf(j);
+    if (v === 'not-for-me' || !OC.rejected.length) return '';
+    const options = (list, cur, blank) => (blank != null ? '<option value="">' + esc(blank) + '</option>' : '') +
+      (cur && !list.includes(cur) ? [cur].concat(list) : list).map((x) => '<option' + (x === cur ? ' selected' : '') + '>' + esc(x) + '</option>').join('');
+    let h = '<div class="outcome"><h4>' + (v === 'applied' ? 'Outcome' : 'Heard back already?') + '</h4><div class="opts" role="group" aria-label="Outcome">' +
+      (v === 'applied' ? '<button type="button" data-oc="" aria-pressed="' + !o + '">In process</button>' : '') +
+      Object.keys(OUTCOME).map((k) => '<button type="button" data-oc="' + k + '" aria-pressed="' + Boolean(o && o.k === k) + '">' + OUTCOME[k] + '</button>').join('') + '</div>';
+    if (o) {
+      h += '<div class="oc-row"><select class="oc-reason" aria-label="Reason">' + options(reasonsFor(o.k), o.r) + '</select>' +
+        (OC.stages.length ? '<select class="oc-stage" aria-label="Stage (optional)">' + options(OC.stages, o.s, 'Stage (optional)') + '</select>' : '') + '</div>' +
+        '<form class="oc-form"><input class="oc-note" type="text" maxlength="240" enterkeyhint="done" placeholder="Anything to remember? (optional)" aria-label="Note (optional)" value="' + esc(o.n || '') + '"><button type="submit" class="btn primary" disabled>Save</button></form>';
+    }
+    return h + '</div>';
   }
   function refreshRole(id) {
     const j = byId[id]; if (!j) return;
@@ -947,7 +983,7 @@ footer a { color: var(--muted); }
     if (!FBK.api) { fbPending[id] = e; store.set('fbPending', fbPending); fbStatus[id] = 'local'; refreshRole(id); return; }
     fbStatus[id] = 'saving';
     try {
-      const r = await fetch('api/feedback', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id, verdict: e.v, reason: e.r }) });
+      const r = await fetch('api/feedback', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id, verdict: e.v, reason: e.r, outcome: e.v === 'applied' && e.o ? { kind: e.o.k, reason: e.o.r, stage: e.o.s, note: e.o.n, at: e.o.t } : null }) });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       delete fbPending[id]; fbStatus[id] = 'saved';
     } catch (err) { fbPending[id] = e; fbStatus[id] = 'local'; }
@@ -1028,6 +1064,7 @@ footer a { color: var(--muted); }
   function setCall(id, v, reason) {
     const prev = FB[id] || {};
     FB[id] = { v: v, r: reason != null ? reason : v ? prev.r || '' : '', t: new Date().toISOString() };
+    if (v === 'applied' && prev.v === 'applied' && prev.o) FB[id].o = prev.o;
     paintNfm();
     // A role you just marked stays in view until the list next redraws; one you unmark comes back now.
     if (!kept(byId[id]) && !document.querySelector('#list > li[data-id="' + id + '"]')) render();
@@ -1057,6 +1094,43 @@ footer a { color: var(--muted); }
     saveReason(form.querySelector('.why'));
   });
   document.addEventListener('change', (e) => { const inp = e.target.closest('.yours .why'); if (inp) saveReason(inp); });
+
+  function setOutcome(id, o) {
+    const prev = FB[id] || {};
+    FB[id] = { v: 'applied', r: prev.r || '', t: new Date().toISOString() };
+    if (o) FB[id].o = o;
+    refreshRole(id);
+    sendCall(id);
+  }
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('.yours [data-oc]'); if (!b) return;
+    const id = b.closest('.yours').dataset.id, cur = ocOf(byId[id]), k = b.dataset.oc;
+    if (!k || (cur && cur.k === k)) { if (cur) setOutcome(id, null); return; }
+    // A new outcome starts on the first reason of its list; the stage and note carry over.
+    setOutcome(id, { k: k, r: reasonsFor(k)[0] || '', s: cur ? cur.s : '', n: cur ? cur.n : '', t: new Date().toISOString() });
+  });
+  document.addEventListener('change', (e) => {
+    const sel = e.target.closest('.yours .oc-reason, .yours .oc-stage'); if (!sel) return;
+    const id = sel.closest('.yours').dataset.id, o = Object.assign({}, ocOf(byId[id]));
+    o[sel.classList.contains('oc-reason') ? 'r' : 's'] = sel.value;
+    setOutcome(id, o);
+  });
+  function saveOcNote(inp) {
+    const id = inp.closest('.yours').dataset.id, cur = ocOf(byId[id]);
+    if (cur && typed(inp) !== (cur.n || '')) setOutcome(id, Object.assign({}, cur, { n: typed(inp) }));
+  }
+  document.addEventListener('input', (e) => {
+    const inp = e.target.closest('.yours .oc-note'); if (!inp) return;
+    const box = inp.closest('.yours'), cur = ocOf(byId[box.dataset.id]) || {}, changed = typed(inp) !== (cur.n || '');
+    box.querySelector('.oc-form button').disabled = !changed;
+    box.querySelector('.st').textContent = changed ? 'Not saved yet. Press Save to keep your note.' : box.querySelector('.st').dataset.note;
+  });
+  document.addEventListener('submit', (e) => {
+    const form = e.target.closest('.yours .oc-form'); if (!form) return;
+    e.preventDefault();
+    saveOcNote(form.querySelector('.oc-note'));
+  });
+  document.addEventListener('change', (e) => { const inp = e.target.closest('.yours .oc-note'); if (inp) saveOcNote(inp); });
 
   function render() {
     store.set('filters', { tiers: [...F.tiers], company: F.company, city: F.city, level: F.level, sort: F.sort, showNfm: F.showNfm });
@@ -1225,24 +1299,29 @@ footer a { color: var(--muted); }
     el.addEventListener('click', (e) => { const b = e.target.closest('.who button'); if (b) reveal(b.dataset.id); });
   })();
 
-  // ── your roles: Applied and Shortlist, kept after the posting closes ──
+  // ── your roles: Applied and Shortlist, kept after the posting closes; applications you heard back on ──
   let mineSel = null;
   const mineGroup = {}; // a role you just unmarked stays where it was until you leave the tab
+  const GROUPS = ['applied', 'shortlist', 'rejected', 'turned-down'];
+  const GROUP = { applied: 'Applied', shortlist: 'Shortlist', rejected: 'Rejected', 'turned-down': 'Turned down' };
+  const groupOf = (j) => (ocOf(j) ? ocOf(j).k : callOf(j));
+  const ocLine = (o) => [o.r, o.s ? o.s.charAt(0).toLowerCase() + o.s.slice(1) : '', o.n].filter(Boolean).join(' · ');
   function mineRow(j) {
-    const e = FB[j.id] || {};
-    const meta = [esc(j.company), esc(place(j)), e.t ? 'marked ' + esc(day(isoDay(new Date(e.t)))) : '', j.status === 'closed' && j.closedOn ? 'closed ' + esc(day(j.closedOn)) : ''].filter(Boolean);
+    const e = FB[j.id] || {}, o = ocOf(j);
+    const marked = o && o.t ? OUTCOME[o.k].toLowerCase() + ' ' + esc(day(isoDay(new Date(o.t)))) : e.t ? 'marked ' + esc(day(isoDay(new Date(e.t)))) : '';
+    const meta = [esc(j.company), esc(place(j)), marked, j.status === 'closed' && j.closedOn ? 'closed ' + esc(day(j.closedOn)) : ''].filter(Boolean);
     const pill = levelPill(j) + (j.status === 'closed' ? '<span class="pill closed">Closed</span>' : '');
     return '<li data-id="' + j.id + '" class="' + (j.status === 'closed' ? 'closed' : '') + (j.id === mineSel ? ' sel' : '') + '">' +
       '<button class="row" aria-expanded="' + (j.id === mineSel) + '">' + scoreCell(j, pill) +
       '<span class="rb"><span class="rt">' + esc(j.title) + '</span>' +
       '<span class="rm">' + meta.join('<span class="sep">·</span>') + '</span>' +
-      (e.r ? '<span class="why-line">' + esc(e.r) + '</span>' : '') + '</span></button>' +
+      (o ? '<span class="why-line">' + esc(ocLine(o)) + '</span>' : e.r ? '<span class="why-line">' + esc(e.r) + '</span>' : '') + '</span></button>' +
       '<div class="mine-d">' + (j.id === mineSel ? detailHtml(j) : '') + '</div></li>';
   }
   function renderMine() {
     const view = $('#view-mine');
     const roles = D.jobs.filter((j) => KEEP.includes(callOf(j)) || (j.id === mineSel && mineGroup[j.id]));
-    for (const j of roles) if (KEEP.includes(callOf(j))) mineGroup[j.id] = callOf(j);
+    for (const j of roles) if (KEEP.includes(callOf(j))) mineGroup[j.id] = groupOf(j);
     $('#tab-mine').hidden = !roles.length && view.hidden;
     $('#mine-num').textContent = roles.length || '';
     if (!roles.length) { view.innerHTML = '<p class="note">No roles marked Applied or Shortlist.</p>'; return; }
@@ -1250,9 +1329,22 @@ footer a { color: var(--muted); }
     const group = (k) => {
       const list = roles.filter((j) => mineGroup[j.id] === k)
         .sort((a, b) => (a.status === 'open' ? 0 : 1) - (b.status === 'open' ? 0 : 1) || when(b).localeCompare(when(a)));
-      return list.length ? '<section class="mine-group"><h2>' + CALL[k] + '<span class="num">' + list.length + '</span></h2><ul class="list mine">' + list.map(mineRow).join('') + '</ul></section>' : '';
+      return list.length ? '<section class="mine-group"><h2>' + GROUP[k] + '<span class="num">' + list.length + '</span></h2><ul class="list mine">' + list.map(mineRow).join('') + '</ul></section>' : '';
     };
-    view.innerHTML = '<p class="note">Roles you marked Applied or Shortlist. They stay here after the employer takes the posting down, so you can still find them when you hear back.</p>' + KEEP.map(group).join('');
+    view.innerHTML = '<p class="note">Roles you marked Applied or Shortlist. They stay here after the employer takes the posting down, so you can still find them when you hear back. When you do, open the role and set its Outcome.</p>' + tallyHtml() + GROUPS.map(group).join('');
+  }
+  // "6 applied: 4 in process · 2 rejected (No reason given 1, Role closed 1) · 0 turned down"
+  function tallyHtml() {
+    const applied = D.jobs.filter((j) => callOf(j) === 'applied');
+    if (!applied.length) return '';
+    const part = (k) => {
+      const list = applied.filter((j) => ocOf(j) && ocOf(j).k === k), by = {};
+      for (const j of list) { const r = ocOf(j).r || 'No reason'; by[r] = (by[r] || 0) + 1; }
+      const why = Object.entries(by).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([r, n]) => esc(r) + ' ' + n).join(', ');
+      return '<b>' + list.length + '</b> ' + GROUP[k].toLowerCase() + (why ? ' <span class="muted">(' + why + ')</span>' : '');
+    };
+    const open = applied.filter((j) => !ocOf(j)).length;
+    return '<p class="mine-tally"><b>' + applied.length + '</b> applied: <b>' + open + '</b> in process · ' + part('rejected') + ' · ' + part('turned-down') + '</p>';
   }
   function openMine(id) {
     mineSel = id; showTab('mine'); renderMine();
@@ -1456,7 +1548,7 @@ footer a { color: var(--muted); }
     '<p class="install-tip">On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen. On Android or a computer, use Install app at the top, or Install in the browser menu. The app opens straight to your results, and works offline with the last results it loaded.</p>' +
     (TRK ? '<h2>Tailored applications</h2><p>Tailor for this role, on a role or a moonshot, asks your own tailoring tool for a resume and cover letter made for that role, with a note if you add one. Each run queues the requests in data/tailor.json in your private repository, with the posting. When your tool says one is done, the role shows where to find it. Tailored versions are never used for scoring: every score stays against your main resume.</p>' : '') +
     '<h2>Your calls tune the scoring</h2>' +
-    '<p>Open a role and mark it Applied, Shortlist or Not for me, with a one-line reason if you like. Roles you mark Applied or Shortlist move to the Your roles tab. Roles you mark Not for me leave the list (the Not for me chip brings them back). Each run saves your calls, with the posting, in your private repository.</p>' +
+    '<p>Open a role and mark it Applied, Shortlist or Not for me, with a one-line reason if you like. Roles you mark Applied or Shortlist move to the Your roles tab. When you hear back on an application, set its Outcome: Rejected or Turned down, with a reason from your list (settings.yml → outcomes), the stage and a note if you like. Your roles keeps a running tally; outcomes never change a score. Roles you mark Not for me leave the list (the Not for me chip brings them back). Each run saves your calls, with the posting, in your private repository.</p>' +
     '<p>Once a week Axia looks for calls the scores disagree with: a role you skipped that scored ' + GOOD + ' or more, or one you wanted that scored below. When there are some, the model suggests a change to your criteria.md, and Axia scores your judged roles again with and without it. Only if the change agrees with you more often does it open a pull request in your repository, with the numbers, for you to merge or close. Nothing changes until you merge it.</p>' +
     (MS && !MS.problem ? '<h2>Moonshots</h2><p>The Moonshots tab lists stretch roles you track yourself, for example from a daily research task: roles beyond your companies\' boards, picked for career upside rather than fit. Axia shows them as written in your moonshots.json on each run. It does not read or score them, and they never trigger a message.</p>' : '') +
     '<h2>When a role leaves this list</h2>' +

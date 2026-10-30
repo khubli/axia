@@ -1,6 +1,6 @@
 {
   "name": "axia",
-  "version": "1.25.0",
+  "version": "1.26.0",
   "private": true,
   "description": "A private job radar for the companies you'd actually join: reads their careers sites daily, scores each role against your resume with Claude, keeps an installable private dashboard and messages you only when a role clears your bar.",
   "license": "MIT",

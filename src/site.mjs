@@ -115,6 +115,8 @@ export function siteData(view, { minScore, demo = false }) {
     nearMisses: summary.nearMisses ?? null,
     // Your calls on roles. With `api`, the buttons save to your Cloudflare account; otherwise (the demo) only in this browser.
     feedback: { api: !demo && feedbackEnabled(settings), entries: pageFeedback(view.feedback) },
+    // The reasons and stages you can pick for an Applied role you heard back on (settings.yml → outcomes).
+    outcomes: { rejected: settings.outcomes?.rejected ?? [], turnedDown: settings.outcomes?.turned_down ?? [], stages: settings.outcomes?.stages ?? [] },
     // Tailor buttons (settings.yml → tailor), null when off. Requests go to the same store as your calls.
     tailor: tailorEnabled(settings) ? { api: !demo && tailorApi(settings), entries: pageTailor(view.tailor) } : null,
     // Stretch roles from your own research (moonshots.json), on their own tab; null means no tab.

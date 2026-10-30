@@ -9,6 +9,7 @@ import { isoDate } from '../src/text.mjs';
 import { normalizeMoonshots } from '../src/moonshots.mjs';
 import { normalizeLayoffs } from '../src/layoffs.mjs';
 import { briefLine } from '../src/changes.mjs';
+import { DEFAULTS } from '../src/config.mjs';
 
 const out = resolve(process.argv[2] ?? '_site');
 const TZ = 'Europe/London';
@@ -153,6 +154,7 @@ const settings = {
   dashboard: { url: '' },
   gaps: { enabled: true, min_score: 55, max_score: 89 },
   tailor: { enabled: true, done: 'tailored.json' },
+  outcomes: DEFAULTS.outcomes,
 };
 const companies = Object.fromEntries(COMPANIES.filter((c) => c.source).map((c) => [c.name, { lastReadOk: today }]));
 const summary = {
@@ -206,6 +208,8 @@ const history = [[0, 8, 2, 3, 1, 1, 8], [1, 4, 1, 6, 0, 2, 6], [2, 11, 0, 9, 2, 
 // A few calls on roles, as if made on the dashboard's buttons.
 const calls = [['Head of Payments Platform Engineering', 'applied'], ['Engineering Director, Core Platform', 'shortlist'], ['Vice President, Treasury Operations', 'not-for-me', 'Operations, not technology'], ['Platform Lead, Payments Hub', 'applied', 'Recruiter call booked']];
 const feedback = { roles: Object.fromEntries(calls.map(([t, verdict, reason = '']) => { const j = byTitle(t); return [j.key, { id: j.key.replace(/[^A-Za-z0-9]+/g, '-'), verdict, reason, at: now.toISOString() }]; })) };
+// One application that came back: what the Outcome row records.
+feedback.roles[byTitle('Platform Lead, Payments Hub').key].outcome = { kind: 'rejected', reason: 'Went with another candidate', stage: 'After interviews', note: 'Internal move filled it', at: now.toISOString() };
 
 // Stretch roles from a research task outside Axia, shown on the Moonshots tab (made up too).
 const moonshots = {
