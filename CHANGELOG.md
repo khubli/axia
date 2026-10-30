@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.29.0
+
+- **The Axia logo takes you home.** Tap the logo or the name at the top left to go back to the **Roles** tab, scrolled to the top, with any open role closed and any `#role` link cleared from the address. Ctrl- or Cmd-click still opens the dashboard in a new tab.
+
 ## 1.28.0
 
 - **Your to-do list, ticked off on the Insights tab.** Keep the things you mean to do for your search (a resume rewrite, a certification, people to write to) in a short `todo.yml` beside your settings, each with an optional group, priority (now, next or later), details and link. The **Insights** tab lists them by priority above the theme counts, so the gaps and what you are doing about them sit together. Tick an item when it is done, and tap it to read its details and add a short note (240 characters) such as "booked for 12 Nov". Ticks and notes save to the same Cloudflare store as your calls on roles, so they show on every device at once, and each run copies them into `data/todo.json` so they last. Done items fold into a **Done** group, newest first. No file, no list; `todo: false` turns it off. It costs no AI requests ([details](docs/configuration.md#your-to-do-list-and-todoyml)).
