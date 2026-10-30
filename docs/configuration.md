@@ -146,6 +146,9 @@ gaps:                            # false turns it off
   min_score: 55                  # [55] the gaps that keep coming up are read from open roles scored this much or more…
   max_score: 89                  # [89] …up to this much
 
+todo:                            # false turns it off
+  file: todo.yml                 # [todo.yml] your to-do list, ticked off on the Insights tab (below); no file, no list
+
 insights:                        # the Insights tab (below); false turns it off
   themes:                        # [Axia's own list] the themes counted, each with the words that mark it
     - name: Public cloud
@@ -241,6 +244,28 @@ insights:
     - name: Payments
       words: [payment*, iso 20022, swift, card, clearing, settlement*]
 ```
+
+## Your to-do list, and todo.yml
+
+The things you mean to do for your search, such as a resume rewrite, a certification or people to write to, can live in a short `todo.yml` beside your settings. The **Insights** tab lists them above the theme counts, grouped Now, Next and Later, so the gaps and what you are doing about them sit together.
+
+```yaml
+todo:
+  - task: Rewrite the resume summary around payments platforms
+    group: Resume                  # optional: shown under the task
+    priority: now                  # now, next or later (next when left out)
+    details: Lead with outcomes, then how. Tools last.   # optional, shown when you tap the item
+    link: https://example.com/notes                     # optional
+    id: summary                    # optional: keeps the tick if you reword the task later
+  - task: Book a cloud architect certification
+    group: Learning
+  - task: Update the headline on my profile
+    done: true                     # optional: already done before the list was in Axia
+```
+
+Tick an item on the dashboard when it is done; tap it to read its details and add a short note (up to 240 characters). Ticks and notes save to the same Cloudflare store as your calls on roles (they need `dashboard.feedback`), so they show on every device at once, and each run copies them into `data/todo.json` so they last. A tick on the dashboard wins over `done:` in the file. Done items fold into a **Done** group, newest first. A tick is kept under the item's `id`, or under its task's words when it has none, so rewording a task without an `id` starts it unticked.
+
+To change the list, edit `todo.yml`; the dashboard shows the change after the next run. A bad file is reported in the run's log and leaves the list off the page for that run; it never stops the run. No file, no list. `todo: false` turns it off; `todo.file` names another file. It costs no AI requests.
 
 ## Pay range per role, and pay.yml
 

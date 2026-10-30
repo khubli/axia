@@ -6,6 +6,8 @@
 //   POST /api/feedback   { id, verdict: 'applied' | 'shortlist' | 'not-for-me' | null, reason,
 //                          outcome: { kind: 'rejected' | 'turned-down', reason, stage, note } | null }
 //                        An outcome is kept only on an Applied call; o is { k, r, s, n, t }.
+//   GET  /api/todo       every to-do tick: { entries: { <item id>: { d, n, t } } }
+//   POST /api/todo       { id, done: true | false, note }   (your list in todo.yml)
 //   GET  /api/tailor     every Tailor request: { entries: { <role id>: { on, n, t } } }
 //   POST /api/tailor     { id, on: true | false, note }   (only when settings.yml turns tailor on)
 //                        With TAILOR_REPO and TAILOR_TOKEN set (tailor.dispatch), a request also starts
@@ -46,7 +48,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
-    const kind = { '/api/feedback': 'fb', '/api/tailor': 'tr' }[url.pathname];
+    const kind = { '/api/feedback': 'fb', '/api/tailor': 'tr', '/api/todo': 'td' }[url.pathname];
     if (!kind) return json({ error: 'not found' }, 404);
     if (!viaAccess(request)) return json({ error: 'sign in first' }, 403);
     if (!env.FEEDBACK) return json({ error: 'feedback storage is not set up' }, 503);
@@ -75,6 +77,15 @@ export default {
       }
       const id = String(body?.id ?? '');
       if (!/^[A-Za-z0-9-]{1,200}$/.test(id)) return json({ error: 'bad id' }, 400);
+      if (kind === 'td') {
+        if (typeof body.done !== 'boolean') return json({ error: 'done must be true or false' }, 400);
+        let note = String(body.note ?? '').replace(/\s+/g, ' ').trim().slice(0, MAX_REASON);
+        const entry = () => ({ d: body.done, n: note, t: new Date().toISOString() });
+        while (new TextEncoder().encode(JSON.stringify(entry())).length > 1000) note = note.slice(0, -10);
+        const e = entry();
+        await env.FEEDBACK.put(`td:${id}`, JSON.stringify(e), { metadata: e });
+        return json({ ok: true, entry: e });
+      }
       if (kind === 'tr') {
         if (typeof body.on !== 'boolean') return json({ error: 'on must be true or false' }, 400);
         let note = String(body.note ?? '').replace(/\s+/g, ' ').trim().slice(0, MAX_REASON);

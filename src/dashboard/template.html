@@ -326,8 +326,8 @@ li.sel > .inline { display: block; }
 :is(.yours, .tailor) .opts { display: flex; flex-wrap: wrap; gap: 6px; }
 :is(.yours, .tailor) .opts button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 7px 13px; font-size: 14px; cursor: pointer; }
 :is(.yours, .tailor) .opts button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
-:is(.yours, .tailor) .why-row { display: flex; gap: 8px; margin: 0; }
-:is(.yours, .tailor) .why { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; flex: 1; min-width: 0; box-sizing: border-box; }
+:is(.yours, .tailor, .td-more) .why-row { display: flex; gap: 8px; margin: 0; }
+:is(.yours, .tailor, .td-more) .why { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; flex: 1; min-width: 0; box-sizing: border-box; }
 :is(.yours, .tailor) .why-row .btn { padding: 8px 14px; }
 :is(.yours, .tailor) .why-row .btn:disabled { background: var(--surface); border-color: var(--line); color: var(--faint); cursor: default; }
 :is(.yours, .tailor) .st { margin: 0; font-size: 12px; color: var(--faint); }
@@ -413,6 +413,26 @@ td.co { font-weight: 600; white-space: nowrap; }
   .ithemes .head span:nth-child(2) { display: none; }
   .ithemes .t { grid-area: t; } .ithemes .ibar { grid-area: b; } .ithemes .a { grid-area: a; } .ithemes .p { grid-area: p; }
 }
+
+/* your to-do list (todo.yml), ticked here */
+.ins h3 { margin: 4px 0 0; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.ins h2 .num { font: 400 13px var(--f-mono); color: var(--muted); margin-left: 8px; }
+.todo { list-style: none; margin: 0; padding: 0; max-width: 760px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.td { border-bottom: 1px solid var(--line); padding: 11px 16px; }
+.td:last-child { border-bottom: 0; }
+.td-row { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; }
+.td-row input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--good); cursor: pointer; }
+.td-task { background: none; border: 0; padding: 0; text-align: left; cursor: pointer; display: grid; gap: 3px; color: var(--ink); font-size: 15px; min-width: 0; }
+.td-task .t { overflow-wrap: anywhere; }
+.td-task:hover .t { color: var(--accent); }
+.td.done .td-task .t { text-decoration: line-through; color: var(--muted); }
+.td-task .meta { font-size: 12px; color: var(--muted); }
+.td-task .note { font-size: 13px; color: var(--muted); font-style: italic; overflow-wrap: anywhere; }
+.td-more { padding: 10px 0 2px 32px; display: grid; gap: 8px; font-size: 14px; }
+.td-more p { margin: 0; color: var(--muted); max-width: 72ch; overflow-wrap: anywhere; }
+.td-more .st { font-size: 12px; color: var(--faint); }
+.td-done > summary { cursor: pointer; color: var(--muted); font-size: 14px; padding: 6px 0; }
+.td-done[open] > summary { margin-bottom: 8px; }
 
 /* left out: what never reached scoring */
 .nm { display: grid; gap: 12px; margin-top: 28px; }
@@ -526,6 +546,7 @@ footer a { color: var(--muted); }
   <section id="view-mine" role="tabpanel" aria-labelledby="tab-mine" class="view" hidden></section>
 
   <section id="view-insights" role="tabpanel" aria-labelledby="tab-insights" class="view" hidden>
+    <section class="ins" id="ins-todo" hidden></section>
     <section class="ins" id="ins-themes" hidden></section>
     <details class="themes" id="themes" hidden></details>
     <section class="ins" id="ins-places" hidden></section>
@@ -1274,11 +1295,83 @@ footer a { color: var(--muted); }
     el.addEventListener('click', (e) => { const b = e.target.closest('.who button'); if (b) reveal(b.dataset.id); });
   })();
 
+  // ── your to-do list (todo.yml): tick an item off here, with a short note; saved like your calls ──
+  const TDK = D.todo || null;
+  const TD = {};
+  const tdPending = store.get('tdPending', {});
+  const tdStatus = {};
+  let tdOpen = null;
+  if (TDK) {
+    for (const it of TDK.items) TD[it.id] = { d: it.done, n: it.note || '', t: it.at };
+    for (const [id, e] of Object.entries(tdPending)) if (TD[id]) TD[id] = e;
+  }
+  const PRIO = { now: 'Now', next: 'Next', later: 'Later' };
+  function todoItem(it) {
+    const e = TD[it.id], open = tdOpen === it.id, st = tdStatus[it.id];
+    const said = st === 'saving' ? 'Saving…' : st === 'saved' ? 'Saved.' : st === 'local' ? (TDK.api ? 'Not saved yet: kept on this device, and sent the next time the dashboard opens online.' : 'Saved in this browser only (demo).')
+      : e.d && e.t ? 'Done ' + esc(day(isoDay(new Date(e.t)))) + '.' : '';
+    return '<li class="td' + (e.d ? ' done' : '') + '" data-id="' + esc(it.id) + '"><div class="td-row">' +
+      '<input type="checkbox" aria-label="' + esc('Done: ' + it.task) + '"' + (e.d ? ' checked' : '') + '>' +
+      '<button type="button" class="td-task" aria-expanded="' + open + '"><span class="t">' + esc(it.task) + '</span>' +
+      (it.group ? '<span class="meta">' + esc(it.group) + '</span>' : '') + (e.n ? '<span class="note">' + esc(e.n) + '</span>' : '') + '</button></div>' +
+      (open ? '<div class="td-more">' + (it.details ? '<p>' + esc(it.details) + '</p>' : '') +
+        (it.link ? '<a href="' + esc(it.link) + '" target="_blank" rel="noopener noreferrer">Open the link ↗</a>' : '') +
+        '<form class="why-row"><input class="why" type="text" maxlength="240" enterkeyhint="done" placeholder="A short note (optional)" aria-label="Note" value="' + esc(e.n || '') + '"><button type="submit" class="btn primary">Save</button></form>' +
+        (said ? '<p class="st">' + said + '</p>' : '') + '</div>' : '') + '</li>';
+  }
+  function renderTodo() {
+    const el = $('#ins-todo');
+    if (!TDK || !TDK.items.length) return;
+    const left = TDK.items.filter((it) => !TD[it.id].d);
+    const done = TDK.items.filter((it) => TD[it.id].d).sort((a, b) => String(TD[b.id].t || '').localeCompare(String(TD[a.id].t || '')));
+    const doneOpen = store.get('todoDoneOpen', false);
+    el.innerHTML = '<h2>Your to-do<span class="num">' + left.length + ' open · ' + done.length + ' done</span></h2>' +
+      '<p class="note">From your todo.yml. Tick an item when it is done; tap it for its details and a short note.</p>' +
+      ['now', 'next', 'later'].map((p) => { const l = left.filter((it) => it.priority === p); return l.length ? '<h3>' + PRIO[p] + '</h3><ul class="todo">' + l.map(todoItem).join('') + '</ul>' : ''; }).join('') +
+      (left.length ? '' : '<p class="say">All done. Add the next things to todo.yml.</p>') +
+      (done.length ? '<details class="td-done"' + (doneOpen ? ' open' : '') + '><summary>Done · ' + done.length + '</summary><ul class="todo">' + done.map(todoItem).join('') + '</ul></details>' : '');
+    el.hidden = false;
+  }
+  async function sendTodo(id) {
+    const e = TD[id];
+    if (!TDK.api) { tdPending[id] = e; store.set('tdPending', tdPending); tdStatus[id] = 'local'; renderTodo(); return; }
+    tdStatus[id] = 'saving';
+    try {
+      const r = await fetch('api/todo', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id, done: e.d, note: e.n || '' }) });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      delete tdPending[id]; tdStatus[id] = 'saved';
+    } catch (err) { tdPending[id] = e; tdStatus[id] = 'local'; }
+    store.set('tdPending', tdPending);
+    renderTodo();
+  }
+  if (TDK) {
+    const el = $('#ins-todo');
+    el.addEventListener('change', (ev) => {
+      const box = ev.target.closest('input[type=checkbox]'); if (!box) return;
+      const id = box.closest('li[data-id]').dataset.id;
+      TD[id] = { d: box.checked, n: TD[id].n, t: new Date().toISOString() };
+      sendTodo(id);
+    });
+    el.addEventListener('click', (ev) => {
+      const b = ev.target.closest('.td-task'); if (!b) return;
+      const id = b.closest('li[data-id]').dataset.id;
+      tdOpen = tdOpen === id ? null : id; renderTodo();
+    });
+    el.addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      const li = ev.target.closest('li[data-id]'); const id = li.dataset.id;
+      TD[id] = { d: TD[id].d, n: ev.target.querySelector('input').value.replace(/\s+/g, ' ').trim().slice(0, 240), t: new Date().toISOString() };
+      sendTodo(id);
+    });
+    el.addEventListener('toggle', (ev) => { if (ev.target.classList && ev.target.classList.contains('td-done')) store.set('todoDoneOpen', ev.target.open); }, true);
+    renderTodo();
+  }
+
   // ── insights: what your companies' roles keep asking for, counted free from the scored must-haves ──
   (function insightsView() {
     const I = D.insights;
     const tab = $('#tab-insights');
-    tab.hidden = !I && $('#themes').hidden;
+    tab.hidden = !I && $('#themes').hidden && !D.todo;
     if (!I) return;
     const pct = (n) => n + '%';
     const SETS = { fit: 'Scored ' + I.floor + '+', all: 'All scored' };
@@ -1710,6 +1803,22 @@ footer a { color: var(--muted); }
         TR[id] = Object.assign({}, cur, { on: e.on || Boolean(cur.d), n: e.n, t: e.t, s: e.on ? 'requested' : cur.d ? 'done' : null });
         refreshTailor(id);
       }
+    } catch (e) {}
+  })();
+  // To-do ticks made on another device, or waiting on this one.
+  (async function syncTodo() {
+    if (!TDK || !TDK.api) return;
+    for (const id of Object.keys(tdPending)) await sendTodo(id);
+    try {
+      const r = await fetch('api/todo', { credentials: 'same-origin', cache: 'no-store' });
+      if (!r.ok) return;
+      const data = await r.json();
+      let changed = false;
+      for (const [id, e] of Object.entries(data.entries || {})) {
+        if (tdPending[id] || !TD[id] || typeof e.d !== 'boolean' || (TD[id].t && e.t && e.t <= TD[id].t)) continue;
+        TD[id] = { d: e.d, n: e.n || '', t: e.t }; changed = true;
+      }
+      if (changed) renderTodo();
     } catch (e) {}
   })();
   render();

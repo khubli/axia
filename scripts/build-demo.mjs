@@ -8,6 +8,7 @@ import { buildSite } from '../src/site.mjs';
 import { isoDate } from '../src/text.mjs';
 import { normalizeMoonshots } from '../src/moonshots.mjs';
 import { normalizeLayoffs } from '../src/layoffs.mjs';
+import { normalizeTodo } from '../src/todo.mjs';
 import { briefLine } from '../src/changes.mjs';
 import { DEFAULTS } from '../src/config.mjs';
 
@@ -265,5 +266,23 @@ const layoffs = normalizeLayoffs({
   ],
 }, { companies: COMPANIES.map((c) => c.name), today: daysAgo(0), months: 6 }).byCompany;
 
-buildSite({ state: { jobs, companies, gaps, history }, summary, settings, feedback, tailor, moonshots, layoffs }, out, { minScore: 65, demo: true });
+// A to-do list, as a todo.yml would hold it, with two items ticked off on the dashboard (made up too).
+const todoItems = normalizeTodo({
+  todo: [
+    { task: 'Rewrite the resume summary around payments platforms', id: 'summary', group: 'Resume', priority: 'now', details: 'Lead with outcomes: what changed for the bank, then how. Tools last.' },
+    { task: 'Put numbers on scale: teams, systems, budget', id: 'scale', group: 'Resume', priority: 'now' },
+    { task: 'Book a cloud architect certification', id: 'cloud-cert', group: 'Learning', priority: 'now', details: 'Public cloud is the most common gap in the roles that fit best.', link: 'https://learn.microsoft.com/credentials/' },
+    { task: 'Write up one AI governance decision for the portfolio site', id: 'ai-writeup', group: 'Portfolio', priority: 'next' },
+    { task: 'Read up on event-driven design for design reviews', id: 'event-driven', group: 'Learning', priority: 'next' },
+    { task: 'Ask two former colleagues for referrals', id: 'referrals', group: 'Network', priority: 'later' },
+    { task: 'Update the headline on the professional profile', id: 'headline', group: 'Profile', priority: 'now' },
+  ],
+}).items;
+const ticksMade = { items: {
+  headline: { done: true, note: 'Matched it to the resume summary', at: new Date(now - 2 * 864e5).toISOString() },
+  scale: { done: false, note: 'Waiting on the budget figure', at: new Date(now - 864e5).toISOString() },
+} };
+const todo = { items: todoItems, ticks: ticksMade };
+
+buildSite({ state: { jobs, companies, gaps, history }, summary, settings, feedback, tailor, moonshots, layoffs, todo }, out, { minScore: 65, demo: true });
 console.log(`Demo dashboard written to ${out}`);

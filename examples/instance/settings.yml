@@ -92,6 +92,11 @@ gaps:
 #     - name: Payments
 #       words: [payment*, iso 20022, swift, card, clearing]
 
+# Your to-do list, ticked off on the Insights tab: todo.yml (see todo.yml in this folder). No file, no list;
+# false turns it off.
+# todo:
+#   file: todo.yml
+
 dashboard:
   domain: jobs.example.com # the address you protected with Cloudflare Access; empty publishes to workers.dev
   worker: axia             # Cloudflare Worker name
