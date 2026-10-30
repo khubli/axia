@@ -28,6 +28,7 @@ Node 22 or later. No other tools are needed.
 | `src/changes.mjs` | "What changed in the last run", by comparing memory before and after (no AI) |
 | `src/feedback.mjs`, `src/review.mjs`, `src/calibrate.mjs` | Your calls from the dashboard, the weekly criteria review, and `axia calibrate` |
 | `src/gaps.mjs` | The weekly "what keeps coming up" themes |
+| `src/insights.mjs` | The Insights tab: what the roles ask for by theme, cities and closing speed (no AI) |
 | `src/moonshots.mjs`, `src/tailor.mjs` | The optional Moonshots tab and Tailor requests |
 | `src/layoffs.mjs` | The optional Layoffs label, from your hand-kept `layoffs.yml` |
 | `src/render.mjs` | The view model shared by the dashboard and `dashboard/README.md` |

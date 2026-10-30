@@ -77,10 +77,20 @@ review:
 # tailor: true
 
 # Gaps that keep coming up: once a week, the gaps of your open roles scored 55 to 89 are grouped into
-# themes at the top of the dashboard. false turns it off.
+# themes on the dashboard's Insights tab. false turns it off.
 gaps:
   min_score: 55
   max_score: 89
+
+# Insights tab: what your roles keep asking for, by theme, and how often your resume shows it. Counted
+# free from the must-haves each score quotes. Axia has its own theme list; to use yours, list them here
+# (a word ending in * matches any word starting with it). false turns the tab off.
+# insights:
+#   themes:
+#     - name: Public cloud
+#       words: [cloud*, aws, azure, gcp]
+#     - name: Payments
+#       words: [payment*, iso 20022, swift, card, clearing]
 
 dashboard:
   domain: jobs.example.com # the address you protected with Cloudflare Access; empty publishes to workers.dev

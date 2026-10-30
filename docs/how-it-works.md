@@ -78,7 +78,9 @@ It is also an installable app (PWA): add it to your phone's home screen or insta
 
 **What changed in the last run.** At the top of the Roles tab, one line says what the last run changed: new and closed roles, roles scored for the first time and how many reached each band, scores that moved on a re-score, good matches sent to you, job sites that broke or came back, and how many roles still wait for a score. Show opens the roles behind each number and a table of the last 14 runs. It is worked out by comparing your memory (`data/jobs.json`) before and after the run, and written from a template, so it costs no AI request. The same line heads `dashboard/README.md`.
 
-**Gaps that keep coming up.** Once a week, when they have changed, the gaps of your open roles scored 55 to 89 (`gaps` in `settings.yml`) are grouped by the model into a few themes, each with the roles behind it, at the top of the dashboard. A theme that keeps coming up is a decision to make once: add the evidence to your resume if you have it, or accept the gap in `criteria.md`. Axia changes neither.
+**Gaps that keep coming up.** Once a week, when they have changed, the gaps of your open roles scored 55 to 89 (`gaps` in `settings.yml`) are grouped by the model into a few themes, each with the roles behind it, on the dashboard's Insights tab. A theme that keeps coming up is a decision to make once: add the evidence to your resume if you have it, or accept the gap in `criteria.md`. Axia changes neither.
+
+**What the roles ask for.** The same Insights tab counts, with no AI request, which themes the scored must-haves name (public cloud, payments, people leadership and so on, from the words in `insights.themes`) and how often your resume shows each, for your best-fit roles and for all scored roles. It also shows the cities where your best-fit roles are and how fast they close.
 
 ## 7. Learn from your calls
 

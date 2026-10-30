@@ -88,3 +88,21 @@ export function toDay(value) {
 export function jobId(key) {
   return String(key).replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
+
+const CITIES = [
+  [/pune/i, 'Pune'], [/bengaluru|bangalore/i, 'Bengaluru'], [/mumbai/i, 'Mumbai'], [/hyderabad/i, 'Hyderabad'],
+  [/gurgaon|gurugram/i, 'Gurugram'], [/chennai/i, 'Chennai'], [/noida/i, 'Noida'], [/new delhi|\bdelhi\b/i, 'Delhi'],
+  [/kolkata/i, 'Kolkata'], [/singapore/i, 'Singapore'], [/london/i, 'London'], [/new york/i, 'New York'], [/dubai/i, 'Dubai'],
+];
+
+/** "Bengaluru, Karnataka, India; Hyderabad, India" → ["Bengaluru", "Hyderabad"], for the city filter. */
+export function citiesOf(location) {
+  if (!location) return [];
+  const out = [];
+  for (const part of String(location).split(';')) {
+    const hit = CITIES.find(([re]) => re.test(part));
+    const name = hit ? hit[1] : part.replace(/^[A-Z]{2} - /, '').split(',')[0].trim();
+    if (name && !out.includes(name)) out.push(name);
+  }
+  return out;
+}

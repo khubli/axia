@@ -145,6 +145,11 @@ tailor:                          # true is short for enabled: true
 gaps:                            # false turns it off
   min_score: 55                  # [55] the gaps that keep coming up are read from open roles scored this much or more…
   max_score: 89                  # [89] …up to this much
+
+insights:                        # the Insights tab (below); false turns it off
+  themes:                        # [Axia's own list] the themes counted, each with the words that mark it
+    - name: Public cloud
+      words: [cloud*, aws, azure, gcp]
 ```
 
 The GitHub variable `NOTIFY_MIN_SCORE` overrides `notify.min_score`, so you can change the message threshold without a commit.
@@ -213,7 +218,29 @@ The buttons save to a Workers KV store in your Cloudflare account, behind the sa
 
 Each AI score also lists up to four things the posting itself requires, in the posting's own words, and whether your resume shows each (yes, partly, no). Axia keeps one only when its quote is really in the posting, so a requirement the model made up never reaches the dashboard. They explain the score; they don't change it.
 
-Once a week, when they have changed, the gaps and unmet must-haves of your open roles scored `gaps.min_score` to `gaps.max_score` are grouped by the model into a few themes, each with the roles behind it, shown at the top of the dashboard's Roles tab and as one line in the weekly message. For each theme, decide once: add the evidence to your resume if you have it, or accept the gap in `criteria.md`. Axia never edits either. It takes one small model request a week.
+Once a week, when they have changed, the gaps and unmet must-haves of your open roles scored `gaps.min_score` to `gaps.max_score` are grouped by the model into a few themes, each with the roles behind it, shown on the dashboard's Insights tab and as one line in the weekly message. For each theme, decide once: add the evidence to your resume if you have it, or accept the gap in `criteria.md`. Axia never edits either. It takes one small model request a week.
+
+## Insights: what the roles ask for
+
+The dashboard's **Insights** tab counts what the roles at your companies keep asking for. Every AI score already quotes up to four must-haves from the posting and says whether your resume shows each (yes, partly, no). Axia sorts those must-haves into themes by their words and shows, for each theme:
+
+- how often it is asked: the share of roles whose must-haves name it (a role counts once per theme), and
+- how often your resume shows it, a partly counting half.
+
+Switch between the roles you scored `report.show_from` or more and all scored roles. Tap a theme to see the open roles that ask for it. Below that sit the cities where your best-fit roles are (cities with at least 10 scored roles) and how fast those roles close: the median days from Axia first seeing a role to the company taking it down. It covers the roles Axia remembers, the open ones and those closed in the last 45 days. The weekly "What keeps coming up" themes sit on this tab too.
+
+It is all counted from your scores, with no AI request, and it never changes a score. Once a week a small snapshot of the theme shares is kept in `data/jobs.json` (`insights.weeks`, the last 26) for trends later on. `axia insights` prints the same counts in the terminal.
+
+Axia has its own list of about 25 themes for technology and leadership roles in financial services. To count your own, list them under `insights.themes`; your list replaces Axia's. A word ending in `*` matches any word that starts with it (`migrat*`: migrate, migration); any other word or phrase matches as a whole word, with or without a plural s. Case, hyphens and spaces between words don't matter (`hands-on` matches "hands on").
+
+```yaml
+insights:
+  themes:
+    - name: Public cloud
+      words: [cloud*, aws, azure, gcp, google cloud]
+    - name: Payments
+      words: [payment*, iso 20022, swift, card, clearing, settlement*]
+```
 
 ## Pay range per role, and pay.yml
 

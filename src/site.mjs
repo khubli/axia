@@ -6,11 +6,13 @@ import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { viewModel } from './render.mjs';
-import { jobId } from './text.mjs';
+import { jobId, citiesOf } from './text.mjs';
+export { citiesOf };
 import { daysBetween } from './state.mjs';
 import { feedbackEnabled, pageFeedback } from './feedback.mjs';
 import { tailorEnabled, tailorApi, pageTailor } from './tailor.mjs';
 import { gapsView } from './gaps.mjs';
+import { pageInsights } from './insights.mjs';
 import { MOVE_POINTS } from './changes.mjs';
 import { reasonOf } from './heat.mjs';
 
@@ -20,24 +22,6 @@ const FONTS = readdirSync(join(ASSETS, 'fonts')).filter((f) => f.endsWith('.woff
 const CLOSED_SHOWN_DAYS = 7;
 // Calls that mean "I'm pursuing this": those roles are kept on the Your roles tab after they close.
 const KEPT_CALLS = ['applied', 'shortlist'];
-
-const CITIES = [
-  [/pune/i, 'Pune'], [/bengaluru|bangalore/i, 'Bengaluru'], [/mumbai/i, 'Mumbai'], [/hyderabad/i, 'Hyderabad'],
-  [/gurgaon|gurugram/i, 'Gurugram'], [/chennai/i, 'Chennai'], [/noida/i, 'Noida'], [/new delhi|\bdelhi\b/i, 'Delhi'],
-  [/kolkata/i, 'Kolkata'], [/singapore/i, 'Singapore'], [/london/i, 'London'], [/new york/i, 'New York'], [/dubai/i, 'Dubai'],
-];
-
-/** "Bengaluru, Karnataka, India; Hyderabad, India" → ["Bengaluru", "Hyderabad"], for the city filter. */
-export function citiesOf(location) {
-  if (!location) return [];
-  const out = [];
-  for (const part of String(location).split(';')) {
-    const hit = CITIES.find(([re]) => re.test(part));
-    const name = hit ? hit[1] : part.replace(/^[A-Z]{2} - /, '').split(',')[0].trim();
-    if (name && !out.includes(name)) out.push(name);
-  }
-  return out;
-}
 
 const modelName = (m) => (m ? m.replace(/^claude-/, '').replace(/-\d.*$/, '').replace(/^\w/, (c) => c.toUpperCase()) : null);
 
@@ -122,6 +106,8 @@ export function siteData(view, { minScore, demo = false }) {
     // Stretch roles from your own research (moonshots.json), on their own tab; null means no tab.
     // Gaps that keep coming up across your close calls (gaps.mjs); null until the first roll-up.
     gaps: pageGaps(state, settings),
+    // What your companies' roles keep asking for, where your best-fit roles are, how fast they close (insights.mjs).
+    insights: pageInsights(state, settings),
     // What the last run changed (changes.mjs); null before the first run that records it.
     brief: pageBrief(summary.changes, state),
     // Recent layoffs from your layoffs.yml, by company name: a label only, never part of the score.
