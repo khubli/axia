@@ -6,8 +6,9 @@
 //   POST /api/feedback   { id, verdict: 'applied' | 'shortlist' | 'not-for-me' | null, reason,
 //                          outcome: { kind: 'rejected' | 'turned-down', reason, stage, note } | null }
 //                        An outcome is kept only on an Applied call; o is { k, r, s, n, t }.
-//   GET  /api/todo       every to-do tick: { entries: { <item id>: { d, n, t } } }
+//   GET  /api/todo       every to-do tick: { entries: { <item id>: { d, n, t, a?, p?, x? } } }
 //   POST /api/todo       { id, done: true | false, note }   (your list in todo.yml)
+//                        + { task, priority, removed } for an item added on the dashboard
 //   GET  /api/tailor     every Tailor request: { entries: { <role id>: { on, n, t } } }
 //   POST /api/tailor     { id, on: true | false, note }   (only when settings.yml turns tailor on)
 //                        With TAILOR_REPO and TAILOR_TOKEN set (tailor.dispatch), a request also starts
@@ -80,7 +81,11 @@ export default {
       if (kind === 'td') {
         if (typeof body.done !== 'boolean') return json({ error: 'done must be true or false' }, 400);
         let note = String(body.note ?? '').replace(/\s+/g, ' ').trim().slice(0, MAX_REASON);
-        const entry = () => ({ d: body.done, n: note, t: new Date().toISOString() });
+        // An item added on the dashboard carries its own words and priority; removing one keeps a marker.
+        const task = String(body.task ?? '').replace(/\s+/g, ' ').trim().slice(0, 200);
+        if (body.task != null && !task) return json({ error: 'the item needs some words' }, 400);
+        const added = task ? { a: task, p: ['now', 'next', 'later'].includes(body.priority) ? body.priority : 'now', ...(body.removed === true ? { x: true } : {}) } : {};
+        const entry = () => ({ d: body.done, n: note, t: new Date().toISOString(), ...added });
         while (new TextEncoder().encode(JSON.stringify(entry())).length > 1000) note = note.slice(0, -10);
         const e = entry();
         await env.FEEDBACK.put(`td:${id}`, JSON.stringify(e), { metadata: e });

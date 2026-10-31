@@ -38,7 +38,7 @@ test('the file: tasks with a group, priority, details and link; junk dropped; id
 test('a bad file is a warning, never a stopped run', () => {
   const dir = mkdtempSync(join(tmpdir(), 'axia-todo-'));
   const logs = [];
-  assert.equal(loadTodo(dir, { todo: { file: 'todo.yml' } }, { log: (m) => logs.push(m) }), null, 'no file, no list');
+  assert.deepEqual(loadTodo(dir, { todo: { file: 'todo.yml' } }, { log: (m) => logs.push(m) }), [], 'no file yet: an empty list, to add to on the dashboard');
   writeFileSync(join(dir, 'todo.yml'), 'todo: [unclosed');
   assert.equal(loadTodo(dir, { todo: { file: 'todo.yml' } }, { log: (m) => logs.push(m) }), null);
   assert.match(logs.join('\n'), /could not be read/);
@@ -61,7 +61,25 @@ test('ticks: the newest wins, and the dashboard tick wins over done: in the file
   const page = pageTodo(items, { items: { ...ticks.items, c: { done: false, note: 'reopened', at: '2026-10-22T00:00:00Z' } } }, { api: true });
   assert.deepEqual(page.items.map((i) => [i.id, i.done, i.note]), [['a', true, 'sent'], ['b', true, 'booked for 12 Nov'], ['c', false, 'reopened']]);
   assert.equal(pageTodo(null, ticks, { api: true }), null);
+  assert.equal(pageTodo([], { items: {} }, { api: false }), null, 'nothing to show and nowhere to add');
+  assert.deepEqual(pageTodo([], { items: {} }, { api: true }), { api: true, items: [] }, 'empty, with the add box');
 });
+
+test('items added on the dashboard: kept with their words, newest first, gone once removed', () => {
+  const ticks = { version: 1, items: {} };
+  const pulled = new Map([
+    ['add-mvw1', { done: false, note: '', at: '2026-10-31T10:00:00Z', task: 'Call the recruiter back', priority: 'now' }],
+    ['add-mvw2', { done: true, note: 'sent', at: '2026-10-31T11:00:00Z', task: 'Send the thank-you note', priority: 'next' }],
+    ['add-mvw3', { done: false, note: '', at: '2026-10-31T12:00:00Z', task: 'Typo item', priority: 'now', removed: true }],
+  ]);
+  assert.equal(applyTicks(ticks, pulled), 3);
+  assert.deepEqual(ticks.items['add-mvw1'], { done: false, note: '', at: '2026-10-31T10:00:00Z', task: 'Call the recruiter back', priority: 'now' });
+  assert.equal(ticks.items['add-mvw3'].removed, true);
+  assert.equal(applyTicks(ticks, pulled), 0, 'nothing new the second time');
+  const items = normalizeTodo({ todo: [{ task: 'From the file', id: 'file' }] }).items;
+  const page = pageTodo(items, ticks, { api: true });
+  assert.deepEqual(page.items.map((i) => [i.id, i.added ?? false, i.done]), [['add-mvw2', true, true], ['add-mvw1', true, false], ['file', false, false]]);
+  assert.equal(page.items[0].priority, 'next');});
 
 test('settings: todo.file is todo.yml by default; false turns it off; anything else is refused', () => {
   const base = readFileSync(join(example, 'settings.yml'), 'utf8');
@@ -103,6 +121,14 @@ test('the Worker saves a tick and its note apart from your calls on roles, and l
   assert.ok(new TextEncoder().encode(JSON.stringify(e.FEEDBACK.data.get('td:long').metadata)).length <= 1000);
   const list = await (await worker.fetch(new Request('https://jobs.example.test/api/todo', { headers: signedIn }), e)).json();
   assert.deepEqual(Object.keys(list.entries).sort(), ['cv-summary', 'long']);
+  // An item added on the dashboard keeps its words and priority; removing it keeps a marker for the run.
+  assert.equal((await worker.fetch(post({ id: 'add-mvw1', done: false, task: '  Call the   recruiter ', priority: 'soon' }), e)).status, 200);
+  assert.deepEqual([e.FEEDBACK.data.get('td:add-mvw1').metadata.a, e.FEEDBACK.data.get('td:add-mvw1').metadata.p], ['Call the recruiter', 'now']);
+  await worker.fetch(post({ id: 'add-mvw1', done: false, task: 'Call the recruiter', priority: 'next', removed: true }), e);
+  assert.equal(e.FEEDBACK.data.get('td:add-mvw1').metadata.x, true);
+  assert.equal((await worker.fetch(post({ id: 'add-mvw2', done: false, task: '   ' }), e)).status, 400);
+  await worker.fetch(post({ id: 'add-long', done: false, task: 'é'.repeat(300), note: 'é'.repeat(300) }), e);
+  assert.ok(new TextEncoder().encode(JSON.stringify(e.FEEDBACK.data.get('td:add-long').metadata)).length <= 1000);
   const calls = await (await worker.fetch(new Request('https://jobs.example.test/api/feedback', { headers: signedIn }), e)).json();
   assert.deepEqual(calls.entries, {}, 'ticks are not calls on roles');
 });
@@ -130,16 +156,17 @@ async function day(dir, date, ticks) {
 test('each run copies the ticks into data/todo.json and shows the list on the Insights tab', async () => {
   const dir = tempProject({ companies: COMPANIES, settings: { titles: { include: ['Solution Architect'], exclude: [] }, dashboard: { domain: 'jobs.example.test' } } });
   await day(dir, '2026-10-15', {});
-  assert.ok(!existsSync(join(dir, 'data/todo.json')), 'no todo.yml: nothing written');
-  assert.doesNotMatch(readFileSync(join(dir, '.axia/site/index.html'), 'utf8'), /"todo":\{/);
+  assert.match(readFileSync(join(dir, '.axia/site/index.html'), 'utf8'), /"todo":\{"api":true,"items":\[\]\}/, 'no todo.yml yet: an empty list to add to');
 
   writeFileSync(join(dir, 'todo.yml'), 'todo:\n  - task: Rewrite the CV summary\n    id: cv-summary\n    priority: now\n  - task: Book the AZ-305 exam\n');
-  await day(dir, '2026-10-16', { 'cv-summary': { d: true, n: 'sent to two friends', t: '2026-10-15T20:00:00Z' }, gone: { d: true, n: '', t: '2026-10-15T20:00:00Z' } });
+  await day(dir, '2026-10-16', { 'cv-summary': { d: true, n: 'sent to two friends', t: '2026-10-15T20:00:00Z' }, gone: { d: true, n: '', t: '2026-10-15T20:00:00Z' }, 'add-mvw9': { d: false, n: '', t: '2026-10-15T21:00:00Z', a: 'Call the recruiter back', p: 'later' } });
   const saved = JSON.parse(readFileSync(join(dir, 'data/todo.json'), 'utf8'));
   assert.deepEqual(saved.items['cv-summary'], { done: true, note: 'sent to two friends', at: '2026-10-15T20:00:00Z' });
+  assert.deepEqual(saved.items['add-mvw9'], { done: false, note: '', at: '2026-10-15T21:00:00Z', task: 'Call the recruiter back', priority: 'later' }, 'an item added on the dashboard is kept');
   const html = readFileSync(join(dir, '.axia/site/index.html'), 'utf8');
   assert.match(html, /id="ins-todo"/);
-  assert.match(html, /"todo":\{"api":true,"items":\[\{"id":"cv-summary"[^\]]*"done":true,"note":"sent to two friends"/);
+  assert.match(html, /class="td-nb"/, 'each item has its own Note button');
+  assert.match(html, /"todo":\{"api":true,"items":\[\{"id":"add-mvw9","task":"Call the recruiter back"[^\]]*\{"id":"cv-summary"[^\]]*"done":true,"note":"sent to two friends"/);
 
   // Cloudflare down: the ticks already saved stay.
   const stub = stubFetch([['boards-api.greenhouse.io/v1/boards/acme', () => ({ jobs: JOBS })], ['api.cloudflare.com', () => new Response('down', { status: 500 })]]);

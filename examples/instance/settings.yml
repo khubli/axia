@@ -92,7 +92,7 @@ gaps:
 #     - name: Payments
 #       words: [payment*, iso 20022, swift, card, clearing]
 
-# Your to-do list, ticked off on the Insights tab: todo.yml (see todo.yml in this folder). No file, no list;
+# Your to-do list on the Insights tab: items in todo.yml (see todo.yml in this folder) and any you add there.
 # false turns it off.
 # todo:
 #   file: todo.yml

@@ -328,8 +328,8 @@ li.sel > .inline { display: block; }
 :is(.yours, .tailor) .opts { display: flex; flex-wrap: wrap; gap: 6px; }
 :is(.yours, .tailor) .opts button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 7px 13px; font-size: 14px; cursor: pointer; }
 :is(.yours, .tailor) .opts button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
-:is(.yours, .tailor, .td-more) .why-row { display: flex; gap: 8px; margin: 0; }
-:is(.yours, .tailor, .td-more) .why { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; flex: 1; min-width: 0; box-sizing: border-box; }
+:is(.yours, .tailor, .td-more) .why-row, .why-row.td-add { display: flex; gap: 8px; margin: 0; }
+:is(.yours, .tailor, .td-more, .td-add) .why { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; flex: 1; min-width: 0; box-sizing: border-box; }
 :is(.yours, .tailor) .why-row .btn { padding: 8px 14px; }
 :is(.yours, .tailor) .why-row .btn:disabled { background: var(--surface); border-color: var(--line); color: var(--faint); cursor: default; }
 :is(.yours, .tailor) .st { margin: 0; font-size: 12px; color: var(--faint); }
@@ -422,7 +422,11 @@ td.co { font-weight: 600; white-space: nowrap; }
 .todo { list-style: none; margin: 0; padding: 0; max-width: 760px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
 .td { border-bottom: 1px solid var(--line); padding: 11px 16px; }
 .td:last-child { border-bottom: 0; }
-.td-row { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; }
+.td-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 10px; align-items: start; }
+.td-nb { background: none; border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; font-size: 13px; font-weight: 600; color: var(--accent); cursor: pointer; white-space: nowrap; }
+.td-nb:hover { border-color: var(--accent); }
+.td-add { margin: 0 0 14px; max-width: 760px; }
+.td-add select.why { flex: 0 0 auto; width: auto; }
 .td-row input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--good); cursor: pointer; }
 .td-task { background: none; border: 0; padding: 0; text-align: left; cursor: pointer; display: grid; gap: 3px; color: var(--ink); font-size: 15px; min-width: 0; }
 .td-task .t { overflow-wrap: anywhere; }
@@ -1297,15 +1301,20 @@ footer a { color: var(--muted); }
     el.addEventListener('click', (e) => { const b = e.target.closest('.who button'); if (b) reveal(b.dataset.id); });
   })();
 
-  // ── your to-do list (todo.yml): tick an item off here, with a short note; saved like your calls ──
+  // ── your to-do list (todo.yml, plus items added here): tick an item off, with a short note; saved like your calls ──
   const TDK = D.todo || null;
   const TD = {};
   const tdPending = store.get('tdPending', {});
   const tdStatus = {};
   let tdOpen = null;
+  const tdAddedItem = (id, e) => ({ id: id, task: e.a, group: null, priority: e.p, details: null, link: null, done: e.d, note: e.n || '', at: e.t, added: true });
   if (TDK) {
-    for (const it of TDK.items) TD[it.id] = { d: it.done, n: it.note || '', t: it.at };
-    for (const [id, e] of Object.entries(tdPending)) if (TD[id]) TD[id] = e;
+    for (const it of TDK.items) TD[it.id] = it.added ? { d: it.done, n: it.note || '', t: it.at, a: it.task, p: it.priority } : { d: it.done, n: it.note || '', t: it.at };
+    for (const [id, e] of Object.entries(tdPending)) {
+      if (TD[id]) TD[id] = e;
+      else if (e.a && !e.x) { TD[id] = e; TDK.items.unshift(tdAddedItem(id, e)); } // added on this device, not sent yet
+    }
+    TDK.items = TDK.items.filter((it) => !(TD[it.id] && TD[it.id].x));
   }
   const PRIO = { now: 'Now', next: 'Next', later: 'Later' };
   function todoItem(it) {
@@ -1315,23 +1324,32 @@ footer a { color: var(--muted); }
     return '<li class="td' + (e.d ? ' done' : '') + '" data-id="' + esc(it.id) + '"><div class="td-row">' +
       '<input type="checkbox" aria-label="' + esc('Done: ' + it.task) + '"' + (e.d ? ' checked' : '') + '>' +
       '<button type="button" class="td-task" aria-expanded="' + open + '"><span class="t">' + esc(it.task) + '</span>' +
-      (it.group ? '<span class="meta">' + esc(it.group) + '</span>' : '') + (e.n ? '<span class="note">' + esc(e.n) + '</span>' : '') + '</button></div>' +
+      (it.group ? '<span class="meta">' + esc(it.group) + '</span>' : '') + (e.n ? '<span class="note">' + esc(e.n) + '</span>' : '') + '</button>' +
+      '<button type="button" class="td-nb" aria-label="' + esc((e.n ? 'Edit the note: ' : 'Add a note: ') + it.task) + '">' + (e.n ? 'Edit note' : '+ Note') + '</button></div>' +
       (open ? '<div class="td-more">' + (it.details ? '<p>' + esc(it.details) + '</p>' : '') +
         (it.link ? '<a href="' + esc(it.link) + '" target="_blank" rel="noopener noreferrer">Open the link ↗</a>' : '') +
-        '<form class="why-row"><input class="why" type="text" maxlength="240" enterkeyhint="done" placeholder="A short note (optional)" aria-label="Note" value="' + esc(e.n || '') + '"><button type="submit" class="btn primary">Save</button></form>' +
+        '<form class="why-row td-note"><input class="why" type="text" maxlength="240" enterkeyhint="done" placeholder="A short note (optional)" aria-label="Note" value="' + esc(e.n || '') + '"><button type="submit" class="btn primary">Save</button></form>' +
+        (it.added ? '<div><button type="button" class="btn small td-rm">Remove this item</button></div>' : '') +
         (said ? '<p class="st">' + said + '</p>' : '') + '</div>' : '') + '</li>';
   }
   function renderTodo() {
     const el = $('#ins-todo');
-    if (!TDK || !TDK.items.length) return;
+    if (!TDK) return;
+    // Keep what is being typed in the add box across a re-render.
+    const box = el.querySelector('.td-add input'), typed = box ? box.value : '', typing = box && document.activeElement === box;
+    const prioWas = el.querySelector('.td-add select'), prio = prioWas ? prioWas.value : store.get('todoAddPrio', 'now');
     const left = TDK.items.filter((it) => !TD[it.id].d);
     const done = TDK.items.filter((it) => TD[it.id].d).sort((a, b) => String(TD[b.id].t || '').localeCompare(String(TD[a.id].t || '')));
     const doneOpen = store.get('todoDoneOpen', false);
     el.innerHTML = '<h2>Your to-do<span class="num">' + left.length + ' open · ' + done.length + ' done</span></h2>' +
-      '<p class="note">From your todo.yml. Tick an item when it is done; tap it for its details and a short note.</p>' +
+      '<p class="note">Add an item below, or keep longer ones with details in todo.yml. Tick an item when it is done; tap <b>+ Note</b> to add a short note, or tap an item for its details.</p>' +
+      '<form class="why-row td-add"><input class="why" type="text" maxlength="200" enterkeyhint="done" placeholder="Add an item" aria-label="New to-do item">' +
+      '<select class="why" aria-label="When">' + ['now', 'next', 'later'].map((p) => '<option value="' + p + '"' + (p === prio ? ' selected' : '') + '>' + PRIO[p] + '</option>').join('') + '</select>' +
+      '<button type="submit" class="btn primary">Add</button></form>' +
       ['now', 'next', 'later'].map((p) => { const l = left.filter((it) => it.priority === p); return l.length ? '<h3>' + PRIO[p] + '</h3><ul class="todo">' + l.map(todoItem).join('') + '</ul>' : ''; }).join('') +
-      (left.length ? '' : '<p class="say">All done. Add the next things to todo.yml.</p>') +
+      (left.length ? '' : '<p class="say">' + (done.length ? 'All done.' : 'Nothing on your list yet.') + ' Add the next thing above.</p>') +
       (done.length ? '<details class="td-done"' + (doneOpen ? ' open' : '') + '><summary>Done · ' + done.length + '</summary><ul class="todo">' + done.map(todoItem).join('') + '</ul></details>' : '');
+    const nb = el.querySelector('.td-add input'); nb.value = typed; if (typing) nb.focus();
     el.hidden = false;
   }
   async function sendTodo(id) {
@@ -1339,7 +1357,9 @@ footer a { color: var(--muted); }
     if (!TDK.api) { tdPending[id] = e; store.set('tdPending', tdPending); tdStatus[id] = 'local'; renderTodo(); return; }
     tdStatus[id] = 'saving';
     try {
-      const r = await fetch('api/todo', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id, done: e.d, note: e.n || '' }) });
+      const body = { id: id, done: e.d, note: e.n || '' };
+      if (e.a) { body.task = e.a; body.priority = e.p; if (e.x) body.removed = true; }
+      const r = await fetch('api/todo', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       delete tdPending[id]; tdStatus[id] = 'saved';
     } catch (err) { tdPending[id] = e; tdStatus[id] = 'local'; }
@@ -1348,21 +1368,43 @@ footer a { color: var(--muted); }
   }
   if (TDK) {
     const el = $('#ins-todo');
+    const now = () => new Date().toISOString();
     el.addEventListener('change', (ev) => {
-      const box = ev.target.closest('input[type=checkbox]'); if (!box) return;
+      if (ev.target.matches('.td-add select')) { store.set('todoAddPrio', ev.target.value); return; }
+      const box = ev.target.closest('li[data-id] input[type=checkbox]'); if (!box) return;
       const id = box.closest('li[data-id]').dataset.id;
-      TD[id] = { d: box.checked, n: TD[id].n, t: new Date().toISOString() };
+      TD[id] = Object.assign({}, TD[id], { d: box.checked, t: now() });
       sendTodo(id);
     });
     el.addEventListener('click', (ev) => {
-      const b = ev.target.closest('.td-task'); if (!b) return;
+      const rm = ev.target.closest('.td-rm');
+      if (rm) {
+        const id = rm.closest('li[data-id]').dataset.id;
+        TD[id] = Object.assign({}, TD[id], { x: true, t: now() });
+        TDK.items = TDK.items.filter((it) => it.id !== id); tdOpen = null;
+        sendTodo(id);
+        return;
+      }
+      const nb = ev.target.closest('.td-nb');
+      const b = nb || ev.target.closest('.td-task'); if (!b) return;
       const id = b.closest('li[data-id]').dataset.id;
-      tdOpen = tdOpen === id ? null : id; renderTodo();
+      tdOpen = nb ? id : tdOpen === id ? null : id; renderTodo();
+      if (nb) { const f = el.querySelector('li[data-id="' + CSS.escape(id) + '"] .td-more input.why'); if (f) f.focus(); }
     });
     el.addEventListener('submit', (ev) => {
       ev.preventDefault();
+      if (ev.target.matches('.td-add')) {
+        const input = ev.target.querySelector('input'), task = input.value.replace(/\s+/g, ' ').trim().slice(0, 200);
+        if (!task) return;
+        const id = 'add-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+        TD[id] = { d: false, n: '', t: now(), a: task, p: ev.target.querySelector('select').value };
+        TDK.items.unshift(tdAddedItem(id, TD[id]));
+        input.value = '';
+        sendTodo(id);
+        return;
+      }
       const li = ev.target.closest('li[data-id]'); const id = li.dataset.id;
-      TD[id] = { d: TD[id].d, n: ev.target.querySelector('input').value.replace(/\s+/g, ' ').trim().slice(0, 240), t: new Date().toISOString() };
+      TD[id] = Object.assign({}, TD[id], { n: ev.target.querySelector('input').value.replace(/\s+/g, ' ').trim().slice(0, 240), t: now() });
       sendTodo(id);
     });
     el.addEventListener('toggle', (ev) => { if (ev.target.classList && ev.target.classList.contains('td-done')) store.set('todoDoneOpen', ev.target.open); }, true);
@@ -1827,8 +1869,17 @@ footer a { color: var(--muted); }
       const data = await r.json();
       let changed = false;
       for (const [id, e] of Object.entries(data.entries || {})) {
-        if (tdPending[id] || !TD[id] || typeof e.d !== 'boolean' || (TD[id].t && e.t && e.t <= TD[id].t)) continue;
-        TD[id] = { d: e.d, n: e.n || '', t: e.t }; changed = true;
+        if (tdPending[id] || typeof e.d !== 'boolean') continue;
+        if (!TD[id]) {
+          // An item added on another device.
+          if (!e.a || e.x) continue;
+          TD[id] = { d: e.d, n: e.n || '', t: e.t, a: e.a, p: e.p || 'now' };
+          TDK.items.unshift(tdAddedItem(id, TD[id])); changed = true; continue;
+        }
+        if (TD[id].t && e.t && e.t <= TD[id].t) continue;
+        TD[id] = e.a ? { d: e.d, n: e.n || '', t: e.t, a: e.a, p: e.p || 'now', x: e.x === true } : { d: e.d, n: e.n || '', t: e.t };
+        if (e.x) TDK.items = TDK.items.filter((it) => it.id !== id);
+        changed = true;
       }
       if (changed) renderTodo();
     } catch (e) {}

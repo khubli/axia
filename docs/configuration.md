@@ -147,7 +147,7 @@ gaps:                            # false turns it off
   max_score: 89                  # [89] …up to this much
 
 todo:                            # false turns it off
-  file: todo.yml                 # [todo.yml] your to-do list, ticked off on the Insights tab (below); no file, no list
+  file: todo.yml                 # [todo.yml] your to-do list, ticked off on the Insights tab (below), where you can also add items
 
 insights:                        # the Insights tab (below); false turns it off
   themes:                        # [Axia's own list] the themes counted, each with the words that mark it
@@ -263,9 +263,11 @@ todo:
     done: true                     # optional: already done before the list was in Axia
 ```
 
-Tick an item on the dashboard when it is done; tap it to read its details and add a short note (up to 240 characters). Ticks and notes save to the same Cloudflare store as your calls on roles (they need `dashboard.feedback`), so they show on every device at once, and each run copies them into `data/todo.json` so they last. A tick on the dashboard wins over `done:` in the file. Done items fold into a **Done** group, newest first. A tick is kept under the item's `id`, or under its task's words when it has none, so rewording a task without an `id` starts it unticked.
+Tick an item on the dashboard when it is done; tap **+ Note** to add a short note (up to 240 characters), or tap the item to read its details.
 
-To change the list, edit `todo.yml`; the dashboard shows the change after the next run. A bad file is reported in the run's log and leaves the list off the page for that run; it never stops the run. No file, no list. `todo: false` turns it off; `todo.file` names another file. It costs no AI requests.
+You can also add items on the dashboard itself, like a quick note: type a line in **Add an item**, pick Now, Next or Later, and press Add. These live in `data/todo.json` with their words, not in `todo.yml`; open one to **Remove** it. For an item with details or a link, or to reorder items, put it in `todo.yml` instead. Ticks and notes save to the same Cloudflare store as your calls on roles (they need `dashboard.feedback`), so they show on every device at once, and each run copies them into `data/todo.json` so they last. A tick on the dashboard wins over `done:` in the file. Done items fold into a **Done** group, newest first. A tick is kept under the item's `id`, or under its task's words when it has none, so rewording a task without an `id` starts it unticked.
+
+To change the list, edit `todo.yml`; the dashboard shows the change after the next run. A bad file is reported in the run's log and leaves the list off the page for that run; it never stops the run. With no file, the list starts empty, ready for items added on the dashboard (a public dashboard, which can't save, shows no list). `todo: false` turns it off; `todo.file` names another file. It costs no AI requests.
 
 ## Pay range per role, and pay.yml
 

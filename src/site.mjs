@@ -109,7 +109,7 @@ export function siteData(view, { minScore, demo = false }) {
     gaps: pageGaps(state, settings),
     // What your companies' roles keep asking for, where your best-fit roles are, how fast they close (insights.mjs).
     insights: pageInsights(state, settings),
-    // Your to-do list (todo.yml) with the ticks and notes you made; null when there is no file.
+    // Your to-do list (todo.yml and items added on the dashboard) with the ticks and notes you made; null when off.
     // With `api`, ticks save to your Cloudflare account like your calls; otherwise (the demo) only in this browser.
     todo: view.todo ? pageTodo(view.todo.items, view.todo.ticks, { api: !demo && feedbackEnabled(settings) }) : null,
     // What the last run changed (changes.mjs); null before the first run that records it.

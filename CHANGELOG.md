@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.30.0
+
+- **Add to-do items on the dashboard, like a quick note.** The to-do list on the Insights tab now starts with an **Add an item** box: type a line, pick Now, Next or Later, and press Add. Items added this way save to the same Cloudflare store as your ticks, so they show on every device at once, and each run keeps them in `data/todo.json` with their words. Tick them and add notes like any other item; open one to **Remove** it. `todo.yml` stays the place for items with details and links, and with no `todo.yml` at all the list now shows empty, ready to add to ([details](docs/configuration.md#your-to-do-list-and-todoyml)).
+
+- **An easier way to add a note to a to-do item.** Each item now has a **+ Note** button (**Edit note** once it has one), which opens the item with the note box ready to type in. Before, the note box only showed after tapping the task itself, which was easy to miss.
+
 ## 1.29.0
 
 - **The Axia logo takes you home.** Tap the logo or the name at the top left to go back to the **Roles** tab, scrolled to the top, with any open role closed and any `#role` link cleared from the address. Ctrl- or Cmd-click still opens the dashboard in a new tab.
