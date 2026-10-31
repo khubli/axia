@@ -139,6 +139,7 @@ test('each run copies the ticks into data/todo.json and shows the list on the In
   assert.deepEqual(saved.items['cv-summary'], { done: true, note: 'sent to two friends', at: '2026-10-15T20:00:00Z' });
   const html = readFileSync(join(dir, '.axia/site/index.html'), 'utf8');
   assert.match(html, /id="ins-todo"/);
+  assert.match(html, /class="td-nb"/, 'each item has its own Note button');
   assert.match(html, /"todo":\{"api":true,"items":\[\{"id":"cv-summary"[^\]]*"done":true,"note":"sent to two friends"/);
 
   // Cloudflare down: the ticks already saved stay.

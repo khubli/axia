@@ -422,7 +422,9 @@ td.co { font-weight: 600; white-space: nowrap; }
 .todo { list-style: none; margin: 0; padding: 0; max-width: 760px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
 .td { border-bottom: 1px solid var(--line); padding: 11px 16px; }
 .td:last-child { border-bottom: 0; }
-.td-row { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; }
+.td-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 10px; align-items: start; }
+.td-nb { background: none; border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; font-size: 13px; font-weight: 600; color: var(--accent); cursor: pointer; white-space: nowrap; }
+.td-nb:hover { border-color: var(--accent); }
 .td-row input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--good); cursor: pointer; }
 .td-task { background: none; border: 0; padding: 0; text-align: left; cursor: pointer; display: grid; gap: 3px; color: var(--ink); font-size: 15px; min-width: 0; }
 .td-task .t { overflow-wrap: anywhere; }
@@ -1315,7 +1317,8 @@ footer a { color: var(--muted); }
     return '<li class="td' + (e.d ? ' done' : '') + '" data-id="' + esc(it.id) + '"><div class="td-row">' +
       '<input type="checkbox" aria-label="' + esc('Done: ' + it.task) + '"' + (e.d ? ' checked' : '') + '>' +
       '<button type="button" class="td-task" aria-expanded="' + open + '"><span class="t">' + esc(it.task) + '</span>' +
-      (it.group ? '<span class="meta">' + esc(it.group) + '</span>' : '') + (e.n ? '<span class="note">' + esc(e.n) + '</span>' : '') + '</button></div>' +
+      (it.group ? '<span class="meta">' + esc(it.group) + '</span>' : '') + (e.n ? '<span class="note">' + esc(e.n) + '</span>' : '') + '</button>' +
+      '<button type="button" class="td-nb" aria-label="' + esc((e.n ? 'Edit the note: ' : 'Add a note: ') + it.task) + '">' + (e.n ? 'Edit note' : '+ Note') + '</button></div>' +
       (open ? '<div class="td-more">' + (it.details ? '<p>' + esc(it.details) + '</p>' : '') +
         (it.link ? '<a href="' + esc(it.link) + '" target="_blank" rel="noopener noreferrer">Open the link ↗</a>' : '') +
         '<form class="why-row"><input class="why" type="text" maxlength="240" enterkeyhint="done" placeholder="A short note (optional)" aria-label="Note" value="' + esc(e.n || '') + '"><button type="submit" class="btn primary">Save</button></form>' +
@@ -1328,7 +1331,7 @@ footer a { color: var(--muted); }
     const done = TDK.items.filter((it) => TD[it.id].d).sort((a, b) => String(TD[b.id].t || '').localeCompare(String(TD[a.id].t || '')));
     const doneOpen = store.get('todoDoneOpen', false);
     el.innerHTML = '<h2>Your to-do<span class="num">' + left.length + ' open · ' + done.length + ' done</span></h2>' +
-      '<p class="note">From your todo.yml. Tick an item when it is done; tap it for its details and a short note.</p>' +
+      '<p class="note">From your todo.yml. Tick an item when it is done. Tap <b>+ Note</b> to add a short note, or tap an item for its details.</p>' +
       ['now', 'next', 'later'].map((p) => { const l = left.filter((it) => it.priority === p); return l.length ? '<h3>' + PRIO[p] + '</h3><ul class="todo">' + l.map(todoItem).join('') + '</ul>' : ''; }).join('') +
       (left.length ? '' : '<p class="say">All done. Add the next things to todo.yml.</p>') +
       (done.length ? '<details class="td-done"' + (doneOpen ? ' open' : '') + '><summary>Done · ' + done.length + '</summary><ul class="todo">' + done.map(todoItem).join('') + '</ul></details>' : '');
@@ -1355,9 +1358,11 @@ footer a { color: var(--muted); }
       sendTodo(id);
     });
     el.addEventListener('click', (ev) => {
-      const b = ev.target.closest('.td-task'); if (!b) return;
+      const nb = ev.target.closest('.td-nb');
+      const b = nb || ev.target.closest('.td-task'); if (!b) return;
       const id = b.closest('li[data-id]').dataset.id;
-      tdOpen = tdOpen === id ? null : id; renderTodo();
+      tdOpen = nb ? id : tdOpen === id ? null : id; renderTodo();
+      if (nb) { const f = el.querySelector('li[data-id="' + CSS.escape(id) + '"] .td-more input.why'); if (f) f.focus(); }
     });
     el.addEventListener('submit', (ev) => {
       ev.preventDefault();
