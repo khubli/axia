@@ -14,7 +14,8 @@
 //
 // A tick and its note save to the same Cloudflare store as your calls on roles (key td:<id>), so they show
 // on every device at once. Each run copies them into data/todo.json in your private repository, so they
-// last. Nothing here is scored, sent or read by the model.
+// last. Items can also be added (and removed) on the dashboard, like a quick note; those live only in
+// data/todo.json, with their words and priority. Nothing here is scored, sent or read by the model.
 
 import { existsSync, readFileSync, writeFileSync, renameSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -69,12 +70,12 @@ export function normalizeTodo(raw) {
   return { items, dropped };
 }
 
-/** Reads todo.yml. Null when turned off or there is no file (no list on the page); a bad file never stops the run. */
+/** Reads todo.yml: its items, [] when there is no file, null when turned off. A bad file never stops the run. */
 export function loadTodo(dir, settings, { log = console.log } = {}) {
   const file = settings.todo?.file;
   if (!file) return null;
   const path = resolve(dir, file);
-  if (!existsSync(path)) return null;
+  if (!existsSync(path)) return []; // no file yet: items added on the dashboard can still show
   try {
     const { items, dropped } = normalizeTodo(parse(readFileSync(path, 'utf8')));
     for (const d of dropped) log(`::warning::To-do: ${file}: ${d}.`);
@@ -85,7 +86,8 @@ export function loadTodo(dir, settings, { log = console.log } = {}) {
   }
 }
 
-// data/todo.json: { version, items: { <id>: { done, note, at } } }, the ticks and notes you made on the dashboard.
+// data/todo.json: { version, items: { <id>: { done, note, at, task?, priority?, removed? } } }, the ticks and notes you
+// made on the dashboard; task and priority mark an item added there, removed one taken off again.
 export const todoPath = (dir) => resolve(dir, 'data/todo.json');
 
 export function loadTicks(dir) {
@@ -127,7 +129,10 @@ export async function pullTicks({ env, settings, log = console.log, fetchImpl })
       for (const k of data.result ?? []) {
         const m = k.metadata ?? {};
         if (typeof m.d !== 'boolean') continue;
-        out.set(k.name.slice(3), { done: m.d, note: clean(m.n, MAX_NOTE), at: m.t ?? null });
+        const t = { done: m.d, note: clean(m.n, MAX_NOTE), at: m.t ?? null };
+        const task = clean(m.a, 200);
+        if (task) Object.assign(t, { task, priority: PRIORITIES.includes(m.p) ? m.p : 'now', ...(m.x === true ? { removed: true } : {}) });
+        out.set(k.name.slice(3), t);
       }
       cursor = data.result_info?.cursor;
       if (!cursor) break;
@@ -139,27 +144,39 @@ export async function pullTicks({ env, settings, log = console.log, fetchImpl })
   }
 }
 
+const entryOf = (t) => ({ done: t.done, note: t.note, at: t.at, ...(t.task ? { task: t.task, priority: t.priority, ...(t.removed ? { removed: true } : {}) } : {}) });
+
 /** The dashboard's ticks into data/todo.json: the newest wins. Returns how many changed. */
 export function applyTicks(ticks, pulled) {
   let changed = 0;
   for (const [id, t] of pulled ?? []) {
     const prev = ticks.items[id];
-    if (prev && prev.done === t.done && prev.note === t.note) continue;
+    if (prev && JSON.stringify(prev) === JSON.stringify(entryOf(t))) continue;
     if (prev?.at && t.at && t.at < prev.at) continue;
-    ticks.items[id] = { done: t.done, note: t.note, at: t.at };
+    ticks.items[id] = entryOf(t);
     changed++;
   }
   return changed;
 }
 
-/** For the page: each item with its tick and note. A tick on the dashboard wins over done: in the file. */
+/**
+ * For the page: each item with its tick and note (a tick on the dashboard wins over done: in the file), then
+ * the items added on the dashboard, newest first. Null when there is nothing to show and nowhere to add.
+ */
 export function pageTodo(items, ticks, { api }) {
   if (!items) return null;
-  return {
-    api,
-    items: items.map((it) => {
+  const inFile = new Set(items.map((it) => it.id));
+  const added = Object.entries(ticks?.items ?? {})
+    .filter(([id, t]) => t.task && !t.removed && !inFile.has(id))
+    .map(([id, t]) => ({ id, task: t.task, group: null, priority: t.priority, details: null, link: null, done: t.done, note: t.note ?? '', at: t.at ?? null, added: true }))
+    .sort((a, b) => b.id.localeCompare(a.id)); // ids start with the time they were added
+  const list = [
+    ...added,
+    ...items.map((it) => {
       const t = ticks?.items?.[it.id];
       return { ...it, done: t ? t.done : it.done, note: t?.note ?? '', at: t?.at ?? null };
     }),
-  };
+  ];
+  if (!list.length && !api) return null;
+  return { api, items: list };
 }

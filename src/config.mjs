@@ -40,7 +40,7 @@ export const DEFAULTS = {
   // false turns the tab off.
   insights: { themes: null },
   // Your to-do list: a short file you keep by hand, ticked off (with a note) on the Insights tab and
-  // saved like your calls on roles. No file, no list. false turns it off.
+  // saved like your calls on roles; items can also be added there. false turns it off.
   todo: { file: 'todo.yml' },
   // Hiring heat per company (heat.mjs): worked out free each run, plus a weekly scan of hiring news
   // (news: true) and, with an X_BEARER_TOKEN, X posts from x_handles and about your x_companies
