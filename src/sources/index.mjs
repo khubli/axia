@@ -21,8 +21,11 @@ import * as talentsoft from './talentsoft.mjs';
 import * as bpce from './bpce.mjs';
 import * as ripplehire from './ripplehire.mjs';
 import * as radancy from './radancy.mjs';
+import * as scout from './scout.mjs';
+import * as kula from './kula.mjs';
+import * as cornerstone from './cornerstone.mjs';
 
-export const SOURCES = [workday, greenhouse, smartrecruiters, oracle, goldman, lever, ashby, amazon, google, turbohire, eightfold, successfactors, phenom, jibe, deshaw, avature, talentsoft, bpce, ripplehire, radancy];
+export const SOURCES = [workday, greenhouse, smartrecruiters, oracle, goldman, lever, ashby, amazon, google, turbohire, eightfold, successfactors, phenom, jibe, deshaw, avature, talentsoft, bpce, ripplehire, radancy, scout, kula, cornerstone];
 
 /** Sites the address can't identify; companies.yml names them with `platform:`. */
 export const PLATFORMS = [successfactors.type, eightfold.type, phenom.type, jibe.type, talentsoft.type, radancy.type];

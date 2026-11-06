@@ -47,6 +47,9 @@ The address decides how a company is read:
 | Groupe BPCE | `https://recrutement.natixis.com/en/our-job-offers/?tax_place=inde` or `https://recrutement.bpce.fr/…` (filters carry over) |
 | RippleHire | `https://<company>.ripplehire.com/candidate/?token=<token>&source=CAREERSITE` (the link on the employer's careers page) |
 | Radancy (TalentBrew) | the site's search page for the place you want, such as `https://www.schwabjobs.com/search-jobs/India/33995/2/1269750/22/79/50/2`, plus `platform: radancy` |
+| Kula | `https://careers.kula.ai/<company>`, such as `https://careers.kula.ai/slice` |
+| Cornerstone OnDemand | `https://<company>.csod.com/ux/ats/careersite/<n>/home?c=<company>` (add `&country=in` to read one country) |
+| Scout (Dezerv) | `https://scout.dezerv.in/careers?org=dezerv` |
 
 Eightfold sites on the employer's own domain (`portal.careers.<company>.com`) also need the platform named: `platform: eightfold`. `?location=` narrows the search, and `?domain=` names the company domain the site uses when it isn't the address's own; for `<company>.eightfold.ai` it is taken to be `<company>.com`.
 
@@ -65,6 +68,12 @@ Groupe BPCE's career sites (`recrutement.natixis.com`, `recrutement.bpce.fr`) ar
 RippleHire career sites (`<company>.ripplehire.com`) are read through the list their own pages use. Copy the link from the employer's careers page: its `token` names the company's public job list, and an address without one (such as a sign-in page) is not read. Every role is listed, a thousand per request, and your `locations` keep the ones you want. A posting's text and date are read from its own page only when the role is about to be scored. If the employer changes its token, the company shows as unreadable until the address is updated.
 
 Radancy (TalentBrew) career sites sit on the employer's own domain, so they need `platform: radancy`. Search the site for a place or keyword and copy the address of that results page: the page says which search it shows, and that search is then read from the site's results list, 100 roles a request. A posting's text and date are read from its own page only when the role is about to be scored. Radancy pages often show the city and state without the country (Schwab's say "Hyderabad, Telangana"), so keep the city in your `locations`.
+
+Kula career sites (`careers.kula.ai/<company>`, which an employer's own careers page often shows inside its site, as slice's does) are read through the list the page uses, 100 roles a request, each with its description, offices and posting date. If the employer's page doesn't say where it comes from, look for `careers.kula.ai` in its job links.
+
+Cornerstone OnDemand career sites (`<company>.csod.com/ux/ats/careersite/<n>/home?c=<company>`) are read through the search their own pages use: the page hands out a short-lived public token, and the search then gives every open role with its description, 100 a request. Pick a country in the site's filters and the address gets `&country=<code>` (`in` for India), which reads only that country's roles; without it every role worldwide is listed and your `locations` keep the ones you want. Roles open in several countries list them all ("Chennai, India; Singapore"). Some employers put only a short teaser in the description the search gives; Axia scores what it gets.
+
+Scout is Dezerv's own hiring system (`scout.<company>.in/careers?org=<company>`). One public list gives every open role with its description and posting date. The `org` on the address names the company, and an address without one is not read.
 
 Oracle's job list pages only as far as 10,000 postings. On a site listing more, the older postings are read by posting date as well, in date ranges small enough for the list, so none are missed.
 

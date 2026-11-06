@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.32.0
+
+- **Three more kinds of careers site.** Each is recognised from its address, reads every open role with its description and posting date in a request or two, and needs no posting reads ([details](docs/configuration.md#companiesyml)):
+  - **Kula** (`https://careers.kula.ai/<company>`), used by Indian fintechs such as slice. 100 roles a request, with every office a role is open in.
+  - **Cornerstone OnDemand** (`https://<company>.csod.com/ux/ats/careersite/<n>/home?c=<company>`), such as the World Bank Group's. The career page's public token is read first, then the site's own search, 100 roles a request. `&country=in` on the address (the site's country filter) reads only that country's roles.
+  - **Scout**, Dezerv's own hiring system (`https://scout.dezerv.in/careers?org=dezerv`): one request reads the whole list.
+
 ## 1.31.0
 
 - **The to-do list has its own tab, and is simpler to use.** It moves off the Insights tab onto a **To-do** tab next to **Your roles**, with the number of open items on the tab, so it is one tap away (`#todo` links to it). The Insights tab goes back to the theme counts.

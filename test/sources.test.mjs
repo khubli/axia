@@ -624,3 +624,98 @@ test('radancy: the search page names the search, results read 100 a page, text a
 
   await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['/search-jobs/', '<html>maintenance</html>']]))), /no search results section/);
 });
+
+test('scout: one public list gives every open role with its text and date', async () => {
+  const site = detect('https://scout.contoso.in/careers?org=contoso');
+  assert.deepEqual([site.source.type, site.params.origin, site.params.org], ['scout', 'https://scout.contoso.in', 'contoso']);
+  assert.equal(detect('https://scout.contoso.in/careers'), null, 'no org: not a job list');
+
+  const role = (id, title, location, extra = {}) => ({ id, title, location, status: 'open', isAcceptingApplications: true, publishedAt: '2026-09-16T08:58:36.036Z', description: 'About the Role\nLead   engineering.\n\n\n\nWhat you will do', ...extra });
+  const http = fakeHttp([['/api/public/careers?org=contoso', { ok: true, total: 4, jobs: [
+    role('c1', ' Engineering Director ', 'Bengaluru'),
+    role('c2', 'Video Editor', null),
+    role('c3', 'Closed Role', 'Mumbai', { status: 'closed' }),
+    role('c1', 'Engineering Director', 'Bengaluru'),
+  ] }]]);
+  const jobs = await site.source.list(site.params, ctx(http));
+  assert.equal(http.calls.length, 1);
+  assert.deepEqual(jobs.map((j) => j.id), ['c1', 'c2'], 'closed and repeated roles are left out');
+  assert.deepEqual(jobs[0], {
+    id: 'c1',
+    title: 'Engineering Director',
+    location: 'Bengaluru',
+    url: 'https://scout.contoso.in/careers/jobs/c1?org=contoso',
+    postedAt: '2026-09-16',
+    description: 'About the Role\nLead engineering.\n\nWhat you will do',
+  });
+  assert.equal(jobs[1].location, null);
+
+  await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['/api/public/careers', { ok: false, error: 'Unknown org' }]]))), /no job list/);
+});
+
+test('kula: pages of 100 with descriptions and offices', async () => {
+  const site = detect('https://careers.kula.ai/fabrikam');
+  assert.deepEqual([site.source.type, site.params.account], ['kula', 'fabrikam']);
+  assert.equal(detect('https://careers.kula.ai/'), null);
+
+  const post = (id, title, offices, extra = {}) => ({ id, title, listed: true, on_career_page: true, launch_at: '2026-10-19T06:30:00.000Z',
+    ats_job: { job_description: '<h3><strong>About the role</strong></h3><ul><li><p>Lead the payments platform</p></li></ul>', offices }, ...extra });
+  const blr = { location: 'Bengaluru, Karnataka, India', city: 'Bengaluru' };
+  const http = fakeHttp([['ats_job_posts', (url) => {
+    const n = new URL(url).searchParams.get('page');
+    return n === '1'
+      ? { data: [post(64036, 'Senior Engineering Manager - Backend', [blr, blr]), post(50611, 'Area Credit Manager', [{ location: 'India' }])], meta: { count: 4, page: 1, items: 100, pages: 2 } }
+      : { data: [post(1, 'Hidden', [], { listed: false }), post(2, 'No office', [])], meta: { count: 4, page: 2, items: 100, pages: 2 } };
+  }]]);
+  const jobs = await site.source.list(site.params, ctx(http));
+  assert.deepEqual(http.calls.map((c) => new URL(c.url).searchParams.get('page')), ['1', '2']);
+  assert.equal(new URL(http.calls[0].url).searchParams.get('accountName'), 'fabrikam');
+  assert.equal(new URL(http.calls[0].url).searchParams.get('items'), '100');
+  assert.deepEqual(jobs.map((j) => j.id), ['64036', '50611', '2'], 'unlisted roles are left out');
+  assert.deepEqual(jobs[0], {
+    id: '64036',
+    title: 'Senior Engineering Manager - Backend',
+    location: 'Bengaluru, Karnataka, India',
+    url: 'https://careers.kula.ai/fabrikam/64036',
+    postedAt: '2026-10-19',
+    description: 'About the role\n\n• Lead the payments platform',
+  });
+  assert.equal(jobs[2].location, null);
+});
+
+test('cornerstone: token from the career page, then the search, 100 a request, with the country filter', async () => {
+  const site = detect('https://woodgrovebank.csod.com/ux/ats/careersite/4/home?c=woodgrovebank&country=in');
+  assert.deepEqual([site.source.type, site.params.host, site.params.corp, site.params.site, site.params.countries], ['cornerstone', 'woodgrovebank.csod.com', 'woodgrovebank', 4, ['in']]);
+  assert.equal(detect('https://woodgrovebank.csod.com/client/woodgrovebank/default.aspx'), null, 'not a career site');
+
+  const page = `<script>csod.context={"corp":"woodgrovebank","endpoints":{"cloud":"https://eu.api.csod.com/","api":"/"},"token":"tok-123","page":"home"};</script>`;
+  const req = (id, title, locations, date = '11/5/2026') => ({ requisitionId: id, displayJobTitle: title, locations, postingEffectiveDate: date, externalDescription: ` At Woodgrove,  you'll join a global team. ` });
+  const first = Array.from({ length: 100 }, (_, i) => req(1000 + i, `Analyst ${i}`, [{ city: 'Chennai', country: 'IN' }]));
+  const http = fakeHttp([
+    ['/ux/ats/careersite/4/home', page],
+    ['rec-job-search/external/jobs', (_url, opts) => ({ status: 'Success', data: { totalCount: 102, requisitions: opts.body.pageNumber === 1 ? first : [
+      req(38656, 'Associate Senior Product Owner', [{ city: 'Sydney', country: 'AU' }, { city: 'New Delhi', country: 'IN' }, { country: 'SG' }], '10/14/2026'),
+      req(1000, 'Analyst 0', []),
+      req(2, 'Nowhere', []),
+    ] } })],
+  ]);
+  const jobs = await site.source.list(site.params, ctx(http));
+  assert.equal(http.calls[0].url, 'https://woodgrovebank.csod.com/ux/ats/careersite/4/home?c=woodgrovebank');
+  const searches = http.calls.slice(1);
+  assert.equal(searches[0].url, 'https://eu.api.csod.com/rec-job-search/external/jobs');
+  assert.equal(searches[0].headers.Authorization, 'Bearer tok-123');
+  assert.deepEqual(searches.map((c) => [c.body.pageNumber, c.body.pageSize, c.body.careerSiteId, c.body.countryCodes]), [[1, 100, 4, ['in']], [2, 100, 4, ['in']]]);
+  assert.equal(jobs.length, 102, 'a role on two pages counts once');
+  assert.deepEqual(jobs[100], {
+    id: '38656',
+    title: 'Associate Senior Product Owner',
+    location: 'Sydney, Australia; New Delhi, India; Singapore',
+    url: 'https://woodgrovebank.csod.com/ux/ats/careersite/4/home/requisition/38656?c=woodgrovebank',
+    postedAt: '2026-10-14',
+    description: "At Woodgrove, you'll join a global team.",
+  });
+  assert.equal(jobs[101].location, null);
+  assert.equal(jobs[0].postedAt, '2026-11-05');
+
+  await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['/ux/ats/careersite/', '<html>Sign in</html>']]))), /no search token/);
+});
