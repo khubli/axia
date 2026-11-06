@@ -147,7 +147,7 @@ gaps:                            # false turns it off
   max_score: 89                  # [89] …up to this much
 
 todo:                            # false turns it off
-  file: todo.yml                 # [todo.yml] your to-do list, ticked off on the Insights tab (below), where you can also add items
+  file: todo.yml                 # [todo.yml] your to-do list, on the dashboard's To-do tab (below), where you can also add items
 
 insights:                        # the Insights tab (below); false turns it off
   themes:                        # [Axia's own list] the themes counted, each with the words that mark it
@@ -247,7 +247,7 @@ insights:
 
 ## Your to-do list, and todo.yml
 
-The things you mean to do for your search, such as a resume rewrite, a certification or people to write to, can live in a short `todo.yml` beside your settings. The **Insights** tab lists them above the theme counts, grouped Now, Next and Later, so the gaps and what you are doing about them sit together.
+The things you mean to do for your search, such as a resume rewrite, a certification or people to write to, have a **To-do** tab of their own, next to **Your roles**, with the number of open items on it. Items are grouped Now, Next and Later. Add quick ones on the dashboard, and keep longer ones, with details or a link, in a short `todo.yml` beside your settings.
 
 ```yaml
 todo:
@@ -263,9 +263,13 @@ todo:
     done: true                     # optional: already done before the list was in Axia
 ```
 
-Tick an item on the dashboard when it is done; tap **+ Note** to add a short note (up to 240 characters), or tap the item to read its details.
+On the dashboard:
 
-You can also add items on the dashboard itself, like a quick note: type a line in **Add an item**, pick Now, Next or Later, and press Add. These live in `data/todo.json` with their words, not in `todo.yml`; open one to **Remove** it. For an item with details or a link, or to reorder items, put it in `todo.yml` instead. Ticks and notes save to the same Cloudflare store as your calls on roles (they need `dashboard.feedback`), so they show on every device at once, and each run copies them into `data/todo.json` so they last. A tick on the dashboard wins over `done:` in the file. Done items fold into a **Done** group, newest first. A tick is kept under the item's `id`, or under its task's words when it has none, so rewording a task without an `id` starts it unticked.
+- **Add an item**: type a line at the top and press Enter or Add. It goes into Now unless you pick Next or Later under the box. Items added this way live in `data/todo.json` with their words, not in `todo.yml`.
+- **Tick it** when it is done. It stays struck through where it was for a moment, then moves into a folded **Done** group (newest first). **Undo** on the message at the bottom takes the tick back.
+- **Tap an item** to open it: its details and link (from `todo.yml`), a short note (up to 240 characters, such as "booked for 12 Nov"), **Move to** Now, Next or Later, and **Remove from the list**, which also has an Undo.
+
+Moving or removing works on items from `todo.yml` too, and what you do on the dashboard wins over the file: a move over `priority:`, a removal over the item being there, a tick over `done:`. Moving an item back to the priority the file gives it clears the move, so a later change to `priority:` in the file shows again. Ticks, notes, moves and removals save to the same Cloudflare store as your calls on roles (they need `dashboard.feedback`), so they show on every device at once, and each run copies them into `data/todo.json` so they last. A tick is kept under the item's `id`, or under its task's words when it has none, so rewording a task without an `id` starts it unticked.
 
 To change the list, edit `todo.yml`; the dashboard shows the change after the next run. A bad file is reported in the run's log and leaves the list off the page for that run; it never stops the run. With no file, the list starts empty, ready for items added on the dashboard (a public dashboard, which can't save, shows no list). `todo: false` turns it off; `todo.file` names another file. It costs no AI requests.
 

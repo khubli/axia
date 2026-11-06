@@ -328,8 +328,8 @@ li.sel > .inline { display: block; }
 :is(.yours, .tailor) .opts { display: flex; flex-wrap: wrap; gap: 6px; }
 :is(.yours, .tailor) .opts button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 7px 13px; font-size: 14px; cursor: pointer; }
 :is(.yours, .tailor) .opts button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
-:is(.yours, .tailor, .td-more) .why-row, .why-row.td-add { display: flex; gap: 8px; margin: 0; }
-:is(.yours, .tailor, .td-more, .td-add) .why { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; flex: 1; min-width: 0; box-sizing: border-box; }
+:is(.yours, .tailor, .td-more) .why-row { display: flex; gap: 8px; margin: 0; }
+:is(.yours, .tailor, .td-more) .why { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; flex: 1; min-width: 0; box-sizing: border-box; }
 :is(.yours, .tailor) .why-row .btn { padding: 8px 14px; }
 :is(.yours, .tailor) .why-row .btn:disabled { background: var(--surface); border-color: var(--line); color: var(--faint); cursor: default; }
 :is(.yours, .tailor) .st { margin: 0; font-size: 12px; color: var(--faint); }
@@ -416,17 +416,20 @@ td.co { font-weight: 600; white-space: nowrap; }
   .ithemes .t { grid-area: t; } .ithemes .ibar { grid-area: b; } .ithemes .a { grid-area: a; } .ithemes .p { grid-area: p; }
 }
 
-/* your to-do list (todo.yml), ticked here */
+/* your to-do list (todo.yml, plus items added here), on its own tab */
 .ins h3 { margin: 4px 0 0; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.ins h3 .num { margin-left: 6px; letter-spacing: 0; color: var(--faint); }
 .ins h2 .num { font: 400 13px var(--f-mono); color: var(--muted); margin-left: 8px; }
 .todo { list-style: none; margin: 0; padding: 0; max-width: 760px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
 .td { border-bottom: 1px solid var(--line); padding: 11px 16px; }
 .td:last-child { border-bottom: 0; }
 .td-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 10px; align-items: start; }
-.td-nb { background: none; border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; font-size: 13px; font-weight: 600; color: var(--accent); cursor: pointer; white-space: nowrap; }
-.td-nb:hover { border-color: var(--accent); }
-.td-add { margin: 0 0 14px; max-width: 760px; }
-.td-add select.why { flex: 0 0 auto; width: auto; }
+.td-add { display: grid; gap: 8px; margin: 0 0 6px; max-width: 760px; }
+.td-add .why-row { display: flex; gap: 8px; }
+.td-add .why { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 15px; flex: 1; min-width: 0; box-sizing: border-box; }
+.td-when { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.td-when button, .td-move button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 4px 12px; font-size: 13px; cursor: pointer; }
+.td-when button[aria-pressed="true"], .td-move button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); cursor: default; }
 .td-row input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--good); cursor: pointer; }
 .td-task { background: none; border: 0; padding: 0; text-align: left; cursor: pointer; display: grid; gap: 3px; color: var(--ink); font-size: 15px; min-width: 0; }
 .td-task .t { overflow-wrap: anywhere; }
@@ -434,11 +437,16 @@ td.co { font-weight: 600; white-space: nowrap; }
 .td.done .td-task .t { text-decoration: line-through; color: var(--muted); }
 .td-task .meta { font-size: 12px; color: var(--muted); }
 .td-task .note { font-size: 13px; color: var(--muted); font-style: italic; overflow-wrap: anywhere; }
-.td-more { padding: 10px 0 2px 32px; display: grid; gap: 8px; font-size: 14px; }
+.td-chev { color: var(--faint); font-size: 18px; line-height: 1; padding: 0 2px; transition: transform .12s ease; }
+.td-task[aria-expanded="true"] + .td-chev { transform: rotate(90deg); }
+.td-more { padding: 10px 0 2px 32px; display: grid; gap: 10px; font-size: 14px; }
 .td-more p { margin: 0; color: var(--muted); max-width: 72ch; overflow-wrap: anywhere; }
 .td-more .st { font-size: 12px; color: var(--faint); }
+.td-move { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.td-acts { display: flex; flex-wrap: wrap; gap: 8px; }
 .td-done > summary { cursor: pointer; color: var(--muted); font-size: 14px; padding: 6px 0; }
 .td-done[open] > summary { margin-bottom: 8px; }
+.td-help { font-size: 13px; color: var(--faint); max-width: 760px; margin: 4px 0 0; }
 
 /* left out: what never reached scoring */
 .nm { display: grid; gap: 12px; margin-top: 28px; }
@@ -517,6 +525,7 @@ footer a { color: var(--muted); }
   <nav class="tabs" role="tablist" aria-label="Views">
     <button role="tab" id="tab-roles" aria-controls="view-roles" aria-selected="true">Roles</button>
     <button role="tab" id="tab-mine" aria-controls="view-mine" aria-selected="false" hidden>Your roles<span class="num" id="mine-num"></span></button>
+    <button role="tab" id="tab-todo" aria-controls="view-todo" aria-selected="false" hidden>To-do<span class="num" id="todo-num"></span></button>
     <button role="tab" id="tab-insights" aria-controls="view-insights" aria-selected="false" hidden>Insights</button>
     <button role="tab" id="tab-moonshots" aria-controls="view-moonshots" aria-selected="false" hidden>Moonshots</button>
     <button role="tab" id="tab-companies" aria-controls="view-companies" aria-selected="false">Companies</button>
@@ -551,8 +560,11 @@ footer a { color: var(--muted); }
 
   <section id="view-mine" role="tabpanel" aria-labelledby="tab-mine" class="view" hidden></section>
 
-  <section id="view-insights" role="tabpanel" aria-labelledby="tab-insights" class="view" hidden>
+  <section id="view-todo" role="tabpanel" aria-labelledby="tab-todo" class="view" hidden>
     <section class="ins" id="ins-todo" hidden></section>
+  </section>
+
+  <section id="view-insights" role="tabpanel" aria-labelledby="tab-insights" class="view" hidden>
     <section class="ins" id="ins-themes" hidden></section>
     <details class="themes" id="themes" hidden></details>
     <section class="ins" id="ins-places" hidden></section>
@@ -1301,15 +1313,29 @@ footer a { color: var(--muted); }
     el.addEventListener('click', (e) => { const b = e.target.closest('.who button'); if (b) reveal(b.dataset.id); });
   })();
 
-  // ── your to-do list (todo.yml, plus items added here): tick an item off, with a short note; saved like your calls ──
+  // ── your to-do list (todo.yml, plus items added here), on its own tab: add, tick, note, move, remove ──
   const TDK = D.todo || null;
   const TD = {};
   const tdPending = store.get('tdPending', {});
   const tdStatus = {};
   let tdOpen = null;
+  let tdAddPrio = 'now'; // where the add box puts a new item; back to Now on each visit
+  const tdLinger = new Set(); // just ticked: stays where it was for a moment, so the tick is seen and can be undone
   const tdAddedItem = (id, e) => ({ id: id, task: e.a, group: null, priority: e.p, details: null, link: null, done: e.d, note: e.n || '', at: e.t, added: true });
+  // An entry as saved: d done, n note, t when, a the words (added here), p a move or an added item's priority, x removed.
+  const tdEntry = (e) => {
+    const o = { d: e.d, n: e.n || '', t: e.t };
+    if (e.a) o.a = e.a;
+    if (e.p) o.p = e.p; else if (e.a) o.p = 'now';
+    if (e.x) o.x = true;
+    return o;
+  };
   if (TDK) {
-    for (const it of TDK.items) TD[it.id] = it.added ? { d: it.done, n: it.note || '', t: it.at, a: it.task, p: it.priority } : { d: it.done, n: it.note || '', t: it.at };
+    for (const it of TDK.items) {
+      TD[it.id] = { d: it.done, n: it.note || '', t: it.at };
+      if (it.added) Object.assign(TD[it.id], { a: it.task, p: it.priority });
+      else if (it.filePriority && it.priority !== it.filePriority) TD[it.id].p = it.priority;
+    }
     for (const [id, e] of Object.entries(tdPending)) {
       if (TD[id]) TD[id] = e;
       else if (e.a && !e.x) { TD[id] = e; TDK.items.unshift(tdAddedItem(id, e)); } // added on this device, not sent yet
@@ -1317,19 +1343,22 @@ footer a { color: var(--muted); }
     TDK.items = TDK.items.filter((it) => !(TD[it.id] && TD[it.id].x));
   }
   const PRIO = { now: 'Now', next: 'Next', later: 'Later' };
+  const prioOf = (it) => (TD[it.id] && TD[it.id].p) || it.filePriority || it.priority || 'next';
+  const tdShownDone = (it) => TD[it.id].d && !tdLinger.has(it.id);
   function todoItem(it) {
-    const e = TD[it.id], open = tdOpen === it.id, st = tdStatus[it.id];
+    const e = TD[it.id], open = tdOpen === it.id, st = tdStatus[it.id], p = prioOf(it);
     const said = st === 'saving' ? 'Saving…' : st === 'saved' ? 'Saved.' : st === 'local' ? (TDK.api ? 'Not saved yet: kept on this device, and sent the next time the dashboard opens online.' : 'Saved in this browser only (demo).')
       : e.d && e.t ? 'Done ' + esc(day(isoDay(new Date(e.t)))) + '.' : '';
     return '<li class="td' + (e.d ? ' done' : '') + '" data-id="' + esc(it.id) + '"><div class="td-row">' +
       '<input type="checkbox" aria-label="' + esc('Done: ' + it.task) + '"' + (e.d ? ' checked' : '') + '>' +
       '<button type="button" class="td-task" aria-expanded="' + open + '"><span class="t">' + esc(it.task) + '</span>' +
-      (it.group ? '<span class="meta">' + esc(it.group) + '</span>' : '') + (e.n ? '<span class="note">' + esc(e.n) + '</span>' : '') + '</button>' +
-      '<button type="button" class="td-nb" aria-label="' + esc((e.n ? 'Edit the note: ' : 'Add a note: ') + it.task) + '">' + (e.n ? 'Edit note' : '+ Note') + '</button></div>' +
+      (it.group ? '<span class="meta">' + esc(it.group) + '</span>' : '') + (e.n && !open ? '<span class="note">' + esc(e.n) + '</span>' : '') + '</button>' +
+      '<span class="td-chev" aria-hidden="true">›</span></div>' +
       (open ? '<div class="td-more">' + (it.details ? '<p>' + esc(it.details) + '</p>' : '') +
         (it.link ? '<a href="' + esc(it.link) + '" target="_blank" rel="noopener noreferrer">Open the link ↗</a>' : '') +
-        '<form class="why-row td-note"><input class="why" type="text" maxlength="240" enterkeyhint="done" placeholder="A short note (optional)" aria-label="Note" value="' + esc(e.n || '') + '"><button type="submit" class="btn primary">Save</button></form>' +
-        (it.added ? '<div><button type="button" class="btn small td-rm">Remove this item</button></div>' : '') +
+        '<form class="why-row td-note"><input class="why" type="text" maxlength="240" enterkeyhint="done" placeholder="Add a note, such as “booked for 12 Nov”" aria-label="Note" value="' + esc(e.n || '') + '"><button type="submit" class="btn primary">Save</button></form>' +
+        (e.d ? '' : '<div class="td-move" role="group" aria-label="Move to">Move to ' + ['now', 'next', 'later'].map((q) => '<button type="button" data-p="' + q + '" aria-pressed="' + (q === p) + '">' + PRIO[q] + '</button>').join('') + '</div>') +
+        '<div class="td-acts"><button type="button" class="btn small td-rm">Remove from the list</button></div>' +
         (said ? '<p class="st">' + said + '</p>' : '') + '</div>' : '') + '</li>';
   }
   function renderTodo() {
@@ -1337,18 +1366,18 @@ footer a { color: var(--muted); }
     if (!TDK) return;
     // Keep what is being typed in the add box across a re-render.
     const box = el.querySelector('.td-add input'), typed = box ? box.value : '', typing = box && document.activeElement === box;
-    const prioWas = el.querySelector('.td-add select'), prio = prioWas ? prioWas.value : store.get('todoAddPrio', 'now');
-    const left = TDK.items.filter((it) => !TD[it.id].d);
-    const done = TDK.items.filter((it) => TD[it.id].d).sort((a, b) => String(TD[b.id].t || '').localeCompare(String(TD[a.id].t || '')));
+    const left = TDK.items.filter((it) => !tdShownDone(it));
+    const done = TDK.items.filter(tdShownDone).sort((a, b) => String(TD[b.id].t || '').localeCompare(String(TD[a.id].t || '')));
     const doneOpen = store.get('todoDoneOpen', false);
-    el.innerHTML = '<h2>Your to-do<span class="num">' + left.length + ' open · ' + done.length + ' done</span></h2>' +
-      '<p class="note">Add an item below, or keep longer ones with details in todo.yml. Tick an item when it is done; tap <b>+ Note</b> to add a short note, or tap an item for its details.</p>' +
-      '<form class="why-row td-add"><input class="why" type="text" maxlength="200" enterkeyhint="done" placeholder="Add an item" aria-label="New to-do item">' +
-      '<select class="why" aria-label="When">' + ['now', 'next', 'later'].map((p) => '<option value="' + p + '"' + (p === prio ? ' selected' : '') + '>' + PRIO[p] + '</option>').join('') + '</select>' +
-      '<button type="submit" class="btn primary">Add</button></form>' +
-      ['now', 'next', 'later'].map((p) => { const l = left.filter((it) => it.priority === p); return l.length ? '<h3>' + PRIO[p] + '</h3><ul class="todo">' + l.map(todoItem).join('') + '</ul>' : ''; }).join('') +
+    const openNum = TDK.items.filter((it) => !TD[it.id].d).length;
+    $('#todo-num').textContent = openNum || '';
+    el.innerHTML = '<form class="td-add"><div class="why-row"><input class="why" type="text" maxlength="200" enterkeyhint="done" placeholder="Add an item" aria-label="New to-do item">' +
+      '<button type="submit" class="btn primary">Add</button></div>' +
+      '<div class="td-when" role="group" aria-label="Add to">Add to ' + ['now', 'next', 'later'].map((q) => '<button type="button" data-p="' + q + '" aria-pressed="' + (q === tdAddPrio) + '">' + PRIO[q] + '</button>').join('') + '</div></form>' +
+      ['now', 'next', 'later'].map((q) => { const l = left.filter((it) => prioOf(it) === q); return l.length ? '<h3>' + PRIO[q] + '<span class="num">' + l.filter((it) => !TD[it.id].d).length + '</span></h3><ul class="todo">' + l.map(todoItem).join('') + '</ul>' : ''; }).join('') +
       (left.length ? '' : '<p class="say">' + (done.length ? 'All done.' : 'Nothing on your list yet.') + ' Add the next thing above.</p>') +
-      (done.length ? '<details class="td-done"' + (doneOpen ? ' open' : '') + '><summary>Done · ' + done.length + '</summary><ul class="todo">' + done.map(todoItem).join('') + '</ul></details>' : '');
+      (done.length ? '<details class="td-done"' + (doneOpen ? ' open' : '') + '><summary>Done · ' + done.length + '</summary><ul class="todo">' + done.map(todoItem).join('') + '</ul></details>' : '') +
+      '<p class="td-help">Tap an item to add a note, move it or remove it. For an item with details or a link, add it to todo.yml.</p>';
     const nb = el.querySelector('.td-add input'); nb.value = typed; if (typing) nb.focus();
     el.hidden = false;
   }
@@ -1358,7 +1387,9 @@ footer a { color: var(--muted); }
     tdStatus[id] = 'saving';
     try {
       const body = { id: id, done: e.d, note: e.n || '' };
-      if (e.a) { body.task = e.a; body.priority = e.p; if (e.x) body.removed = true; }
+      if (e.a) body.task = e.a;
+      if (e.p) body.priority = e.p;
+      if (e.x) body.removed = true;
       const r = await fetch('api/todo', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       delete tdPending[id]; tdStatus[id] = 'saved';
@@ -1367,29 +1398,55 @@ footer a { color: var(--muted); }
     renderTodo();
   }
   if (TDK) {
+    $('#tab-todo').hidden = false;
     const el = $('#ins-todo');
     const now = () => new Date().toISOString();
+    const short = (t) => (t.length > 40 ? t.slice(0, 39) + '…' : t);
+    let lingerTimer = null, toastTimer = null;
+    const undoToast = (text, undo) => { showToast('todo', text, 'Undo', () => { undo(); hideToast('todo'); }); clearTimeout(toastTimer); toastTimer = setTimeout(() => hideToast('todo'), 6000); };
+    const settle = () => { clearTimeout(lingerTimer); lingerTimer = setTimeout(() => { tdLinger.clear(); renderTodo(); }, 2500); };
+    const setDone = (id, d) => { TD[id] = Object.assign({}, TD[id], { d: d, t: now() }); sendTodo(id); };
     el.addEventListener('change', (ev) => {
-      if (ev.target.matches('.td-add select')) { store.set('todoAddPrio', ev.target.value); return; }
       const box = ev.target.closest('li[data-id] input[type=checkbox]'); if (!box) return;
       const id = box.closest('li[data-id]').dataset.id;
-      TD[id] = Object.assign({}, TD[id], { d: box.checked, t: now() });
-      sendTodo(id);
+      const it = TDK.items.find((x) => x.id === id);
+      if (box.checked) {
+        // Struck through where it is for a moment, then into Done; the toast can take it back.
+        tdLinger.add(id); if (tdOpen === id) tdOpen = null;
+        setDone(id, true); settle();
+        undoToast('Done: ' + short(it.task), () => { tdLinger.delete(id); setDone(id, false); });
+      } else { tdLinger.delete(id); setDone(id, false); }
     });
     el.addEventListener('click', (ev) => {
-      const rm = ev.target.closest('.td-rm');
-      if (rm) {
-        const id = rm.closest('li[data-id]').dataset.id;
-        TD[id] = Object.assign({}, TD[id], { x: true, t: now() });
-        TDK.items = TDK.items.filter((it) => it.id !== id); tdOpen = null;
+      const when = ev.target.closest('.td-when button');
+      if (when) { tdAddPrio = when.dataset.p; renderTodo(); el.querySelector('.td-add input').focus(); return; }
+      const mv = ev.target.closest('.td-move button');
+      if (mv) {
+        const id = mv.closest('li[data-id]').dataset.id, it = TDK.items.find((x) => x.id === id), q = mv.dataset.p;
+        if (q === prioOf(it)) return;
+        const e = Object.assign({}, TD[id], { t: now() });
+        if (!it.added && q === it.filePriority) delete e.p; else e.p = q; // back where the file has it: no move kept
+        TD[id] = e; it.priority = q;
         sendTodo(id);
         return;
       }
-      const nb = ev.target.closest('.td-nb');
-      const b = nb || ev.target.closest('.td-task'); if (!b) return;
+      const rm = ev.target.closest('.td-rm');
+      if (rm) {
+        const id = rm.closest('li[data-id]').dataset.id, at = TDK.items.findIndex((x) => x.id === id), it = TDK.items[at];
+        TD[id] = Object.assign({}, TD[id], { x: true, t: now() });
+        TDK.items.splice(at, 1); tdOpen = null;
+        sendTodo(id);
+        undoToast('Removed: ' + short(it.task), () => {
+          if (!TD[id].x) return;
+          TD[id] = Object.assign({}, TD[id], { t: now() }); delete TD[id].x;
+          TDK.items.splice(Math.min(at, TDK.items.length), 0, it);
+          sendTodo(id);
+        });
+        return;
+      }
+      const b = ev.target.closest('.td-task, .td-chev'); if (!b) return;
       const id = b.closest('li[data-id]').dataset.id;
-      tdOpen = nb ? id : tdOpen === id ? null : id; renderTodo();
-      if (nb) { const f = el.querySelector('li[data-id="' + CSS.escape(id) + '"] .td-more input.why'); if (f) f.focus(); }
+      tdOpen = tdOpen === id ? null : id; renderTodo();
     });
     el.addEventListener('submit', (ev) => {
       ev.preventDefault();
@@ -1397,7 +1454,7 @@ footer a { color: var(--muted); }
         const input = ev.target.querySelector('input'), task = input.value.replace(/\s+/g, ' ').trim().slice(0, 200);
         if (!task) return;
         const id = 'add-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-        TD[id] = { d: false, n: '', t: now(), a: task, p: ev.target.querySelector('select').value };
+        TD[id] = { d: false, n: '', t: now(), a: task, p: tdAddPrio };
         TDK.items.unshift(tdAddedItem(id, TD[id]));
         input.value = '';
         sendTodo(id);
@@ -1415,7 +1472,7 @@ footer a { color: var(--muted); }
   (function insightsView() {
     const I = D.insights;
     const tab = $('#tab-insights');
-    tab.hidden = !I && $('#themes').hidden && !D.todo;
+    tab.hidden = !I && $('#themes').hidden;
     if (!I) return;
     const pct = (n) => n + '%';
     const SETS = { fit: 'Scored ' + I.floor + '+', all: 'All scored' };
@@ -1801,7 +1858,7 @@ footer a { color: var(--muted); }
     '</div>';
 
   // ── tabs ──
-  const TABS = ['roles', 'mine', 'insights', 'moonshots', 'companies', 'about'];
+  const TABS = ['roles', 'mine', 'todo', 'insights', 'moonshots', 'companies', 'about'];
   const tabs = () => TABS.filter((t) => !$('#tab-' + t).hidden);
   function showTab(name) {
     if (!tabs().includes(name)) name = 'roles';
@@ -1873,11 +1930,11 @@ footer a { color: var(--muted); }
         if (!TD[id]) {
           // An item added on another device.
           if (!e.a || e.x) continue;
-          TD[id] = { d: e.d, n: e.n || '', t: e.t, a: e.a, p: e.p || 'now' };
+          TD[id] = tdEntry(e);
           TDK.items.unshift(tdAddedItem(id, TD[id])); changed = true; continue;
         }
         if (TD[id].t && e.t && e.t <= TD[id].t) continue;
-        TD[id] = e.a ? { d: e.d, n: e.n || '', t: e.t, a: e.a, p: e.p || 'now', x: e.x === true } : { d: e.d, n: e.n || '', t: e.t };
+        TD[id] = tdEntry(e); // a tick, note, move or removal made on another device
         if (e.x) TDK.items = TDK.items.filter((it) => it.id !== id);
         changed = true;
       }
