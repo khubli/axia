@@ -18,7 +18,7 @@ import { ROOT, ConfigError, loadSettings, loadCompanies, loadResume, loadCriteri
 import { makeFilters } from './filter.mjs';
 import { loadState, saveState, closeAndPrune, daysBetween, STATE_VERSION } from './state.mjs';
 import { secondLook } from './secondlook.mjs';
-import { makeScorer, keywordScore, resumeHash } from './score.mjs';
+import { makeScorer, keywordScore, resumeHash, titleHash, reweigh } from './score.mjs';
 import { renderMarkdown } from './render.mjs';
 import { buildSite } from './site.mjs';
 import { notifyMinScore, seedNotified, trackProblems, planMessages, deliver, applyDelivery } from './notify.mjs';
@@ -73,6 +73,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   const filters = makeFilters(settings);
   const criteria = loadCriteria(settings, dir);
   const hash = resumeHash(resume, criteria);
+  const titlesHash = titleHash(resume, criteria);
   // Your levels guide is kept out of the hash: editing it re-labels roles (step 5c), never re-scores them.
   const levels = loadLevels(settings, dir);
   // Your pay table is kept out too: only each role's own employer's lines go into its request.
@@ -145,12 +146,12 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     }
     second.titles = titles.size;
     // Unless scoring.rescore_on_edit is all, a resume or criteria edit keeps the verdicts already given; only new titles are asked.
-    const asked = (t) => state.titleChecks[t.id] && (settings.scoring.rescore_on_edit !== 'all' || state.titleChecks[t.id].hash === hash);
+    const asked = (t) => state.titleChecks[t.id] && (settings.scoring.rescore_on_edit !== 'all' || state.titleChecks[t.id].hash === titlesHash);
     const ask = [...titles.values()].filter((t) => preview || !asked(t)).slice(0, preview ? Infinity : SECOND_LOOK_MAX);
     if (aiScorer?.ask && ask.length) {
       log(`\nSecond look: ${ask.length} title(s) your title words rejected, asked of ${aiScorer.engine}…`);
       const { verdicts, stoppedBecause } = await secondLook(aiScorer, ask, { resume, criteria, include: settings.titles.include, exclude: settings.titles.exclude, log });
-      for (const [id, v] of verdicts) state.titleChecks[id] = { keep: v.keep, ...(v.why ? { why: v.why } : {}), hash, seen: today };
+      for (const [id, v] of verdicts) state.titleChecks[id] = { keep: v.keep, ...(v.why ? { why: v.why } : {}), hash: titlesHash, seen: today };
       Object.assign(second, { checked: verdicts.size, stoppedBecause });
     }
     for (const r of rejected.values()) {
@@ -319,6 +320,9 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   }
 
   // ── 5. Score ──────────────────────────────────────────────────────────────
+  // Scores made of parts follow today's scoring.weights, so a weights edit applies at once, without AI.
+  const reweighed = Object.values(state.jobs).filter((j) => reweigh(j.score, settings.scoring.weights)).length;
+  if (reweighed) log(`${reweighed} score(s) worked out again from their parts with today's scoring.weights.`);
   const open = Object.values(state.jobs).filter((j) => j.status === 'open');
   const ai = { enabled: Boolean(aiScorer), engine: aiScorer?.engine ?? null, model: aiScorer?.model ?? null, scored: 0, failed: 0, stoppedBecause: null, pending: 0 };
 

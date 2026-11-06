@@ -273,6 +273,12 @@ li.sel > .inline { display: block; }
 .ticks { position: relative; height: 14px; font: 11px/14px var(--f-mono); color: var(--faint); }
 .ticks span { position: absolute; transform: translateX(-50%); }
 .ticks span:first-child { transform: none; } .ticks span:last-child { transform: translateX(-100%); }
+.parts { display: grid; grid-template-columns: max-content minmax(0, 1fr) 2.5em; gap: 6px 10px; align-items: center; font-size: 13px; color: var(--muted); padding-top: 4px; border-top: 1px solid var(--line); }
+.parts .bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.parts .bar i { display: block; height: 100%; border-radius: 3px; background: var(--faint); }
+.gauge.good .parts .bar i { background: var(--good); } .gauge.look .parts .bar i { background: var(--look); }
+.parts b { font: 500 13px var(--f-mono); color: var(--ink); text-align: right; }
+.parts .note { grid-column: 1 / -1; font-size: 12px; color: var(--faint); }
 .d .summary { margin: 0; }
 .d h3 { margin: 0 0 6px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
 .d ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 14px; }
@@ -994,7 +1000,7 @@ footer a { color: var(--muted); }
       '<div class="gauge ' + t + '"><div class="head"><span class="big">' + (t === 'wait' ? '≈' : '') + j.score + '</span>' +
       '<span class="lab"><b>' + TIER_WORD[t] + '</b>' + (t === 'wait' ? (D.ai.enabled ? 'Estimate from the title. A full AI read is queued.' : 'Estimate from the title and keywords.') : 'out of 100 · ' + GOOD + '+ is a good match') + '</span></div>' +
       '<div class="track"><span class="seg low" style="width:' + FROM + '%"></span><span class="seg look" style="left:' + FROM + '%;width:' + (GOOD - FROM) + '%"></span><span class="seg good" style="left:' + GOOD + '%"></span><span class="mk" style="left:' + pos + '%"></span></div>' +
-      '<div class="ticks"><span style="left:0">0</span><span style="left:' + FROM + '%">' + FROM + '</span><span style="left:' + GOOD + '%">' + GOOD + '</span><span style="left:100%">100</span></div></div>';
+      '<div class="ticks"><span style="left:0">0</span><span style="left:' + FROM + '%">' + FROM + '</span><span style="left:' + GOOD + '%">' + GOOD + '</span><span style="left:100%">100</span></div>' + partsHtml(j) + '</div>';
     let body;
     if (t === 'wait') {
       body = D.ai.enabled
@@ -1014,6 +1020,17 @@ footer a { color: var(--muted); }
       yoursHtml(j) + tailorHtml(j.id) +
       (j.ai && j.scoredOn ? '<p class="prov">Scored ' + esc(day(j.scoredOn)) + ' by Claude ' + esc(j.model || '') + ' against your resume (version ' + esc(j.resumeRev) + '). Scored again only when your resume or criteria change.</p>' : '') +
       '</div>';
+  }
+
+  // How an AI score adds up: four parts out of 10, weighted by scoring.weights (scores from before 1.33.0 have none).
+  const PART = [['level', 'Level'], ['domain', 'Domain'], ['core', 'Core work'], ['musts', 'Must-haves']];
+  function partsHtml(j) {
+    const p = j.parts, w = D.weights;
+    if (!p || !w) return '';
+    return '<div class="parts" role="group" aria-label="How the score adds up">' +
+      PART.map(([k, label]) => '<span>' + label + '</span><span class="bar" aria-hidden="true"><i style="width:' + (p[k] * 10) + '%"></i></span><b>' + p[k] + '<span class="sr"> out of 10</span></b>').join('') +
+      '<span class="note">' + (j.hardStop ? 'A hard stop, so the score is capped at 50. ' : '') + 'Each part is out of 10, weighted into the 100: ' +
+      PART.map(([k, label]) => label.toLowerCase() + ' ' + w[k]).join(', ') + '.</span></div>';
   }
 
   // The posting's must-haves in its own words, and whether your resume shows them.
@@ -1834,7 +1851,7 @@ footer a { color: var(--muted); }
     '<h2>What happens on every run</h2>' +
     '<ol><li>The careers sites of your ' + D.companies.length + ' companies are read through the same public feeds their pages use: ' + D.listed.toLocaleString('en-IN') + ' roles last time.</li>' +
     '<li>Your title and location lists keep the few that could fit. No AI is involved at this step.</li>' +
-    '<li>Claude reads each remaining posting in full against your resume and criteria and scores it from 0 to 100, up to ' + D.aiPerDay + ' roles a run, most promising titles first. Each role is scored once.</li>' +
+    '<li>Claude reads each remaining posting in full against your resume and criteria and rates level, domain, core work and must-haves, which add up to a score from 0 to 100, up to ' + D.aiPerDay + ' roles a run, most promising titles first. Each role is scored once.</li>' +
     '<li>When a role first scores ' + D.notifyMin + ' or more, you get a message. Everything else waits here.</li></ol>' +
     '<h2>Reading a score</h2>' +
     '<div class="legend"><div><b style="color:var(--good)">' + GOOD + '–100</b><span>Good match. The level, domain and core of the job fit you.</span></div>' +
