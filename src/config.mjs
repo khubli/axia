@@ -39,7 +39,7 @@ export const DEFAULTS = {
   // score quotes, against these themes (null = Axia's own list in insights.mjs). No AI requests.
   // false turns the tab off.
   insights: { themes: null },
-  // Your to-do list: a short file you keep by hand, ticked off (with a note) on the Insights tab and
+  // Your to-do list: a short file you keep by hand, ticked off (with a note) on the To-do tab and
   // saved like your calls on roles; items can also be added there. false turns it off.
   todo: { file: 'todo.yml' },
   // Hiring heat per company (heat.mjs): worked out free each run, plus a weekly scan of hiring news

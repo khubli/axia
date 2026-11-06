@@ -1,6 +1,6 @@
-# Your to-do list for the search, shown at the top of the dashboard's Insights tab. Tick an item there when
-# it is done, and tap it for its details and a short note. Edit this file to add, reword or reorder items;
-# the dashboard shows the change after the next run. Everything here is made up.
+# Your to-do list for the search, shown on the dashboard's To-do tab. Tick an item there when it is done,
+# and tap it for its details, a short note, or to move or remove it. Edit this file to add, reword or reorder
+# items; the dashboard shows the change after the next run. Everything here is made up.
 todo:
   - task: Rewrite the resume summary around payments platforms
     id: summary

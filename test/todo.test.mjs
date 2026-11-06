@@ -1,4 +1,4 @@
-// Your to-do list: todo.yml by hand, ticked off (with a short note) on the Insights tab, kept in data/todo.json.
+// Your to-do list: todo.yml by hand, ticked off (with a short note) on its own To-do tab, kept in data/todo.json.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -79,7 +79,22 @@ test('items added on the dashboard: kept with their words, newest first, gone on
   const items = normalizeTodo({ todo: [{ task: 'From the file', id: 'file' }] }).items;
   const page = pageTodo(items, ticks, { api: true });
   assert.deepEqual(page.items.map((i) => [i.id, i.added ?? false, i.done]), [['add-mvw2', true, true], ['add-mvw1', true, false], ['file', false, false]]);
-  assert.equal(page.items[0].priority, 'next');});
+  assert.equal(page.items[0].priority, 'next');
+});
+
+test('any item can be moved or removed on the dashboard, and that wins over the file', () => {
+  const ticks = { version: 1, items: {} };
+  const pulled = new Map([
+    ['cv', { done: false, note: '', at: '2026-11-06T10:00:00Z', priority: 'later' }], // a file item moved to Later
+    ['cert', { done: false, note: '', at: '2026-11-06T10:00:00Z', removed: true }], // a file item taken off the list
+  ]);
+  assert.equal(applyTicks(ticks, pulled), 2);
+  assert.deepEqual(ticks.items.cv, { done: false, note: '', at: '2026-11-06T10:00:00Z', priority: 'later' });
+  assert.deepEqual(ticks.items.cert, { done: false, note: '', at: '2026-11-06T10:00:00Z', removed: true });
+  const items = normalizeTodo({ todo: [{ task: 'CV', id: 'cv', priority: 'now' }, { task: 'Cert', id: 'cert' }, { task: 'Other', id: 'other', priority: 'now' }] }).items;
+  const page = pageTodo(items, ticks, { api: true });
+  assert.deepEqual(page.items.map((i) => [i.id, i.priority, i.filePriority]), [['cv', 'later', 'now'], ['other', 'now', 'now']]);
+});
 
 test('settings: todo.file is todo.yml by default; false turns it off; anything else is refused', () => {
   const base = readFileSync(join(example, 'settings.yml'), 'utf8');
@@ -127,6 +142,12 @@ test('the Worker saves a tick and its note apart from your calls on roles, and l
   await worker.fetch(post({ id: 'add-mvw1', done: false, task: 'Call the recruiter', priority: 'next', removed: true }), e);
   assert.equal(e.FEEDBACK.data.get('td:add-mvw1').metadata.x, true);
   assert.equal((await worker.fetch(post({ id: 'add-mvw2', done: false, task: '   ' }), e)).status, 400);
+  // An item from the file can be moved or removed too: no words of its own, just the move or the marker.
+  await worker.fetch(post({ id: 'cv-summary', done: false, note: '', priority: 'later' }), e);
+  assert.deepEqual(e.FEEDBACK.data.get('td:cv-summary').metadata.p, 'later');
+  assert.equal(e.FEEDBACK.data.get('td:cv-summary').metadata.a, undefined);
+  await worker.fetch(post({ id: 'cv-summary', done: false, note: '', priority: 'soon', removed: true }), e);
+  assert.deepEqual([e.FEEDBACK.data.get('td:cv-summary').metadata.p, e.FEEDBACK.data.get('td:cv-summary').metadata.x], [undefined, true], 'a bad priority is dropped');
   await worker.fetch(post({ id: 'add-long', done: false, task: 'é'.repeat(300), note: 'é'.repeat(300) }), e);
   assert.ok(new TextEncoder().encode(JSON.stringify(e.FEEDBACK.data.get('td:add-long').metadata)).length <= 1000);
   const calls = await (await worker.fetch(new Request('https://jobs.example.test/api/feedback', { headers: signedIn }), e)).json();
@@ -153,19 +174,21 @@ async function day(dir, date, ticks) {
   }
 }
 
-test('each run copies the ticks into data/todo.json and shows the list on the Insights tab', async () => {
+test('each run copies the ticks into data/todo.json and shows the list on its own To-do tab', async () => {
   const dir = tempProject({ companies: COMPANIES, settings: { titles: { include: ['Solution Architect'], exclude: [] }, dashboard: { domain: 'jobs.example.test' } } });
   await day(dir, '2026-10-15', {});
   assert.match(readFileSync(join(dir, '.axia/site/index.html'), 'utf8'), /"todo":\{"api":true,"items":\[\]\}/, 'no todo.yml yet: an empty list to add to');
 
   writeFileSync(join(dir, 'todo.yml'), 'todo:\n  - task: Rewrite the CV summary\n    id: cv-summary\n    priority: now\n  - task: Book the AZ-305 exam\n');
-  await day(dir, '2026-10-16', { 'cv-summary': { d: true, n: 'sent to two friends', t: '2026-10-15T20:00:00Z' }, gone: { d: true, n: '', t: '2026-10-15T20:00:00Z' }, 'add-mvw9': { d: false, n: '', t: '2026-10-15T21:00:00Z', a: 'Call the recruiter back', p: 'later' } });
+  await day(dir, '2026-10-16', { 'cv-summary': { d: true, n: 'sent to two friends', t: '2026-10-15T20:00:00Z' }, gone: { d: true, n: '', t: '2026-10-15T20:00:00Z' }, 'add-mvw9': { d: false, n: '', t: '2026-10-15T21:00:00Z', a: 'Call the recruiter back', p: 'later' }, 'book-the-az-305-exam': { d: false, n: '', t: '2026-10-15T22:00:00Z', p: 'now' } });
   const saved = JSON.parse(readFileSync(join(dir, 'data/todo.json'), 'utf8'));
   assert.deepEqual(saved.items['cv-summary'], { done: true, note: 'sent to two friends', at: '2026-10-15T20:00:00Z' });
   assert.deepEqual(saved.items['add-mvw9'], { done: false, note: '', at: '2026-10-15T21:00:00Z', task: 'Call the recruiter back', priority: 'later' }, 'an item added on the dashboard is kept');
+  assert.deepEqual(saved.items['book-the-az-305-exam'], { done: false, note: '', at: '2026-10-15T22:00:00Z', priority: 'now' }, 'a file item moved on the dashboard keeps its move');
   const html = readFileSync(join(dir, '.axia/site/index.html'), 'utf8');
   assert.match(html, /id="ins-todo"/);
-  assert.match(html, /class="td-nb"/, 'each item has its own Note button');
+  assert.match(html, /<section id="view-todo"[^>]*>\s*<section class="ins" id="ins-todo"/, 'the list has a tab of its own');
+  assert.doesNotMatch(html.slice(html.indexOf('id="view-insights"'), html.indexOf('id="view-moonshots"')), /ins-todo/, 'and is no longer on Insights');
   assert.match(html, /"todo":\{"api":true,"items":\[\{"id":"add-mvw9","task":"Call the recruiter back"[^\]]*\{"id":"cv-summary"[^\]]*"done":true,"note":"sent to two friends"/);
 
   // Cloudflare down: the ticks already saved stay.

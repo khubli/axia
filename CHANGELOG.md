@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.31.0
+
+- **The to-do list has its own tab, and is simpler to use.** It moves off the Insights tab onto a **To-do** tab next to **Your roles**, with the number of open items on the tab, so it is one tap away (`#todo` links to it). The Insights tab goes back to the theme counts.
+  - **Adding** is one box at the top: type and press Enter. New items go into Now unless you pick Next or Later under the box (it no longer remembers the last choice).
+  - **Rows are just a tick box and the task.** The **+ Note** button on every row is gone: tap an item to open it, with its note, details and link in one place.
+  - **Move any item** between Now, Next and Later from the opened item, including items from `todo.yml`. A move on the dashboard wins over `priority:` in the file; moving it back to the file's priority clears it.
+  - **Remove any item**, including ones from `todo.yml`, with **Remove from the list**.
+  - **Ticking can be undone.** A ticked item stays struck through where it was for a moment before it moves to **Done**, and the message at the bottom has an **Undo**. Removing has an Undo too.
+  - The paragraph of instructions above the list is now one short line below it ([details](docs/configuration.md#your-to-do-list-and-todoyml)).
+
 ## 1.30.0
 
 - **Add to-do items on the dashboard, like a quick note.** The to-do list on the Insights tab now starts with an **Add an item** box: type a line, pick Now, Next or Later, and press Add. Items added this way save to the same Cloudflare store as your ticks, so they show on every device at once, and each run keeps them in `data/todo.json` with their words. Tick them and add notes like any other item; open one to **Remove** it. `todo.yml` stays the place for items with details and links, and with no `todo.yml` at all the list now shows empty, ready to add to ([details](docs/configuration.md#your-to-do-list-and-todoyml)).

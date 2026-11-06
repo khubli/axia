@@ -1,6 +1,6 @@
 // Your to-do list: the things you mean to do for your search (resume edits, a certification, people to
 // write to), kept in a short file by hand (settings.yml → todo.file, todo.yml by default) and ticked off
-// on the dashboard's Insights tab, each with an optional short note.
+// on the dashboard's To-do tab, each with an optional short note.
 //
 // The file looks like:
 //   todo:
@@ -14,8 +14,9 @@
 //
 // A tick and its note save to the same Cloudflare store as your calls on roles (key td:<id>), so they show
 // on every device at once. Each run copies them into data/todo.json in your private repository, so they
-// last. Items can also be added (and removed) on the dashboard, like a quick note; those live only in
-// data/todo.json, with their words and priority. Nothing here is scored, sent or read by the model.
+// last. Items can also be added on the dashboard, like a quick note; those live only in data/todo.json, with
+// their words and priority. Any item can be moved between Now, Next and Later, or removed, on the dashboard:
+// that is kept with its tick and wins over the file. Nothing here is scored, sent or read by the model.
 
 import { existsSync, readFileSync, writeFileSync, renameSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -87,7 +88,7 @@ export function loadTodo(dir, settings, { log = console.log } = {}) {
 }
 
 // data/todo.json: { version, items: { <id>: { done, note, at, task?, priority?, removed? } } }, the ticks and notes you
-// made on the dashboard; task and priority mark an item added there, removed one taken off again.
+// made on the dashboard; task marks an item added there, priority one moved (or added) there, removed one taken off.
 export const todoPath = (dir) => resolve(dir, 'data/todo.json');
 
 export function loadTicks(dir) {
@@ -114,7 +115,7 @@ async function cf(path, env, fetchImpl = fetch) {
 }
 
 /**
- * Every tick saved on the dashboard: Map<id, { done, note, at }>.
+ * Every tick saved on the dashboard: Map<id, { done, note, at, task?, priority?, removed? }>.
  * Null when the dashboard can't save (public, or feedback off) or Cloudflare can't be asked; the run carries on.
  */
 export async function pullTicks({ env, settings, log = console.log, fetchImpl }) {
@@ -131,7 +132,10 @@ export async function pullTicks({ env, settings, log = console.log, fetchImpl })
         if (typeof m.d !== 'boolean') continue;
         const t = { done: m.d, note: clean(m.n, MAX_NOTE), at: m.t ?? null };
         const task = clean(m.a, 200);
-        if (task) Object.assign(t, { task, priority: PRIORITIES.includes(m.p) ? m.p : 'now', ...(m.x === true ? { removed: true } : {}) });
+        if (task) t.task = task;
+        if (PRIORITIES.includes(m.p)) t.priority = m.p;
+        else if (task) t.priority = 'now';
+        if (m.x === true) t.removed = true;
         out.set(k.name.slice(3), t);
       }
       cursor = data.result_info?.cursor;
@@ -144,7 +148,7 @@ export async function pullTicks({ env, settings, log = console.log, fetchImpl })
   }
 }
 
-const entryOf = (t) => ({ done: t.done, note: t.note, at: t.at, ...(t.task ? { task: t.task, priority: t.priority, ...(t.removed ? { removed: true } : {}) } : {}) });
+const entryOf = (t) => ({ done: t.done, note: t.note, at: t.at, ...(t.task ? { task: t.task } : {}), ...(t.priority ? { priority: t.priority } : {}), ...(t.removed ? { removed: true } : {}) });
 
 /** The dashboard's ticks into data/todo.json: the newest wins. Returns how many changed. */
 export function applyTicks(ticks, pulled) {
@@ -160,8 +164,10 @@ export function applyTicks(ticks, pulled) {
 }
 
 /**
- * For the page: each item with its tick and note (a tick on the dashboard wins over done: in the file), then
- * the items added on the dashboard, newest first. Null when there is nothing to show and nowhere to add.
+ * For the page: the items added on the dashboard, newest first, then each item in the file with its tick and note.
+ * What you did on the dashboard wins over the file: a tick over done:, a move over priority:, and a removed item
+ * is left out. A file item keeps its file's priority as filePriority, so moving it back clears the move.
+ * Null when there is nothing to show and nowhere to add.
  */
 export function pageTodo(items, ticks, { api }) {
   if (!items) return null;
@@ -172,10 +178,12 @@ export function pageTodo(items, ticks, { api }) {
     .sort((a, b) => b.id.localeCompare(a.id)); // ids start with the time they were added
   const list = [
     ...added,
-    ...items.map((it) => {
-      const t = ticks?.items?.[it.id];
-      return { ...it, done: t ? t.done : it.done, note: t?.note ?? '', at: t?.at ?? null };
-    }),
+    ...items
+      .filter((it) => !ticks?.items?.[it.id]?.removed)
+      .map((it) => {
+        const t = ticks?.items?.[it.id];
+        return { ...it, priority: t?.priority ?? it.priority, done: t ? t.done : it.done, note: t?.note ?? '', at: t?.at ?? null, filePriority: it.priority };
+      }),
   ];
   if (!list.length && !api) return null;
   return { api, items: list };
