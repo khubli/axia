@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.33.0
+
+- **Scores that spread out, and show where they come from.** The model no longer gives one 0–100 number, which it tended to pick from a few favourites (most good matches came back as exactly 66). It now rates four parts of the fit from 0 to 10: **level**, **domain**, **core work** and **must-haves**, and says whether a hard stop applies. Axia adds the parts up with `scoring.weights` (level 20, domain 25, core work 35, must-haves 20 by default) and caps a hard stop at 50. A role's page shows the four parts under its score ([details](docs/configuration.md#how-a-score-adds-up-and-scoringweights)).
+  - **The weights are yours to set.** The parts are kept with each score, so a `scoring.weights` edit applies to every score on the next run with no AI request.
+  - **About 25 more output tokens a role**, for the four parts. The model now lists the must-haves before it rates the parts.
+  - **Existing scores keep their value** until they are scored again. The new way of scoring counts as an edit to your criteria, so `scoring.rescore_on_edit` decides which are: all of them with the default `all`, none with `none`, or those at a score such as 50 and up plus your Applied and Shortlist roles. The second look's title verdicts are not asked again.
+  - **`axia calibrate` re-checks the good-match line.** It shows each judged role's parts and its score before, and names the good-match line that agrees with the most of your calls and how spread out the scores are. Run it (or the preview workflow's calibrate) before relying on `report.good_match` with the new scores.
+
 ## 1.32.0
 
 - **Three more kinds of careers site.** Each is recognised from its address, reads every open role with its description and posting date in a request or two, and needs no posting reads ([details](docs/configuration.md#companiesyml)):

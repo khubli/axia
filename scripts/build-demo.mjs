@@ -143,6 +143,27 @@ for (const j of Object.values(jobs)) {
   if (level) j.score.level = level;
 }
 
+// The four parts each AI score adds up from (Axia 1.33.0): the most even split that gives the score with the
+// default weights, nudged a little per role so the parts differ the way a real read's would.
+const W = DEFAULTS.scoring.weights;
+const PARTS = ['level', 'domain', 'core', 'musts'];
+function partsFor(score) {
+  let best = null;
+  const tilt = PARTS.map(() => rand() * 2 - 1);
+  for (let l = 0; l <= 10; l++) for (let d = 0; d <= 10; d++) for (let c = 0; c <= 10; c++) for (let m = 0; m <= 10; m++) {
+    const p = [l, d, c, m];
+    if (Math.round(p.reduce((t, x, i) => t + (x / 10) * W[PARTS[i]], 0)) !== score) continue;
+    const cost = p.reduce((t, x, i) => t + (x - score / 10 - tilt[i]) ** 2, 0);
+    if (!best || cost < best.cost) best = { p, cost };
+  }
+  return best && Object.fromEntries(PARTS.map((k, i) => [k, best.p[i]]));
+}
+for (const j of Object.values(jobs)) {
+  if (j.score.scorer !== 'ai') continue;
+  const parts = partsFor(j.score.value);
+  if (parts) Object.assign(j.score, { parts, hardStop: false });
+}
+
 // Pay ranges: one stated on the posting, one from the pay table, the rest AI estimates.
 const PAY = {
   'Head of Payments Platform Engineering': { source: 'posting', currency: 'GBP', low: 140000, high: 165000, period: 'year', quote: 'Salary: £140,000 to £165,000 plus bonus' },
@@ -167,7 +188,7 @@ const gaps = {
 
 const settings = {
   report: { timezone: TZ, good_match: 65, show_from: 50 },
-  scoring: { max_ai_scores_per_run: 40 },
+  scoring: { max_ai_scores_per_run: 40, weights: DEFAULTS.scoring.weights },
   dashboard: { url: '' },
   gaps: { enabled: true, min_score: 55, max_score: 89 },
   tailor: { enabled: true, done: 'tailored.json' },

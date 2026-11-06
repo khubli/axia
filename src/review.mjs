@@ -52,7 +52,7 @@ export const PROPOSAL_SCHEMA = {
 export function reviewSystemText({ resume, criteria, good }) {
   return `You help one job seeker keep the written criteria an AI scorer uses in line with their own judgement.
 
-The scorer reads each job posting with the resume and criteria below and scores the fit from 0 to 100. A score of ${good} or more counts as worth applying.
+The scorer reads each job posting with the resume and criteria below and scores the fit from 0 to 100: it rates level, domain, core work and must-haves from 0 to 10 each, and the code weighs and adds them up. A score of ${good} or more counts as worth applying.
 
 The user message lists roles the job seeker has judged, numbered. Each has their call (Apply or Skip), their reason when they gave one, the score the scorer gives it today, and the start of the posting. Roles marked DISAGREES scored on the other side of ${good} from the call.
 

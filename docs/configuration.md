@@ -107,6 +107,7 @@ scoring:
   max_ai_scores_per_run: 40      # [40] the rest wait for the next run; the action's max-ai-scores input raises it for one run
   rescore_on_edit: all           # [all] what an edit to cv.md or criteria.md re-scores: all, none, or a score such as 50 (below)
   batch_size: 8                  # [8] roles per request (Claude subscription, OpenRouter, OpenAI-compatible)
+  weights: { level: 20, domain: 25, core: 35, musts: 20 }   # [these] how much each part of a fit counts; adds up to 100 (below)
   keywords: [payments, platform] # [] make a role more promising for the AI queue, and lift keyword estimates
 
 report:
@@ -186,6 +187,25 @@ An edit to `criteria.md` or your resume re-scores your open roles, up to `max_ai
 - a score such as `50`: open roles scoring that much or more, and those you marked Applied or Shortlist, are scored again. The rest keep their score, and title verdicts stand.
 
 Ticking **Re-score** on the workflow (`--rescore`) still scores everything again, whatever this says.
+
+## How a score adds up, and scoring.weights
+
+The model doesn't give the 0–100 score itself. Asked for one number, a model keeps reusing a few favourite values, so many roles tie on the same score (before 1.33.0, most good matches came back as exactly 66). Instead it rates four parts of the fit, each a whole number from 0 to 10, and Axia adds them up:
+
+| Part | What it rates | Default weight |
+| --- | --- | --- |
+| `level` | how well the role's seniority and scope suit you, by your criteria | 20 |
+| `domain` | how close the industry and sub-domain are to yours | 25 |
+| `core` | how close the main day-to-day work is to your core strengths | 35 |
+| `musts` | how much of what the posting requires your resume shows | 20 |
+
+A part at 8 out of 10 gives 80% of its weight, so 8, 9, 7 and 6 make 16 + 22.5 + 24.5 + 12 = 75. A **hard stop** (the core of the job is a function you exclude, it is mainly hands-on work well below your level, or you can't take it) caps the score at 50, whatever the parts. The role's page on the dashboard shows the four parts under the score.
+
+`scoring.weights` changes how much each part counts. Give all four, as numbers adding up to 100. Each part is kept with its score, so a weights edit applies to every score on the next run without asking the model again.
+
+The level part is not the **Step up / Same level / Step down** label (below): the label places the role on your ladder, and the part rates how well that suits you (a step up you want can rate 10).
+
+After changing the weights, or after upgrading from a version before 1.33.0, check the good-match line with `axia calibrate`: it prints the line that agrees most with your calls. Scores from before 1.33.0 have no parts. The new way of scoring counts as an edit to your criteria, so `scoring.rescore_on_edit` (above) decides which of them are scored again.
 
 ## levels.md: step up, same level or step down
 
@@ -459,7 +479,7 @@ Roles you have judged yourself, so you can measure how often the model agrees wi
   decision: Apply                     # Apply or Skip
 ```
 
-`axia calibrate --dir <your folder>` scores each one and prints where the model's verdict (at `report.good_match`) differs from yours, the average distance from your scores, and whether every Apply ranks above every Skip.
+`axia calibrate --dir <your folder>` scores each one and prints where the model's verdict (at `report.good_match`) differs from yours, the average distance from your scores, and whether every Apply ranks above every Skip. Each role shows its four parts and, for dashboard calls, the score it had before. At the end it names the good-match line that would agree with the most of your calls, and how spread out the scores are.
 
 ## Secrets and variables (in your private repository)
 

@@ -16,7 +16,7 @@ export const DEFAULTS = {
   // second_look: titles in your places that your words reject get a look from the model (it can only let roles in).
   titles: { include: [], exclude: [], second_look: true },
   locations: { include: [], keep_unknown: true },
-  scoring: { provider: 'auto', model: 'sonnet', effort: 'medium', base_url: '', max_ai_scores_per_run: 40, rescore_on_edit: 'all', batch_size: 8, criteria: 'criteria.md', levels: 'levels.md', pay: 'pay.yml', keywords: [] },
+  scoring: { provider: 'auto', model: 'sonnet', effort: 'medium', base_url: '', max_ai_scores_per_run: 40, rescore_on_edit: 'all', batch_size: 8, weights: { level: 20, domain: 25, core: 35, musts: 20 }, criteria: 'criteria.md', levels: 'levels.md', pay: 'pay.yml', keywords: [] },
   report: { timezone: 'UTC', good_match: 65, show_from: 50 },
   // Messages: new good matches as they are scored, problems once, and a weekly "still running" note.
   notify: { min_score: 65, weekly: 'monday' },
@@ -150,6 +150,24 @@ export function loadSettings(dir = ROOT) {
     else if (v === true || String(v).toLowerCase() === 'all' || n === 0) s.scoring.rescore_on_edit = 'all';
     else if (Number.isInteger(n) && n > 0 && n <= 100) s.scoring.rescore_on_edit = n;
     else throw new ConfigError(`settings.yml: scoring.rescore_on_edit must be all, none or a score from 1 to 100, not "${v}"`);
+  }
+  {
+    // How much each part of a fit counts (score.mjs): any numbers of 0 or more that add up to 100.
+    const w = s.scoring.weights;
+    const parts = ['level', 'domain', 'core', 'musts'];
+    const bad = () => new ConfigError(`settings.yml: scoring.weights must give level, domain, core and musts, each a number of 0 or more, adding up to 100 (the default is level: 20, domain: 25, core: 35, musts: 20)`);
+    if (!w || typeof w !== 'object' || Array.isArray(w)) throw bad();
+    const extra = Object.keys(w).find((k) => !parts.includes(k));
+    if (extra) throw new ConfigError(`settings.yml: scoring.weights has "${extra}"; the parts are level, domain, core and musts`);
+    const out = {};
+    for (const k of parts) {
+      const n = Number(w[k] ?? DEFAULTS.scoring.weights[k]);
+      if (!Number.isFinite(n) || n < 0) throw bad();
+      out[k] = n;
+    }
+    const sum = parts.reduce((t, k) => t + out[k], 0);
+    if (Math.abs(sum - 100) > 0.001) throw new ConfigError(`settings.yml: scoring.weights add up to ${sum}; make them add up to 100`);
+    s.scoring.weights = out;
   }
   for (const key of ['min_score']) {
     const n = Number(s.notify[key]);

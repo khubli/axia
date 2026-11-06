@@ -11,11 +11,36 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parse } from 'yaml';
 import { ROOT, loadSettings, loadResume, loadCriteria } from './config.mjs';
-import { makeScorer } from './score.mjs';
+import { makeScorer, PARTS } from './score.mjs';
 import { loadFeedback, decisionOf, LABEL } from './feedback.mjs';
 
 /** A judged role agrees with a score when Apply scored a good match, or Skip scored below one. */
 export const agrees = (decision, score, good) => (score === null || score === undefined ? false : decision === 'Apply' ? score >= good : score < good);
+
+/**
+ * The good-match line from 1 to 100 that the most judged roles agree with. A tie keeps the line nearest
+ * today's. null with no scored role.
+ */
+export function bestCutoff(rows, good) {
+  const scored = rows.filter((r) => r.ai !== null && r.ai !== undefined);
+  if (!scored.length) return null;
+  let best = null;
+  for (let c = 1; c <= 100; c++) {
+    const agree = scored.filter((r) => agrees(r.decision, r.ai, c)).length;
+    if (!best || agree > best.agree || (agree === best.agree && Math.abs(c - good) < Math.abs(best.cutoff - good))) best = { cutoff: c, agree, of: scored.length };
+  }
+  return best;
+}
+
+/** How spread out scores are: how many different values, and how often the most common one came up. */
+export function scoreSpread(values) {
+  const v = values.filter((x) => x !== null && x !== undefined);
+  if (!v.length) return null;
+  const counts = new Map();
+  for (const x of v) counts.set(x, (counts.get(x) ?? 0) + 1);
+  const [top, topCount] = [...counts].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0];
+  return { distinct: counts.size, of: v.length, top, topCount };
+}
 
 /**
  * Every judged role with its posting text: yours from calibration/roles.yml first, then your dashboard calls,
@@ -78,11 +103,13 @@ export async function calibrate({ dir = ROOT, env = process.env, log = console.l
   const rows = roles.map((r) => {
     const s = scores.get(r.key);
     const ai = s?.value ?? null;
-    return { title: `${r.company} — ${r.title}`, source: r.source, decision: r.decision, call: r.call, yours: r.yourScore, ai, agrees: agrees(r.decision, ai, good), summary: s?.summary ?? '(not scored)', gaps: s?.gaps ?? [] };
+    const before = r.score?.scorer === 'ai' ? r.score.value : null;
+    return { title: `${r.company} — ${r.title}`, source: r.source, decision: r.decision, call: r.call, yours: r.yourScore, ai, before, parts: s?.parts ?? null, hardStop: s?.hardStop === true, agrees: agrees(r.decision, ai, good), summary: s?.summary ?? '(not scored)', gaps: s?.gaps ?? [] };
   });
 
+  const partsText = (r) => (r.parts ? `  [${PARTS.map((k) => `${k} ${r.parts[k]}`).join(' · ')}${r.hardStop ? ' · hard stop' : ''}]` : '');
   for (const r of rows) {
-    log(`${r.agrees ? '✓' : '✗'} ${String(r.ai ?? '–').padStart(3)}  (you: ${r.call}${r.yours !== null ? ` ${r.yours}` : ''})  ${r.title}`);
+    log(`${r.agrees ? '✓' : '✗'} ${String(r.ai ?? '–').padStart(3)}  (you: ${r.call}${r.yours !== null ? ` ${r.yours}` : ''}${r.before !== null ? `; scored ${r.before} before` : ''})  ${r.title}${partsText(r)}`);
     if (!r.agrees) log(`        ${r.summary}\n        gaps: ${r.gaps.join('; ')}`);
   }
   log('');
@@ -96,5 +123,9 @@ export async function calibrate({ dir = ROOT, env = process.env, log = console.l
   const applyMin = Math.min(...rows.filter((r) => r.decision === 'Apply' && r.ai !== null).map((r) => r.ai));
   const skipMax = Math.max(...rows.filter((r) => r.decision === 'Skip' && r.ai !== null).map((r) => r.ai));
   if (Number.isFinite(skipMax) && Number.isFinite(applyMin)) log(`Every Apply above every Skip: ${applyMin > skipMax ? 'yes' : 'no'} (lowest Apply ${applyMin}, highest Skip ${skipMax})`);
+  const best = bestCutoff(rows, good);
+  if (best) log(`The good-match line that agrees most with your calls: ${best.cutoff} (${best.agree}/${best.of}; today's ${good}: ${rows.filter((r) => r.agrees).length}/${rows.length})${best.cutoff === good ? '' : '. To use it, set report.good_match (and notify.min_score) in settings.yml'}`);
+  const spread = scoreSpread(rows.map((r) => r.ai));
+  if (spread) log(`Spread: ${spread.distinct} different scores among ${spread.of}; the most common, ${spread.top}, was given ${spread.topCount} time(s)`);
   return rows;
 }
