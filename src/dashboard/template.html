@@ -356,8 +356,15 @@ li.sel > .inline { display: block; }
 .mine-tally .muted { color: var(--muted); }
 /* your roles: Applied and Shortlist, open or closed */
 .mine-group { display: grid; gap: 10px; }
-.mine-group h2 { margin: 6px 0 0; font: 600 18px/1.3 var(--f-display); }
-.mine-group h2 .num { font: 400 13px var(--f-mono); color: var(--muted); margin-left: 6px; }
+.mine-group > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: 8px; margin: 6px 0 0; padding: 4px 0; font: 600 18px/1.3 var(--f-display); -webkit-tap-highlight-color: transparent; }
+.mine-group > summary::-webkit-details-marker { display: none; }
+.mine-group > summary::before { content: ""; width: 7px; height: 7px; border: solid var(--muted); border-width: 0 2px 2px 0; transform: translateY(-2px) rotate(-45deg); transition: transform .15s; flex: none; align-self: center; }
+.mine-group[open] > summary::before { transform: translateY(-3px) rotate(45deg); }
+.mine-group > summary .num { font: 400 13px var(--f-mono); color: var(--muted); }
+.mine-group > summary .hint { margin-left: auto; font: 400 13px var(--f-body); color: var(--accent); }
+.mine-group > summary .hint::after { content: "Show"; }
+.mine-group[open] > summary .hint::after { content: "Hide"; }
+.mine-group > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 .mine .why-line { font-size: 13px; color: var(--muted); font-style: italic; overflow-wrap: anywhere; }
 .mine li.closed .rt { color: var(--muted); }
 .mine-d { display: none; border-top: 1px dashed var(--line); }
@@ -1620,9 +1627,13 @@ footer a { color: var(--muted); }
   // ── your roles: Applied and Shortlist, kept after the posting closes; applications you heard back on ──
   let mineSel = null;
   const mineGroup = {}; // a role you just unmarked stays where it was until you leave the tab
-  const GROUPS = ['applied', 'shortlist', 'rejected', 'turned-down'];
-  const GROUP = { applied: 'Applied', shortlist: 'Shortlist', rejected: 'Rejected', 'turned-down': 'Turned down' };
-  const groupOf = (j) => (ocOf(j) ? ocOf(j).k : callOf(j));
+  const GROUPS = ['applied', 'shortlist', 'rejected', 'turned-down', 'closed'];
+  const GROUP = { applied: 'Applied', shortlist: 'Shortlist', rejected: 'Rejected', 'turned-down': 'Turned down', closed: 'Closed' };
+  // Shortlist holds only roles you can still apply to: a shortlisted role whose posting closed moves to
+  // Closed. Applied, Rejected and Turned down roles stay in their own group, open or closed.
+  const groupOf = (j) => (ocOf(j) ? ocOf(j).k : callOf(j) === 'shortlist' && j.status === 'closed' ? 'closed' : callOf(j));
+  // Each group folds away with a tap on its heading, remembered on this device. Closed starts folded.
+  const mineFold = Object.assign({ closed: true }, store.get('mineFold', {}));
   const ocLine = (o) => [o.r, o.s ? o.s.charAt(0).toLowerCase() + o.s.slice(1) : '', o.n].filter(Boolean).join(' · ');
   function mineRow(j) {
     const e = FB[j.id] || {}, o = ocOf(j);
@@ -1647,10 +1658,18 @@ footer a { color: var(--muted); }
     const group = (k) => {
       const list = roles.filter((j) => mineGroup[j.id] === k)
         .sort((a, b) => (a.status === 'open' ? 0 : 1) - (b.status === 'open' ? 0 : 1) || when(b).localeCompare(when(a)));
-      return list.length ? '<section class="mine-group"><h2>' + GROUP[k] + '<span class="num">' + list.length + '</span></h2><ul class="list mine">' + list.map(mineRow).join('') + '</ul></section>' : '';
+      return list.length ? '<details class="mine-group" data-group="' + k + '"' + (mineFold[k] ? '' : ' open') + '><summary>' + GROUP[k] + '<span class="num">' + list.length + '</span><span class="hint"></span></summary>' +
+        '<ul class="list mine">' + list.map(mineRow).join('') + '</ul></details>' : '';
     };
-    view.innerHTML = '<p class="note">Roles you marked Applied or Shortlist. They stay here after the employer takes the posting down, so you can still find them when you hear back. When you do, open the role and set its Outcome.</p>' + tallyHtml() + GROUPS.map(group).join('');
+    view.innerHTML = '<p class="note">Roles you marked Applied or Shortlist. They stay here after the employer takes the posting down, so you can still find them when you hear back. When you do, open the role and set its Outcome. Shortlisted roles that have closed move to Closed.</p>' + tallyHtml() + GROUPS.map(group).join('');
   }
+  // "toggle" does not bubble, so listen on the way down. Opening the selected role's group unfolds it too.
+  $('#view-mine').addEventListener('toggle', (e) => {
+    const g = e.target.closest && e.target.closest('details.mine-group'); if (!g || g !== e.target) return;
+    if (!g.open === !!mineFold[g.dataset.group]) return;
+    mineFold[g.dataset.group] = !g.open;
+    store.set('mineFold', mineFold);
+  }, true);
   // "6 applied: 4 in process · 2 rejected (No reason given 1, Role closed 1) · 0 turned down"
   function tallyHtml() {
     const applied = D.jobs.filter((j) => callOf(j) === 'applied');
@@ -1665,7 +1684,10 @@ footer a { color: var(--muted); }
     return '<p class="mine-tally"><b>' + applied.length + '</b> applied: <b>' + open + '</b> in process · ' + part('rejected') + ' · ' + part('turned-down') + '</p>';
   }
   function openMine(id) {
-    mineSel = id; showTab('mine'); renderMine();
+    mineSel = id; showTab('mine');
+    const j = byId[id];
+    if (j && mineFold[mineGroup[id] || groupOf(j)]) { mineFold[mineGroup[id] || groupOf(j)] = false; store.set('mineFold', mineFold); }
+    renderMine();
     const li = document.querySelector('#view-mine li[data-id="' + id + '"]');
     if (li) li.scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
