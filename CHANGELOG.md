@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.34.0
+
+- **Your roles has a Closed group, and every group folds away.** Shortlist now holds only roles you can still apply to: a shortlisted role whose posting closed moves to a new **Closed** group at the bottom of the tab. Applied, Rejected and Turned down roles stay in their own groups even when the posting has closed, so an application never gets lost among roles you only meant to apply to. Tap a group's heading (Applied, Shortlist, Rejected, Turned down, Closed) to fold it away; each browser remembers your choice, and Closed starts folded. Opening a role from elsewhere unfolds its group ([details](docs/configuration.md#your-calls-on-the-dashboard)).
+
 ## 1.33.0
 
 - **Scores that spread out, and show where they come from.** The model no longer gives one 0–100 number, which it tended to pick from a few favourites (most good matches came back as exactly 66). It now rates four parts of the fit from 0 to 10: **level**, **domain**, **core work** and **must-haves**, and says whether a hard stop applies. Axia adds the parts up with `scoring.weights` (level 20, domain 25, core work 35, must-haves 20 by default) and caps a hard stop at 50. A role's page shows the four parts under its score ([details](docs/configuration.md#how-a-score-adds-up-and-scoringweights)).
