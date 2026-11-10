@@ -227,7 +227,11 @@ Open a role and mark it **Applied**, **Shortlist** or **Not for me**, with a one
 
 **When you hear back.** An Applied role also gets an **Outcome** row: **In process**, **Rejected** (the company said no) or **Turned down** (you said no). Pick one and choose a reason from your list, and if you like the stage it happened at and a one-line note. A role you never marked Applied shows **Heard back already?** with Rejected and Turned down, which mark it Applied too. The **Your roles** tab groups Rejected and Turned down roles on their own and keeps a tally of the reasons, so the pattern shows as the outcomes build up.
 
-**Your roles, group by group.** The tab has a group each for **Applied**, **Shortlist**, **Rejected**, **Turned down** and **Closed**. Shortlist holds only roles you can still apply to: once the employer takes a shortlisted posting down, the role moves to **Closed**. Applied, Rejected and Turned down roles stay in their own group even after their posting closes, with a Closed label. Tap a group's heading to fold it away, and again to open it; each browser remembers which groups you folded. Closed starts folded. Outcomes never change a score: a rejected role still counts as one you judged worth applying.
+**Your roles, group by group.** The tab has a group each for **Applied**, **Shortlist**, **Rejected**, **Turned down** and **Closed**. Shortlist holds only roles you can still apply to: once the employer takes a shortlisted posting down, the role moves to **Closed**. Applied, Rejected and Turned down roles stay in their own group even after their posting closes, with a Closed label. Tap a group's heading to fold it away, and again to open it; each browser remembers which groups you folded. Closed starts folded.
+
+**Shortlist puts the best match first**, since it is the list of roles you mean to act on. Roles are sorted by score, highest first. At the same score, a **Long open** role (posted 45+ days ago, so it may already be filled) goes below the others, then the newer posting goes first. A role still waiting for an AI score goes at the bottom with its estimate (≈) until the next run scores it; shortlisting it puts it first in line for that run. Rows show the same **New** and **Long open** labels as the Roles list. The other groups keep the most recently marked role first.
+
+Outcomes never change a score: a rejected role still counts as one you judged worth applying.
 
 The reasons and stages come from `settings.yml`; Axia's defaults are below, and a list you set replaces that list only:
 
