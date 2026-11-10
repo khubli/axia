@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.35.0
+
+- **Shortlist puts the best match first.** The Shortlist group on **Your roles** is the list of roles you mean to act on, so it is now sorted by score, highest first, instead of by when you marked each role. At the same score, a **Long open** role (posted 45+ days ago, so it may already be filled) goes below the others, then the newer posting goes first. Roles still waiting for an AI score go at the bottom with their estimate until the next run scores them. Rows on Your roles now show the **New** and **Long open** labels too. Applied, Rejected, Turned down and Closed keep the most recently marked role first ([details](docs/configuration.md#your-calls-on-the-dashboard)).
+
 ## 1.34.0
 
 - **Your roles has a Closed group, and every group folds away.** Shortlist now holds only roles you can still apply to: a shortlisted role whose posting closed moves to a new **Closed** group at the bottom of the tab. Applied, Rejected and Turned down roles stay in their own groups even when the posting has closed, so an application never gets lost among roles you only meant to apply to. Tap a group's heading (Applied, Shortlist, Rejected, Turned down, Closed) to fold it away; each browser remembers your choice, and Closed starts folded. Opening a role from elsewhere unfolds its group ([details](docs/configuration.md#your-calls-on-the-dashboard)).

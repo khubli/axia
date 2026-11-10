@@ -243,10 +243,12 @@ summary.changes = { ...changes, line: briefLine({ changes, state: { jobs }, sett
 const history = [[0, 8, 2, 3, 1, 1, 8], [1, 4, 1, 6, 0, 2, 6], [2, 11, 0, 9, 2, 3, 3], [3, 2, 3, 2, 0, 1, 1], [4, 0, 1, 1, 0, 0, 0]]
   .map(([d, n, c, sc, g, l, p]) => ({ runAt: new Date(now.getTime() - d * 24 * 36e5).toISOString(), today: daysAgo(d), new: n, closed: c, scored: sc, good: g, look: l, pending: p }));
 
-// A few calls on roles, as if made on the dashboard's buttons. The shortlisted Payouts role has closed,
-// so Your roles shows it under Closed.
-const calls = [['Head of Payments Platform Engineering', 'applied'], ['Engineering Director, Core Platform', 'shortlist'], ['Vice President, Treasury Operations', 'not-for-me', 'Operations, not technology'], ['Platform Lead, Payments Hub', 'applied', 'Recruiter call booked'], ['Engineering Manager, Payouts', 'shortlist', 'Ask an ex-colleague there first']];
-const feedback = { roles: Object.fromEntries(calls.map(([t, verdict, reason = '']) => { const j = byTitle(t); return [j.key, { id: j.key.replace(/[^A-Za-z0-9]+/g, '-'), verdict, reason, at: now.toISOString() }]; })) };
+// A few calls on roles, as if made on the dashboard's buttons, oldest first. The shortlisted Payouts role
+// has closed, so Your roles shows it under Closed. Shortlist sorts best match first, whatever the order
+// the roles were marked in, with the role still waiting for a score last.
+const calls = [['Head of Payments Platform Engineering', 'applied'], ['Engineering Director, Core Platform', 'shortlist'], ['Vice President, Treasury Operations', 'not-for-me', 'Operations, not technology'], ['Platform Lead, Payments Hub', 'applied', 'Recruiter call booked'], ['Engineering Manager, Payouts', 'shortlist', 'Ask an ex-colleague there first'],
+  ['Engineering Manager, Payments Gateway', 'shortlist'], ['Lead Solution Architect, ISO 20022 Migration', 'shortlist', 'Narrow, but the ISO 20022 work is mine']];
+const feedback = { roles: Object.fromEntries(calls.map(([t, verdict, reason = ''], i) => { const j = byTitle(t); return [j.key, { id: j.key.replace(/[^A-Za-z0-9]+/g, '-'), verdict, reason, at: new Date(now.getTime() - (calls.length - i) * 36e5).toISOString() }]; })) };
 // One application that came back: what the Outcome row records.
 feedback.roles[byTitle('Platform Lead, Payments Hub').key].outcome = { kind: 'rejected', reason: 'Went with another candidate', stage: 'After interviews', note: 'Internal move filled it', at: now.toISOString() };
 

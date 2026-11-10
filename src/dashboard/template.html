@@ -1639,7 +1639,8 @@ footer a { color: var(--muted); }
     const e = FB[j.id] || {}, o = ocOf(j);
     const marked = o && o.t ? OUTCOME[o.k].toLowerCase() + ' ' + esc(day(isoDay(new Date(o.t)))) : e.t ? 'marked ' + esc(day(isoDay(new Date(e.t)))) : '';
     const meta = [esc(j.company), esc(place(j)), marked, j.status === 'closed' && j.closedOn ? 'closed ' + esc(day(j.closedOn)) : ''].filter(Boolean);
-    const pill = levelPill(j) + (j.status === 'closed' ? '<span class="pill closed">Closed</span>' : '');
+    const pill = levelPill(j) + (isNew(j) ? '<span class="pill new">New</span>' : '') + (longOpen(j) ? '<span class="pill old" title="Posted ' + LONG_OPEN_DAYS + '+ days ago; check it is still being filled">Long open</span>' : '') +
+      (j.status === 'closed' ? '<span class="pill closed">Closed</span>' : '');
     return '<li data-id="' + j.id + '" class="' + (j.status === 'closed' ? 'closed' : '') + (j.id === mineSel ? ' sel' : '') + '">' +
       '<button class="row" aria-expanded="' + (j.id === mineSel) + '">' + scoreCell(j, pill) +
       '<span class="rb"><span class="rt">' + esc(j.title) + '</span>' +
@@ -1655,13 +1656,19 @@ footer a { color: var(--muted); }
     $('#mine-num').textContent = roles.length || '';
     if (!roles.length) { view.innerHTML = '<p class="note">No roles marked Applied or Shortlist.</p>'; return; }
     const when = (j) => (FB[j.id] && FB[j.id].t) || '';
+    const recent = (a, b) => (a.status === 'open' ? 0 : 1) - (b.status === 'open' ? 0 : 1) || when(b).localeCompare(when(a));
+    // Shortlist is what to act on next, so the best match goes first. Same score: a Long open role goes
+    // below the others (it may be filled already), then the newer posting first. Roles still waiting for
+    // an AI score go last; shortlisting one puts it first in line for the next run.
+    const posted = (j) => j.postedAt || j.firstSeen || '';
+    const best = (a, b) => (b.ai ? 1 : 0) - (a.ai ? 1 : 0) || (b.score ?? -1) - (a.score ?? -1) ||
+      (longOpen(a) ? 1 : 0) - (longOpen(b) ? 1 : 0) || posted(b).localeCompare(posted(a)) || recent(a, b);
     const group = (k) => {
-      const list = roles.filter((j) => mineGroup[j.id] === k)
-        .sort((a, b) => (a.status === 'open' ? 0 : 1) - (b.status === 'open' ? 0 : 1) || when(b).localeCompare(when(a)));
+      const list = roles.filter((j) => mineGroup[j.id] === k).sort(k === 'shortlist' ? best : recent);
       return list.length ? '<details class="mine-group" data-group="' + k + '"' + (mineFold[k] ? '' : ' open') + '><summary>' + GROUP[k] + '<span class="num">' + list.length + '</span><span class="hint"></span></summary>' +
         '<ul class="list mine">' + list.map(mineRow).join('') + '</ul></details>' : '';
     };
-    view.innerHTML = '<p class="note">Roles you marked Applied or Shortlist. They stay here after the employer takes the posting down, so you can still find them when you hear back. When you do, open the role and set its Outcome. Shortlisted roles that have closed move to Closed.</p>' + tallyHtml() + GROUPS.map(group).join('');
+    view.innerHTML = '<p class="note">Roles you marked Applied or Shortlist. They stay here after the employer takes the posting down, so you can still find them when you hear back. When you do, open the role and set its Outcome. Shortlist puts the best match first; shortlisted roles that have closed move to Closed.</p>' + tallyHtml() + GROUPS.map(group).join('');
   }
   // "toggle" does not bubble, so listen on the way down. Opening the selected role's group unfolds it too.
   $('#view-mine').addEventListener('toggle', (e) => {
