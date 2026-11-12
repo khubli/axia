@@ -719,3 +719,109 @@ test('cornerstone: token from the career page, then the search, 100 a request, w
 
   await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['/ux/ats/careersite/', '<html>Sign in</html>']]))), /no search token/);
 });
+
+test('keka: the careers page names the portal, then one list gives every role with its text', async () => {
+  const site = detect('https://contosopay.keka.com/careers/');
+  assert.deepEqual([site.source.type, site.params.origin], ['keka', 'https://contosopay.keka.com']);
+  assert.equal(detect('https://www.keka.com/careers'), null, "Keka's own site is not a job list");
+
+  const portal = '0f6c2b1e-1111-4a2b-9c3d-abcdefabcdef';
+  const page = `<div id="content-container"></div><script>fetch('/ats/documents/${portal}/careerportal/abc123.html')</script>`;
+  const role = (id, title, jobLocations, extra = {}) => ({ id, title, jobLocations, publishedOn: '2026-10-22T10:19:10.517Z', description: '<div><strong>About Contoso Pay</strong></div><ul><li>Lead the payments platform</li></ul>', ...extra });
+  const blr = { id: 1, name: 'Contoso Tower', city: 'Bengaluru', state: 'KA', countryCode: 'IN', countryName: 'India' };
+  const http = fakeHttp([
+    ['/careers/api/embedjobs/', [
+      role('145340', ' Head of  Engineering ', [blr, blr]),
+      role('2', 'Analyst', []),
+      role('145340', 'Head of Engineering', [blr]),
+    ]],
+    ['/careers/', page],
+  ]);
+  const jobs = await site.source.list(site.params, ctx(http));
+  assert.equal(http.calls[0].url, 'https://contosopay.keka.com/careers/');
+  assert.equal(http.calls[1].url, `https://contosopay.keka.com/careers/api/embedjobs/default/active/${portal}`);
+  assert.deepEqual(jobs.map((j) => j.id), ['145340', '2'], 'a repeated role counts once');
+  assert.deepEqual(jobs[0], {
+    id: '145340',
+    title: 'Head of Engineering',
+    location: 'Bengaluru, India',
+    url: 'https://contosopay.keka.com/careers/jobdetails/145340',
+    postedAt: '2026-10-22',
+    description: 'About Contoso Pay\n\n• Lead the payments platform',
+  });
+  assert.equal(jobs[1].location, null);
+
+  await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['/careers/', '<html>Not found</html>']]))), /no job portal id/);
+});
+
+test('socgen: token from the site, then its search, 100 a request, with the place filter', async () => {
+  const site = detect('https://careers.societegenerale.com/en/search?refinementList%5BjobLocation%5D%5B0%5D=IND');
+  assert.deepEqual([site.source.type, site.params.locations], ['socgen', ['IND']]);
+  assert.deepEqual(detect('https://careers.societegenerale.com/en/search').params.locations, [], 'no filter: every role');
+
+  const page = '<script type="application/json" data-drupal-selector="drupal-settings-json">{"path":{},"csrfToken":"csrf-1"}</script>';
+  const doc = (ref, lang, title, extra = {}) => ({ sourcestr4: ref, sourcestr12: `${ref}-${lang}`, sourcestr6: 'job', title, sourcestr7: 'Bangalore, India', sourcedatetime1: '2026-11-11 13:00:00', url1: `https://careers.societegenerale.com/en/job-offers/role-${ref}-${lang}`, sourcevarchar2: '<p>Lead the <strong>Fabrikam</strong> platform.</p>', ...extra });
+  const first = Array.from({ length: 100 }, (_, i) => doc(`R${i}`, 'en', `Engineer ${i}`));
+  const http = fakeHttp([
+    ['/en/search', page],
+    ['/sg-careers-offers/get-token', { token: 'tok-1', from_cache: false }],
+    ['/search-proxy.php', (_url, opts) => ({ TotalCount: 103, Result: { Docs: opts.body.query.skipFrom === 0 ? first : [
+      doc('R200', 'en', 'Head of  AI Engineering'),
+      doc('R200', 'fr', 'Head of AI Engineering'),
+      doc('R201', 'fr', 'Chapter Manager', { sourcestr7: 'Chennai, India' }),
+      doc('R201', 'en', 'Lead Analyst'),
+      doc('R0', 'en', 'Engineer 0'),
+    ] } })],
+  ]);
+  const jobs = await site.source.list(site.params, ctx(http));
+  assert.equal(http.calls[1].headers['X-CSRF-Token'], 'csrf-1');
+  const searches = http.calls.filter((c) => c.url.endsWith('/search-proxy.php'));
+  assert.equal(searches[0].headers['Authorization-API'], 'Bearer tok-1');
+  assert.match(searches[0].headers['X-Proxy-URL'], /\/search-profile$/);
+  assert.deepEqual(searches.map((c) => [c.body.query.skipFrom, c.body.query.skipCount]), [[0, 100], [100, 100]]);
+  assert.deepEqual(searches[0].body.query.advanced[1], { type: 'multi', name: 'sourcecsv1', op: 'eq', values: ['IND'] });
+  assert.equal(jobs.length, 103, 'one role in English and French counts once; two roles sharing a reference both count');
+  assert.deepEqual(jobs[100], {
+    id: 'R200-en',
+    title: 'Head of AI Engineering',
+    location: 'Bangalore, India',
+    url: 'https://careers.societegenerale.com/en/job-offers/role-R200-en',
+    postedAt: '2026-11-11',
+    description: 'Lead the Fabrikam platform.',
+  });
+  assert.deepEqual(jobs.slice(101).map((j) => [j.id, j.title]), [['R201-fr', 'Chapter Manager'], ['R201-en', 'Lead Analyst']]);
+
+  await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['/en/search', '<html>Access denied</html>']]))), /no search token/);
+});
+
+test('m2p: one list, office codes left off, the posting text read by id', async () => {
+  const site = detect('https://careers.m2pfintech.com/view-jobs/');
+  assert.equal(site.source.type, 'm2p');
+
+  const role = (job_id, job_title, location, extra = {}) => ({ job_id, job_title, location, post_on_careers_page: 1, job_created_timestamp: '05-11-2026 18:07:55', ...extra });
+  const http = fakeHttp([
+    ['/api/job-list', { status: 1, data: [
+      role('a1', 'Head of  Platform Engineering', ['Chennai, Tamil Nadu, India (CHE)', 'Chennai, Tamil Nadu, India (FFCHE)']),
+      role('a2', 'Lending Sales', ['Mumbai, Maharashtra, India (MUM)', 'Bengaluru, Karnataka, India (BEN)']),
+      role('a3', 'Referral only', ['Chennai, Tamil Nadu, India (CHE)'], { post_on_careers_page: 0 }),
+      role('a4', 'No place', []),
+    ] }],
+    ['/api/job-details?job_id=a1', { status: 1, data: { job_title: 'Head of Platform Engineering', job_decription: '&lt;p&gt;Build the &lt;strong&gt;Contoso&lt;/strong&gt; card platform &amp;amp; APIs.&lt;/p&gt;' } }],
+  ]);
+  const jobs = await site.source.list(site.params, ctx(http));
+  assert.deepEqual(jobs.map((j) => j.id), ['a1', 'a2', 'a4'], 'roles not on the careers page are left out');
+  assert.deepEqual(jobs[0], {
+    id: 'a1',
+    title: 'Head of Platform Engineering',
+    location: 'Chennai, Tamil Nadu, India',
+    url: 'https://careers.m2pfintech.com/job-description/a1/',
+    postedAt: '2026-11-05',
+  });
+  assert.equal(jobs[1].location, 'Mumbai, Maharashtra, India; Bengaluru, Karnataka, India');
+  assert.equal(jobs[2].location, null);
+
+  const d = await site.source.detail(site.params, jobs[0], ctx(http));
+  assert.equal(d.description, 'Build the Contoso card platform & APIs.');
+
+  await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['/api/job-list', { status: 0, message: 'error' }]]))), /no job list/);
+});

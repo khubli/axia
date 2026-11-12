@@ -50,6 +50,9 @@ The address decides how a company is read:
 | Kula | `https://careers.kula.ai/<company>`, such as `https://careers.kula.ai/slice` |
 | Cornerstone OnDemand | `https://<company>.csod.com/ux/ats/careersite/<n>/home?c=<company>` (add `&country=in` to read one country) |
 | Scout (Dezerv) | `https://scout.dezerv.in/careers?org=dezerv` |
+| Keka Hire | `https://<company>.keka.com/careers/` |
+| Société Générale | `https://careers.societegenerale.com/en/search?refinementList[jobLocation][0]=IND` (the site's place filter carries over) |
+| M2P Fintech | `https://careers.m2pfintech.com/view-jobs/` |
 
 Eightfold sites on the employer's own domain (`portal.careers.<company>.com`) also need the platform named: `platform: eightfold`. `?location=` narrows the search, and `?domain=` names the company domain the site uses when it isn't the address's own; for `<company>.eightfold.ai` it is taken to be `<company>.com`.
 
@@ -72,6 +75,12 @@ Radancy (TalentBrew) career sites sit on the employer's own domain, so they need
 Kula career sites (`careers.kula.ai/<company>`, which an employer's own careers page often shows inside its site, as slice's does) are read through the list the page uses, 100 roles a request, each with its description, offices and posting date. If the employer's page doesn't say where it comes from, look for `careers.kula.ai` in its job links.
 
 Cornerstone OnDemand career sites (`<company>.csod.com/ux/ats/careersite/<n>/home?c=<company>`) are read through the search their own pages use: the page hands out a short-lived public token, and the search then gives every open role with its description, 100 a request. Pick a country in the site's filters and the address gets `&country=<code>` (`in` for India), which reads only that country's roles; without it every role worldwide is listed and your `locations` keep the ones you want. Roles open in several countries list them all ("Chennai, India; Singapore"). Some employers put only a short teaser in the description the search gives; Axia scores what it gets.
+
+Keka Hire career sites (`<company>.keka.com/careers/`) are read through the job widget their own page uses: the page names the company's portal, and one request then gives every open role with its description, offices and posting date.
+
+Société Générale's career site is read through the search its own pages use: the site hands out a short-lived public token, and the search then gives every open role with its description, 100 a request. Pick a place in the site's filters and copy the address: `refinementList[jobLocation][0]=IND` reads only the roles in India (city ids from the same filter work too). Without it every role worldwide is listed and your `locations` keep the ones you want. A role posted in both English and French counts once.
+
+M2P Fintech's career site is read through the list its jobs page uses, in one request. A posting's text is read from its own page only when the role is about to be scored. The office code M2P adds to each place ("Chennai, Tamil Nadu, India (CHE)") is left off.
 
 Scout is Dezerv's own hiring system (`scout.<company>.in/careers?org=<company>`). One public list gives every open role with its description and posting date. The `org` on the address names the company, and an address without one is not read.
 
