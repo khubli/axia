@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.36.0
+
+- **Three more careers sites.** Each is recognised from its address and read through the same public list its own careers page uses ([details](docs/configuration.md#companiesyml)):
+  - **Keka Hire** (`https://<company>.keka.com/careers/`), used by many Indian startups. The careers page names the company's job portal, then one request reads every open role with its description, offices and posting date.
+  - **Société Générale** (`https://careers.societegenerale.com/en/search?refinementList[jobLocation][0]=IND`). The site hands out a short-lived public token, then its own search gives every role with its description, 100 a request. The place filter on the address (IND is India) carries over. A role posted in both English and French counts once.
+  - **M2P Fintech** (`https://careers.m2pfintech.com/view-jobs/`). One request reads the list. A posting's text is read only when the role is about to be scored, and the office code after each place ("(CHE)") is left off.
+
 ## 1.35.0
 
 - **Shortlist puts the best match first.** The Shortlist group on **Your roles** is the list of roles you mean to act on, so it is now sorted by score, highest first, instead of by when you marked each role. At the same score, a **Long open** role (posted 45+ days ago, so it may already be filled) goes below the others, then the newer posting goes first. Roles still waiting for an AI score go at the bottom with their estimate until the next run scores them. Rows on Your roles now show the **New** and **Long open** labels too. Applied, Rejected, Turned down and Closed keep the most recently marked role first ([details](docs/configuration.md#your-calls-on-the-dashboard)).
