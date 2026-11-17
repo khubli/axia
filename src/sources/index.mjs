@@ -27,8 +27,10 @@ import * as cornerstone from './cornerstone.mjs';
 import * as socgen from './socgen.mjs';
 import * as m2p from './m2p.mjs';
 import * as keka from './keka.mjs';
+import * as trakstar from './trakstar.mjs';
+import * as zerodha from './zerodha.mjs';
 
-export const SOURCES = [workday, greenhouse, smartrecruiters, oracle, goldman, lever, ashby, amazon, google, turbohire, eightfold, successfactors, phenom, jibe, deshaw, avature, talentsoft, bpce, ripplehire, radancy, scout, kula, cornerstone, socgen, m2p, keka];
+export const SOURCES = [workday, greenhouse, smartrecruiters, oracle, goldman, lever, ashby, amazon, google, turbohire, eightfold, successfactors, phenom, jibe, deshaw, avature, talentsoft, bpce, ripplehire, radancy, scout, kula, cornerstone, socgen, m2p, keka, trakstar, zerodha];
 
 /** Sites the address can't identify; companies.yml names them with `platform:`. */
 export const PLATFORMS = [successfactors.type, eightfold.type, phenom.type, jibe.type, talentsoft.type, radancy.type];

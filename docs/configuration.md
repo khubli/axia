@@ -53,6 +53,8 @@ The address decides how a company is read:
 | Keka Hire | `https://<company>.keka.com/careers/` |
 | Société Générale | `https://careers.societegenerale.com/en/search?refinementList[jobLocation][0]=IND` (the site's place filter carries over) |
 | M2P Fintech | `https://careers.m2pfintech.com/view-jobs/` |
+| Trakstar Hire | `https://<company>.hire.trakstar.com/` (also the older `<company>.recruiterbox.com`) |
+| Zerodha | `https://careers.zerodha.com/` |
 
 Eightfold sites on the employer's own domain (`portal.careers.<company>.com`) also need the platform named: `platform: eightfold`. `?location=` narrows the search, and `?domain=` names the company domain the site uses when it isn't the address's own; for `<company>.eightfold.ai` it is taken to be `<company>.com`.
 
@@ -81,6 +83,10 @@ Keka Hire career sites (`<company>.keka.com/careers/`) are read through the job 
 Société Générale's career site is read through the search its own pages use: the site hands out a short-lived public token, and the search then gives every open role with its description, 100 a request. Pick a place in the site's filters and copy the address: `refinementList[jobLocation][0]=IND` reads only the roles in India (city ids from the same filter work too). Without it every role worldwide is listed and your `locations` keep the ones you want. A role posted in both English and French counts once.
 
 M2P Fintech's career site is read through the list its jobs page uses, in one request. A posting's text is read from its own page only when the role is about to be scored. The office code M2P adds to each place ("Chennai, Tamil Nadu, India (CHE)") is left off.
+
+Trakstar Hire career sites (`<company>.hire.trakstar.com`, formerly Recruiterbox) show their roles on a plain page, so they are read through the public list Trakstar publishes for job widgets on an employer's own site, 100 roles a request, each with its description and office. The list gives no posting date. If the employer's careers page doesn't say where its roles come from, look for `hire.trakstar.com` in its "View openings" link.
+
+Zerodha's career site is read through the list its own page uses, in one request, each role with its description. Roles open in place on that one page, so a role's link is the careers page with the role's name after the `#`. The list gives no posting date.
 
 Scout is Dezerv's own hiring system (`scout.<company>.in/careers?org=<company>`). One public list gives every open role with its description and posting date. The `org` on the address names the company, and an address without one is not read.
 

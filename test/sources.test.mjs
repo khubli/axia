@@ -752,6 +752,13 @@ test('keka: the careers page names the portal, then one list gives every role wi
   assert.equal(jobs[1].location, null);
 
   await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['/careers/', '<html>Not found</html>']]))), /no job portal id/);
+
+  const plain = fakeHttp([
+    ['/careers/api/embedjobs/', [role('7', 'Architect', [blr])]],
+    ['/careers/', `<img class="org-logo" alt="Keka Hire" src="/ats/documents/${portal}/orglogo/8c1a.png" />`],
+  ]);
+  assert.deepEqual((await site.source.list(site.params, ctx(plain))).map((j) => j.id), ['7'], 'a page without a custom portal names the id only in its logo');
+  assert.equal(plain.calls[1].url, `https://contosopay.keka.com/careers/api/embedjobs/default/active/${portal}`);
 });
 
 test('socgen: token from the site, then its search, 100 a request, with the place filter', async () => {
@@ -824,4 +831,61 @@ test('m2p: one list, office codes left off, the posting text read by id', async 
   assert.equal(d.description, 'Build the Contoso card platform & APIs.');
 
   await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['/api/job-list', { status: 0, message: 'error' }]]))), /no job list/);
+});
+
+test('trakstar: the hosted board names the client, its public openings are read 100 a request', async () => {
+  const site = detect('https://contosopay.hire.trakstar.com/?');
+  assert.deepEqual([site.source.type, site.params.client], ['trakstar', 'contosopay']);
+  assert.equal(detect('https://fabrikam.recruiterbox.com/jobs').params.client, 'fabrikam', 'the old Recruiterbox address works too');
+  assert.equal(detect('https://www.trakstar.com/hire'), null, "Trakstar's own site is not a job list");
+
+  const role = (id, title, location, extra = {}) => ({ id, title, client_name: 'contosopay', description: `<p>${title} at <strong>Contoso Pay</strong> &amp; partners.</p>`, location, hosted_url: `https://contosopay.hire.trakstar.com/jobs/${id}/`, allows_remote: false, ...extra });
+  const first = Array.from({ length: 100 }, (_, i) => role(`r${i}`, `Role ${i}`, { city: 'Pune', state: 'Maharashtra', country: 'India', zipcode: '411057' }));
+  const http = fakeHttp([
+    ['offset=0', { meta: { offset: 0, limit: 100, total: 103 }, objects: first }],
+    ['offset=100', { meta: { offset: 100, limit: 100, total: 103 }, objects: [
+      role('r1', 'Role 1 again', { city: 'Pune' }),
+      role('x1', 'Head of  Payments Architecture', { city: 'Bengaluru', state: 'Karnataka', country: 'India' }),
+      role('x2', 'Banking Alliances', { city: 'Delhi', state: '', country: null }, { hosted_url: '' }),
+      role('x3', 'Platform Engineer', { city: '', state: null, country: null }, { allows_remote: true }),
+    ] }],
+  ]);
+  const jobs = await site.source.list(site.params, ctx(http));
+  assert.equal(http.calls[0].url, 'https://jsapi.recruiterbox.com/v1/openings?client_name=contosopay&limit=100&offset=0');
+  assert.equal(http.calls.length, 2, 'stops once every opening is read');
+  assert.equal(jobs.length, 103, 'a role seen twice counts once');
+  assert.deepEqual(jobs[100], {
+    id: 'x1',
+    title: 'Head of Payments Architecture',
+    location: 'Bengaluru, Karnataka, India',
+    url: 'https://contosopay.hire.trakstar.com/jobs/x1/',
+    postedAt: null,
+    description: 'Head of Payments Architecture at Contoso Pay & partners.',
+  });
+  assert.equal(jobs[101].location, 'Delhi');
+  assert.equal(jobs[101].url, 'https://contosopay.hire.trakstar.com/jobs/x2/');
+  assert.equal(jobs[102].location, 'Remote');
+
+  await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['jsapi', { client_name: 'Invalid client name' }]]))), /no job list for contosopay/);
+});
+
+test('zerodha: one list with every role and its text, each linked by name on the one page', async () => {
+  const site = detect('https://careers.zerodha.com/');
+  assert.equal(site.source.type, 'zerodha');
+  assert.equal(detect('https://zerodha.com/careers/'), null, 'the main site only sends you on to careers.zerodha.com');
+
+  const http = fakeHttp([
+    ['/api/jobs', { count: 3, success: true, data: [
+      { name: 'platform-architect', job_title: 'Platform  Architect ', location: 'Bangalore', location_type: 'Onsite', description: '<div class="ql-editor"><p>Design the <strong>Woodgrove</strong> trading platform.</p></div>' },
+      { name: 'platform-architect', job_title: 'Platform Architect', location: 'Bangalore', description: '' },
+      { name: 'support-lead', job_title: 'Support Lead', location: '', location_type: 'Remote', description: '<p>Lead support.</p>' },
+    ] }],
+  ]);
+  const jobs = await site.source.list(site.params, ctx(http));
+  assert.deepEqual(jobs, [
+    { id: 'platform-architect', title: 'Platform Architect', location: 'Bangalore', url: 'https://careers.zerodha.com/#platform-architect', postedAt: null, description: 'Design the Woodgrove trading platform.' },
+    { id: 'support-lead', title: 'Support Lead', location: 'Remote', url: 'https://careers.zerodha.com/#support-lead', postedAt: null, description: 'Lead support.' },
+  ]);
+
+  await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['/api/jobs', { success: false }]]))), /no job list/);
 });

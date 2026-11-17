@@ -1,7 +1,8 @@
 # The companies to watch: a name and the address of its careers page.
 # Axia recognises Workday, Greenhouse, Lever, Ashby, SmartRecruiters and
 # Oracle Recruiting Cloud addresses, plus Amazon, Google, Eightfold, TurboHire,
-# Avature, RippleHire, Kula, Cornerstone and Scout (see docs/configuration.md).
+# Avature, RippleHire, Kula, Cornerstone, Keka, Trakstar Hire and Scout
+# (see docs/configuration.md).
 # A SAP SuccessFactors or Eightfold site on the employer's own domain takes
 # `platform: successfactors` or `platform: eightfold`,
 # a Phenom or iCIMS (Jibe) site takes `platform: phenom` or `platform: jibe`,
