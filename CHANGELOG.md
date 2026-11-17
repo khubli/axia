@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.37.0
+
+- **Two more careers sites.** Each is recognised from its address and read through public JSON, with every role's description in the list, so no posting reads are needed ([details](docs/configuration.md#companiesyml)):
+  - **Trakstar Hire** (`https://<company>.hire.trakstar.com/`, formerly Recruiterbox, whose `<company>.recruiterbox.com` addresses work too). Its hosted job page is plain HTML, so Axia reads the public list Trakstar publishes for job widgets on an employer's own site, 100 roles a request, with each role's office. The list has no posting dates.
+  - **Zerodha** (`https://careers.zerodha.com/`). One request reads the list its careers page uses. Roles open in place on that page, so a role's link is the page with the role's name after the `#`. No posting dates.
+- **Keka Hire sites without a custom careers page are read.** Some Keka pages name the company's portal only in the address of its logo, so they showed as unreadable. Axia now finds the portal there too.
+
 ## 1.36.0
 
 - **Three more careers sites.** Each is recognised from its address and read through the same public list its own careers page uses ([details](docs/configuration.md#companiesyml)):

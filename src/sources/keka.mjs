@@ -12,9 +12,14 @@ export function match(url) {
   return { origin: `https://${m[1]}.keka.com`, scope: `${m[1]}.keka.com` };
 }
 
-/** The portal id on the careers page ("/ats/documents/<id>/careerportal/…" or "identifier: '<id>'"). */
+/**
+ * The portal id on the careers page: "/ats/documents/<id>/careerportal/…", "identifier: '<id>'",
+ * or, on a page with no custom portal, the company's documents folder ("/ats/documents/<id>/orglogo/…").
+ */
 export function portalId(html) {
-  const m = html.match(/\/ats\/documents\/([0-9a-f-]{36})\/careerportal\//i) ?? html.match(/identifier\s*:\s*['"]([0-9a-f-]{36})['"]/i);
+  const m = html.match(/\/ats\/documents\/([0-9a-f-]{36})\/careerportal\//i)
+    ?? html.match(/identifier\s*:\s*['"]([0-9a-f-]{36})['"]/i)
+    ?? html.match(/\/ats\/documents\/([0-9a-f-]{36})\//i);
   if (!m) throw new Error('no job portal id in the Keka careers page (check the address)');
   return m[1].toLowerCase();
 }
