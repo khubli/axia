@@ -55,6 +55,8 @@ The address decides how a company is read:
 | M2P Fintech | `https://careers.m2pfintech.com/view-jobs/` |
 | Trakstar Hire | `https://<company>.hire.trakstar.com/` (also the older `<company>.recruiterbox.com`) |
 | Zerodha | `https://careers.zerodha.com/` |
+| Deutsche Bank | `https://careers.db.com/professionals/search-roles/?country=India` (a country name, or the site's country id; without it, every country) |
+| CWS jobs plugin | the site's job search page, such as `https://www.<company>jobs.com/job-search-results/`, plus `platform: cws` |
 
 Eightfold sites on the employer's own domain (`portal.careers.<company>.com`) also need the platform named: `platform: eightfold`. `?location=` narrows the search, and `?domain=` names the company domain the site uses when it isn't the address's own; for `<company>.eightfold.ai` it is taken to be `<company>.com`.
 
@@ -87,6 +89,10 @@ M2P Fintech's career site is read through the list its jobs page uses, in one re
 Trakstar Hire career sites (`<company>.hire.trakstar.com`, formerly Recruiterbox) show their roles on a plain page, so they are read through the public list Trakstar publishes for job widgets on an employer's own site, 100 roles a request, each with its description and office. The list gives no posting date. If the employer's careers page doesn't say where its roles come from, look for `hire.trakstar.com` in its "View openings" link.
 
 Zerodha's career site is read through the list its own page uses, in one request, each role with its description. Roles open in place on that one page, so a role's link is the careers page with the role's name after the `#`. The list gives no posting date.
+
+Deutsche Bank's career site is read through the public search its own pages use, 100 roles a request, each with its posting date; a role's text is read from its own small file only when the role is about to be scored. `?country=India` reads only the roles in India (2026: about 250, in Pune, Bengaluru and Mumbai); without it every country is read.
+
+Some employer career sites (often WordPress sites built by Radancy) load their search from `jobsapi-google.m-cloud.io`; you can tell one by `var cws_opts` in the page's source. Name such a site with `platform: cws` and the address of its job search page. The page names the company, and the jobs API then gives every open role worldwide with its description and opening date, 100 a request, so your `locations` keep the ones you want. Places come with a two-letter country code (`Hyderabad, Telangana, IN`), so keep the city in your `locations`.
 
 Scout is Dezerv's own hiring system (`scout.<company>.in/careers?org=<company>`). One public list gives every open role with its description and posting date. The `org` on the address names the company, and an address without one is not read.
 

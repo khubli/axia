@@ -905,3 +905,54 @@ test('zerodha: one list with every role and its text, each linked by name on the
 
   await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['/api/jobs', { success: false }]]))), /no job list/);
 });
+
+test('deutschebank: a country name becomes the site\'s id, results read 100 a page, text from the role\'s file', async () => {
+  const site = detect('https://careers.db.com/professionals/search-roles/#/professional/results/?country=India');
+  assert.deepEqual([site.source.type, site.params.country], ['deutschebank', 'India']);
+  assert.equal(detect('https://careers.db.com/professionals/search-roles/?country=81').params.country, '81');
+
+  const item = (id, title, city) => ({ MatchedObjectId: id, MatchedObjectDescriptor: { PositionID: id, PositionTitle: ` ${title} `, PositionLocation: [{ CityName: city, CountryName: 'India', CountryCode: 'IN' }], PublicationStartDate: '2026-11-17' } });
+  const http = fakeHttp([
+    ['/lookup/country/', { lookup: { tablename: 'country', items: [{ id: 46, label: 'Germany' }, { id: 81, label: 'India' }] } }],
+    ['/search/?data=', (url) => {
+      const q = JSON.parse(decodeURIComponent(url.split('data=')[1]));
+      assert.deepEqual(q.SearchCriteria, [{ CriterionName: 'PositionLocation.Country', CriterionValue: ['81'] }]);
+      assert.equal(q.LanguageCode, 'EN', 'English place names');
+      const first = q.SearchParameters.FirstItem;
+      return { SearchResult: { SearchResultCountAll: 101, SearchResultItems: first === 1 ? [item('7001', 'Payments Architect, VP', 'Pune'), item('7002', 'Data Engineer', 'Bangalore')] : [item('7002', 'Data Engineer', 'Bangalore'), item('7003', 'Solution Architect', 'Mumbai')] } };
+    }],
+    ['/jobhtml/7001.json', { html: '<div id="db-jobad"><h1>Payments Architect, VP</h1><p>Own the target architecture.</p></div>' }],
+  ]);
+  const jobs = await site.source.list(site.params, ctx(http));
+  assert.deepEqual(http.calls.filter((c) => c.url.includes('/search/')).map((c) => JSON.parse(decodeURIComponent(c.url.split('data=')[1])).SearchParameters.FirstItem), [1, 101]);
+  assert.deepEqual(jobs.map((j) => j.id), ['7001', '7002', '7003'], 'a role on two pages counts once');
+  assert.deepEqual(jobs[0], { id: '7001', title: 'Payments Architect, VP', location: 'Pune, India', url: 'https://careers.db.com/professionals/search-roles/#/professional/job/7001', postedAt: '2026-11-17' });
+  const d = await site.source.detail(site.params, jobs[0], ctx(http));
+  assert.match(d.description, /Payments Architect, VP[\s\S]*Own the target architecture\./);
+
+  await assert.rejects(site.source.list({ ...site.params, country: 'Atlantis' }, ctx(http)), /no country called "Atlantis"/);
+});
+
+test('cws: the page names the company, the jobs API gives every role with its text, 100 a page', async () => {
+  const pageUrl = 'https://www.contosopayjobs.com/job-search-results/';
+  assert.equal(detect(pageUrl), null, 'a CWS site on its own domain needs platform: cws');
+  const site = detect(pageUrl, 'cws');
+  assert.equal(site.source.type, 'cws');
+
+  const page = `<script>var cws_opts = {"org":"companies/0000-contoso","smartPost_org":"1","api":"https://jobsapi-google.m-cloud.io/api/","job_detail_path":"/job"};</script>`;
+  const job = (id, title, city, extra = {}) => ({ job: { id, title, primary_city: city, primary_state: 'Telangana', primary_country: 'IN', addtnl_locations: '[]', description: '<p>Lead   the platform.</p>', open_date: '2026-11-17T00:00:00', url: `http://www.contosopayjobs.com/job/${id}/role/`, ...extra } });
+  const http = fakeHttp([
+    ['/job-search-results/', page],
+    ['jobsapi-google.m-cloud.io/api/job/search?', (url) => {
+      const q = new URL(url).searchParams;
+      assert.equal(q.get('companyName'), 'companies/0000-contoso');
+      return q.get('offset') === '0'
+        ? { totalHits: 101, searchResults: [job('1', 'Engineering Manager', 'Hyderabad'), job('2', 'Payments Architect', 'Hyderabad', { addtnl_locations: '[{"city":"Pune","state":"Maharashtra","country":"IN"}]' })] }
+        : { totalHits: 101, searchResults: [job('2', 'Payments Architect', 'Hyderabad'), job('3', 'Analyst', 'Dallas', { primary_state: 'Texas', primary_country: 'US' })] };
+    }],
+  ]);
+  const jobs = await site.source.list(site.params, ctx(http));
+  assert.deepEqual(jobs.map((j) => j.id), ['1', '2', '3'], 'a role on two pages counts once');
+  assert.deepEqual(jobs[1], { id: '2', title: 'Payments Architect', location: 'Hyderabad, Telangana, IN; Pune, Maharashtra, IN', url: 'https://www.contosopayjobs.com/job/2/role/', postedAt: '2026-11-17', description: 'Lead the platform.' });
+  await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['/job-search-results/', '<html>no search here</html>']]))), /no job search settings/);
+});
