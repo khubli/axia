@@ -1,8 +1,10 @@
 # Changelog
 
-## 1.37.1
+## 1.38.0
 
+- **A company can move to another careers site without losing its roles.** Point a company's `url` in `companies.yml` at another site (its main careers site on Phenom, Radancy or Eightfold instead of Workday, say), and on the next run each of its open roles carries on under the new site's posting with the same title in at least one of the same cities, or the only posting with that title on both sites. Each role keeps its score, history and your call on the dashboard, and it isn't announced or scored again. A click saved under the role's old id still finds it, and the latest click wins. Roles that can't be matched close as usual. Only a site you took out of `companies.yml` hands its roles over ([details](docs/configuration.md#companiesyml)).
 - **A site's bot check is named as such, and not asked again.** Since 16 and 17 Nov 2026, Workday (behind Cloudflare) has shown a "check you're a browser" page to most requests from GitHub's servers. Axia reported each one as `HTTP 429` (too many requests) and retried it three times over seven seconds, which can't help: the page only lets a real browser through, and Axia doesn't try to get past one. Now any response Cloudflare marks as a challenge (`cf-mitigated: challenge`) fails at once with "blocked by the site's bot check", and the dashboard groups every blocked company into one line instead of one warning each. Their roles stay listed and close after 7 days without a read, as before ([details](docs/how-it-works.md#1-read)).
+- **More Radancy sites are read.** Some Radancy (TalentBrew) sites put the results in a `<div>` rather than a `<section>`, make the link's text the title and give the place just after the link. Those are read now.
 
 ## 1.37.0
 

@@ -625,6 +625,22 @@ test('radancy: the search page names the search, results read 100 a page, text a
   await assert.rejects(site.source.list(site.params, ctx(fakeHttp([['/search-jobs/', '<html>maintenance</html>']]))), /no search results section/);
 });
 
+test('radancy: a site whose results are in a div, with the title as the link and the place after it', async () => {
+  const site = detect('https://jobs.fabrikamcapital.com/search-jobs/India/40001/2/1269750/22/79/50/2', 'radancy');
+  const searchPage = `<div class="sticky search-results--heading-section" data-location="India" data-total-results="2"></div>
+    <div id="search-results" class="py-1" data-keywords="" data-location="India" data-total-results="2"
+      data-location-type="2" data-location-path="1269750" data-organization-ids="40001"></div>`;
+  const card = (id, title, place) => `<div class="list-item"><a href="/job/pune/${id}/40001/${id}" class="job-title--link" data-job-id="${id}"><strong>${title}</strong></a>
+      <div class="job-location">\n${place}</div><div class="job-date"><span>23 Sep</span></div></div>`;
+  const http = fakeHttp([
+    ['/search-jobs/results?', { results: `<div data-total-results="2">${card('901', 'Engineering Lead', 'Pune, India')}${card('902', 'Payments Architect', 'Bengaluru, India')}</div>`, hasJobs: true }],
+    ['/search-jobs/India/', searchPage],
+  ]);
+  const jobs = await site.source.list(site.params, ctx(http));
+  assert.equal(new URL(http.calls[1].url).searchParams.get('OrganizationIds'), '40001', 'the search is read from the div');
+  assert.deepEqual(jobs.map((j) => [j.id, j.title, j.location]), [['901', 'Engineering Lead', 'Pune, India'], ['902', 'Payments Architect', 'Bengaluru, India']]);
+});
+
 test('scout: one public list gives every open role with its text and date', async () => {
   const site = detect('https://scout.contoso.in/careers?org=contoso');
   assert.deepEqual([site.source.type, site.params.origin, site.params.org], ['scout', 'https://scout.contoso.in', 'contoso']);

@@ -22,7 +22,7 @@ import { makeScorer, keywordScore, resumeHash, titleHash, reweigh } from './scor
 import { renderMarkdown } from './render.mjs';
 import { buildSite } from './site.mjs';
 import { notifyMinScore, seedNotified, trackProblems, planMessages, deliver, applyDelivery } from './notify.mjs';
-import { isoDate, normalize, similarity } from './text.mjs';
+import { isoDate, normalize, similarity, citiesOf } from './text.mjs';
 import { loadFeedback, saveFeedback, pullFeedback, applyFeedback, snapshotFeedback } from './feedback.mjs';
 import { loadMoonshots } from './moonshots.mjs';
 import { loadLayoffs } from './layoffs.mjs';
@@ -191,6 +191,40 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     const sig = signature(j.company, j.title, j.location);
     openBySignature.set(sig, [...(openBySignature.get(sig) ?? []), j.key]);
   }
+  // A company moved to another careers site (its line in companies.yml now points somewhere else): its
+  // open roles from the site it left carry on under the new site's ids, with their scores, history and
+  // your calls, when the new site lists the same title in the same cities. The rest close as usual.
+  const boardOf = (key) => key.split(':').slice(0, 2).join(':');
+  const boardsToday = new Map();
+  for (const { company, board } of boards) {
+    if (board.source) boardsToday.set(company, (boardsToday.get(company) ?? new Set()).add(`${board.source.type}:${board.params.scope}`));
+  }
+  // Sites write places differently ("Bangalore, India; HINJEWADI PUNE" on one, "Bangalore" on the other), so
+  // the same title in at least one shared city counts, and so does a title each site lists only once.
+  const titleOf = (company, title) => `${company}|${normalize(title)}`;
+  const cities = (location) => citiesOf(location).map(normalize);
+  const movable = new Map(); // company|title → keys of open roles on a site the company left
+  for (const j of Object.values(state.jobs)) {
+    if (j.status !== 'open' || !boardsToday.has(j.company) || boardsToday.get(j.company).has(boardOf(j.key))) continue;
+    const t = titleOf(j.company, j.title);
+    movable.set(t, [...(movable.get(t) ?? []), j.key]);
+  }
+  const listedTitles = new Map();
+  for (const c of candidates.values()) listedTitles.set(titleOf(c.company, c.job.title), (listedTitles.get(titleOf(c.company, c.job.title)) ?? 0) + 1);
+  const movedFrom = (c, location) => {
+    const t = titleOf(c.company, c.job.title);
+    const keys = movable.get(t);
+    if (!keys?.length) return null;
+    const here = cities(location);
+    const same = keys.find((k) => cities(state.jobs[k].location).sort().join('+') === [...here].sort().join('+'));
+    const overlap = same ?? keys.find((k) => cities(state.jobs[k].location).some((x) => here.includes(x)));
+    const only = keys.length === 1 && listedTitles.get(t) === 1 ? keys[0] : null;
+    const from = overlap ?? only;
+    if (from) keys.splice(keys.indexOf(from), 1);
+    return from;
+  };
+  let moved = 0;
+
   const sameJob = async (a, b) => {
     if (!a || !b) return false;
     await Promise.all([enrich(a, ctx), enrich(b, ctx)]);
@@ -219,6 +253,16 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
       if (!existing.postedAt && c.job.postedAt) existing.postedAt = c.job.postedAt;
       delete existing.closedOn;
       delete existing.closedReason;
+      continue;
+    }
+    const from = movedFrom(c, location);
+    if (from) {
+      const job = state.jobs[from];
+      delete state.jobs[from];
+      state.jobs[c.key] = Object.assign(job, { key: c.key, title: c.job.title, url: c.job.url, location, status: 'open', titleMatch: c.titleMatch, was: [...(job.was ?? []), from] });
+      delete job.copies; // they were postings on the site it left
+      if (c.job.postedAt) job.postedAt = c.job.postedAt;
+      moved++;
       continue;
     }
     const sig = signature(c.company, c.job.title, location);
@@ -430,6 +474,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
       new: newKeys.size,
       closedToday: closedToday.length,
       duplicates,
+      moved,
     },
     secondLook: second,
     ai,
@@ -447,6 +492,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     `\n${summary.counts.listed} roles read · ${summary.counts.open} match your titles and locations · ${summary.counts.new} new · ${summary.counts.closedToday} closed today` +
       (ai.enabled ? ` · AI scored ${ai.scored}${ai.failed ? `, ${ai.failed} failed` : ''}${ai.pending ? `, ${ai.pending} waiting` : ''}` : ' · AI scoring off (keyword estimates)'),
   );
+  if (moved) log(`${moved} role(s) carried over to a company's new careers site, with their scores and your calls.`);
   if (ai.stoppedBecause) log(`AI scoring stopped early: ${ai.stoppedBecause}`);
 
   // Recent layoffs (layoffs.yml, kept by hand): a label only, read fresh each run so old news drops off.

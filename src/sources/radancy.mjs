@@ -65,7 +65,7 @@ export function parseResults(html, p) {
   const links = [...html.matchAll(/<a\b[^>]*href="(\/job\/[^"]*)"[^>]*\bdata-job-id="(\d+)"[^>]*>([\s\S]*?)<\/a>/gi)];
   for (const [i, m] of links.entries()) {
     const [, href, id, inner] = m;
-    // Most sites put the title in an <h2> inside the link; some (Barclays) make the link's text the title.
+    // Most sites put the title in an <h2> inside the link; some make the link's text the title.
     const h2 = inner.match(/<h2[^>]*>([\s\S]*?)<\/h2>/i);
     // Some titles start with zero-width spaces pasted from the ATS.
     const title = htmlToText(h2 ? h2[1] : inner).replace(/[​﻿]/g, '').replace(/\s+/g, ' ').trim();
