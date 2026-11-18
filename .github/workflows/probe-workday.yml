@@ -1,0 +1,52 @@
+# TEMPORARY: checks how Workday and Zerodha answer a GitHub runner. Removed before merge.
+name: Probe Workday
+on:
+  push:
+    branches: [claude/project-thread-lqfes3]
+    paths: ['.github/workflows/probe-workday.yml']
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Probe
+        shell: bash
+        run: |
+          cat > probe.mjs <<'JS'
+          const UA = 'axia/1.0 (+https://github.com/khubli/axia; personal job search, one read a day)';
+          const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+          const sites = [
+            ['workday.wd5', 'workday', 'Workday'],
+            ['nvidia.wd5', 'nvidia', 'NVIDIAExternalCareerSite'],
+            ['adobe.wd5', 'adobe', 'external_experienced'],
+            ['walmart.wd5', 'walmart', 'WalmartExternal'],
+            ['intel.wd1', 'intel', 'External'],
+          ];
+          async function one(host, tenant, site) {
+            const t0 = Date.now();
+            const res = await fetch(`https://${host}.myworkdayjobs.com/wday/cxs/${tenant}/${site}/jobs`, {
+              method: 'POST',
+              headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'User-Agent': UA },
+              body: JSON.stringify({ appliedFacets: {}, limit: 20, offset: 0, searchText: '' }),
+            });
+            const text = await res.text();
+            const h = (k) => res.headers.get(k);
+            console.log(new Date().toISOString(), host, res.status, `${Date.now() - t0}ms`, 'retry-after=' + h('retry-after'), 'cf-mitigated=' + h('cf-mitigated'), 'server=' + h('server'), 'ray=' + h('cf-ray'), JSON.stringify(text.slice(0, 120)));
+            return res.status;
+          }
+          const ip = await (await fetch('https://api.ipify.org')).text().catch(() => '?');
+          console.log('runner ip', ip);
+          console.log('--- serial, 5s apart');
+          for (const s of sites) { await one(...s); await sleep(5000); }
+          console.log('--- patience on the first site: waits of 30s, 60s, 120s');
+          for (const w of [30000, 60000, 120000]) { await sleep(w); await one(...sites[0]); }
+          console.log('--- Zerodha');
+          const z = await fetch('https://careers.zerodha.com/api/jobs', { headers: { Accept: 'application/json', 'User-Agent': UA } });
+          console.log('zerodha', z.status, JSON.stringify((await z.text()).slice(0, 160)));
+          JS
+          node probe.mjs
