@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.39.0
+
+- **Workday companies can be read from your own computer.** Workday has blocked GitHub's servers since 17 Nov 2026, and many companies have no other careers site. A second, optional workflow (`axia-lists.yml`, with the action's new `fetch-only: workday` input) runs on a self-hosted runner on your computer. It reads only those boards, saves each one's roles in `data/lists/` with the posting text of the roles in your titles and places, and commits them. It scores, sends and publishes nothing and needs no secrets. The daily run on GitHub is unchanged, except that when it can't read a board it uses that board's saved list, if the list is newer than the last good read and under 7 days old. Those roles are scored and sent as usual, roles missing from the list close, and the Companies tab says which day's list was used. When your computer is off, its job waits and the daily run uses the last list saved ([details](docs/configuration.md#sites-that-block-githubs-servers)).
+- **Two more careers sites.** Each is read through the same public JSON its own pages use ([details](docs/configuration.md#companiesyml)):
+  - **Deutsche Bank** (`https://careers.db.com/professionals/search-roles/?country=India`). Its own search API returns 100 roles a request, each with its posting date. `?country=` takes a country name or the site's country id. A role's text is read from its own small file only when the role is about to be scored. Useful now that Workday blocks GitHub's servers: the bank lists the same roles here.
+  - **Career sites on the CWS jobs plugin** (`platform: cws`), whose search loads from `jobsapi-google.m-cloud.io`. The page names the company, then the jobs API gives every role with its description and opening date, 100 a request.
+
 ## 1.38.0
 
 - **A company can move to another careers site without losing its roles.** Point a company's `url` in `companies.yml` at another site (its main careers site on Phenom, Radancy or Eightfold instead of Workday, say), and on the next run each of its open roles carries on under the new site's posting with the same title in at least one of the same cities, or the only posting with that title on both sites. Each role keeps its score, history and your call on the dashboard, and it isn't announced or scored again. A click saved under the role's old id still finds it, and the latest click wins. Roles that can't be matched close as usual. Only a site you took out of `companies.yml` hands its roles over ([details](docs/configuration.md#companiesyml)).

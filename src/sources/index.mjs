@@ -29,11 +29,13 @@ import * as m2p from './m2p.mjs';
 import * as keka from './keka.mjs';
 import * as trakstar from './trakstar.mjs';
 import * as zerodha from './zerodha.mjs';
+import * as deutschebank from './deutschebank.mjs';
+import * as cws from './cws.mjs';
 
-export const SOURCES = [workday, greenhouse, smartrecruiters, oracle, goldman, lever, ashby, amazon, google, turbohire, eightfold, successfactors, phenom, jibe, deshaw, avature, talentsoft, bpce, ripplehire, radancy, scout, kula, cornerstone, socgen, m2p, keka, trakstar, zerodha];
+export const SOURCES = [workday, greenhouse, smartrecruiters, oracle, goldman, lever, ashby, amazon, google, turbohire, eightfold, successfactors, phenom, jibe, deshaw, avature, talentsoft, bpce, ripplehire, radancy, scout, kula, cornerstone, socgen, m2p, keka, trakstar, zerodha, deutschebank, cws];
 
 /** Sites the address can't identify; companies.yml names them with `platform:`. */
-export const PLATFORMS = [successfactors.type, eightfold.type, phenom.type, jibe.type, talentsoft.type, radancy.type];
+export const PLATFORMS = [successfactors.type, eightfold.type, phenom.type, jibe.type, talentsoft.type, radancy.type, cws.type];
 
 /** @returns {{source: object, params: object} | null} */
 export function detect(rawUrl, platform) {

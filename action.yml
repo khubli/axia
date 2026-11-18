@@ -63,6 +63,9 @@ inputs:
   tailor-dispatch-token:
     description: "With tailor.dispatch in settings.yml: a GitHub token that may start workflows in that repository (fine-grained, Actions: read and write only). The dashboard's Tailor button then starts your tailoring workflow at once."
     default: ''
+  fetch-only:
+    description: "Only read the boards on these platforms (for example 'workday') and save their lists in data/lists/ for the next daily run, with nothing scored, sent or published. For a second workflow on your own computer, when a site's bot check stops GitHub's servers (docs/configuration.md#sites-that-block-githubs-servers)."
+    default: ''
   commit:
     description: "'true' commits data/ and dashboard/ back to your repository after each run (needs contents: write)."
     default: 'true'
@@ -96,11 +99,12 @@ runs:
 
     # Pinned so an update can't change tomorrow's run; bump deliberately.
     - name: Install Claude Code
-      if: inputs.claude-code-oauth-token != '' && inputs.anthropic-api-key == ''
+      if: inputs.claude-code-oauth-token != '' && inputs.anthropic-api-key == '' && inputs.fetch-only == ''
       shell: bash
       run: npm install -g --no-audit --no-fund @anthropic-ai/claude-code@2.1.286
 
     - name: Find, score and notify
+      if: inputs.fetch-only == ''
       shell: bash
       env:
         AXIA_DIR: ${{ inputs.config-dir }}
@@ -125,10 +129,18 @@ runs:
         if [ -n "$AXIA_MAX_AI" ]; then args+=("--max-ai=$AXIA_MAX_AI"); fi
         node "$GITHUB_ACTION_PATH/src/cli.mjs" "${args[@]}"
 
+    - name: Save the lists for the next run
+      if: inputs.fetch-only != ''
+      shell: bash
+      env:
+        AXIA_DIR: ${{ inputs.config-dir }}
+        AXIA_FETCH: ${{ inputs.fetch-only }}
+      run: node "$GITHUB_ACTION_PATH/src/cli.mjs" fetch --dir "$AXIA_DIR" --platform "$AXIA_FETCH"
+
     # On review.day: are the scores still in line with your calls on the dashboard? If a change to
     # criteria.md agrees with them more often, it is proposed as a pull request. Never fails the run.
     - name: Weekly review of your calls
-      if: inputs.review != 'off'
+      if: inputs.review != 'off' && inputs.fetch-only == ''
       shell: bash
       env:
         AXIA_DIR: ${{ inputs.config-dir }}
@@ -153,12 +165,20 @@ runs:
       if: always() && inputs.commit == 'true'
       shell: bash
       working-directory: ${{ inputs.config-dir }}
+      env:
+        AXIA_FETCH: ${{ inputs.fetch-only }}
       run: |
         git config user.name  "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-        git add -A data dashboard 2>/dev/null || true
+        if [ -n "$AXIA_FETCH" ]; then
+          git add -A data/lists 2>/dev/null || true
+          message="axia: saved lists $(date -u +%Y-%m-%dT%H:%MZ)"
+        else
+          git add -A data dashboard 2>/dev/null || true
+          message="axia: run $(date -u +%Y-%m-%d)"
+        fi
         if git diff --cached --quiet; then echo "Nothing new to save."; exit 0; fi
-        git commit -q -m "axia: run $(date -u +%Y-%m-%d)"
+        git commit -q -m "$message"
         for i in 1 2 3; do
           git pull -q --rebase origin "${GITHUB_REF_NAME}" && git push -q origin "HEAD:${GITHUB_REF_NAME}" && exit 0
           sleep $((i * 5))
@@ -167,7 +187,7 @@ runs:
         exit 1
 
     - name: Publish the dashboard
-      if: inputs.cloudflare-api-token != ''
+      if: inputs.cloudflare-api-token != '' && inputs.fetch-only == ''
       shell: bash
       env:
         AXIA_DIR: ${{ inputs.config-dir }}

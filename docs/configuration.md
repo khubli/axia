@@ -55,6 +55,8 @@ The address decides how a company is read:
 | M2P Fintech | `https://careers.m2pfintech.com/view-jobs/` |
 | Trakstar Hire | `https://<company>.hire.trakstar.com/` (also the older `<company>.recruiterbox.com`) |
 | Zerodha | `https://careers.zerodha.com/` |
+| Deutsche Bank | `https://careers.db.com/professionals/search-roles/?country=India` (a country name, or the site's country id; without it, every country) |
+| CWS jobs plugin | the site's job search page, such as `https://www.<company>jobs.com/job-search-results/`, plus `platform: cws` |
 
 Eightfold sites on the employer's own domain (`portal.careers.<company>.com`) also need the platform named: `platform: eightfold`. `?location=` narrows the search, and `?domain=` names the company domain the site uses when it isn't the address's own; for `<company>.eightfold.ai` it is taken to be `<company>.com`.
 
@@ -88,6 +90,10 @@ Trakstar Hire career sites (`<company>.hire.trakstar.com`, formerly Recruiterbox
 
 Zerodha's career site is read through the list its own page uses, in one request, each role with its description. Roles open in place on that one page, so a role's link is the careers page with the role's name after the `#`. The list gives no posting date.
 
+Deutsche Bank's career site is read through the public search its own pages use, 100 roles a request, each with its posting date; a role's text is read from its own small file only when the role is about to be scored. `?country=India` reads only the roles in India (2026: about 250, in Pune, Bengaluru and Mumbai); without it every country is read.
+
+Some employer career sites (often WordPress sites built by Radancy) load their search from `jobsapi-google.m-cloud.io`; you can tell one by `var cws_opts` in the page's source. Name such a site with `platform: cws` and the address of its job search page. The page names the company, and the jobs API then gives every open role worldwide with its description and opening date, 100 a request, so your `locations` keep the ones you want. Places come with a two-letter country code (`Hyderabad, Telangana, IN`), so keep the city in your `locations`.
+
 Scout is Dezerv's own hiring system (`scout.<company>.in/careers?org=<company>`). One public list gives every open role with its description and posting date. The `org` on the address names the company, and an address without one is not read.
 
 Oracle's job list pages only as far as 10,000 postings. On a site listing more, the older postings are read by posting date as well, in date ranges small enough for the list, so none are missed.
@@ -95,6 +101,23 @@ Oracle's job list pages only as far as 10,000 postings. On a site listing more, 
 Any other address is shown as "check by hand" with a link, so nothing silently drops out. A company whose board fails to load keeps its roles as they were; after 7 days without a successful read they close.
 
 **Moving a company to another careers site.** Many employers list the same roles on two sites: an applicant system such as Workday, and a main careers site on Phenom, Radancy or Eightfold. If one stops working for you, point the company's `url` at the other. On the next run, each open role from the site it left carries on under the new site's link when the new site lists the same title in at least one of the same cities (or both sites list that title only once). It keeps its score, its history and your call on the dashboard, and it isn't announced as new. Roles that can't be matched close, and the new site's other roles arrive as new. This only happens for a site you took out of `companies.yml`; two sites listed side by side are read as two.
+
+### Sites that block GitHub's servers
+
+Since 17 Nov 2026, Workday shows a "check you're a browser" page to most requests from GitHub's servers, so a daily run on GitHub can't read Workday boards. If the company has another careers site, move it there (above). If not, your own computer can read those boards and save their lists for the daily run:
+
+- A second workflow, `axia-lists.yml`, runs on your computer and reads only the boards on the platforms you name (`fetch-only: workday`). It saves each board's roles in `data/lists/`, with the posting text of the roles in your titles and places, and commits them. It scores nothing, sends nothing, publishes nothing and uses no AI, so it needs no secrets.
+- The daily run on GitHub reads every board as usual. Only when a board can't be read does it use that board's saved list, and only if the list is newer than the board's last good read and under 7 days old. Roles on the list are scored, sent and shown as usual, and roles no longer on it close. The **Companies** tab says "Read from your saved list of" and the day it was saved.
+- If your computer is off, its job waits for it (GitHub keeps a job queued for up to a day), so the daily run uses the last list saved. After 7 days without a list, the company's roles close as they would without one.
+
+To set it up (about 15 minutes, once):
+
+1. In your **private** repository: **Settings → Actions → Runners → New self-hosted runner**. Pick your computer's system and run the commands GitHub shows. When `config.sh` asks for labels, type `axia`. On Windows you also need [Git for Windows](https://git-scm.com/download/win), for its `bash`.
+2. Install the runner as a service so it starts by itself: `sudo ./svc.sh install && sudo ./svc.sh start` on Linux, `./svc.sh install && ./svc.sh start` on macOS (it runs while you're logged in), or answer yes to "run as service" on Windows.
+3. Copy [`examples/instance/.github/workflows/axia-lists.yml`](../examples/instance/.github/workflows/axia-lists.yml) into your repository's `.github/workflows/`. It runs at 18:23 and 22:23 India time, before the daily run; change the times to suit you.
+4. **Actions → Axia saved lists → Run workflow** once, and check that it lists each board with "open roles saved".
+
+Use a self-hosted runner only on a private repository: on a public one, anyone's pull request could run code on your computer. The fetch reads each board once, at the same pace and with the same user agent as the daily run. If a site shows your own connection its bot check too, the fetch stops there and says so.
 
 ## settings.yml
 
@@ -525,6 +548,7 @@ Roles you have judged yourself, so you can measure how often the model agrees wi
 |---|---|---|
 | `data/jobs.json` | yes | every matching role, open or recently closed, with its score and when you were told about it |
 | `data/feedback.json` | yes | your calls from the dashboard, with each posting's text and its latest score, and the date of the last weekly review |
+| `data/lists/` | yes | with the optional `axia-lists.yml`: each board's roles as your own computer last read them, for the daily run to use when it can't read that board itself |
 | `data/tailor.json` | yes | with `tailor` on: your Tailor requests, each with its posting or moonshot details, and whether your tool has done it |
 | `dashboard/README.md` | yes | the plain list, readable on GitHub |
 | `.axia/` | no | the built dashboard and its publish settings; `.axia/review/` holds what the last weekly review tried |

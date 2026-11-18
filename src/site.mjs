@@ -98,7 +98,7 @@ export function siteData(view, { minScore, demo = false }) {
     aiPerDay: settings.scoring.max_ai_scores_per_run,
     ai: { enabled: Boolean(summary.ai.enabled), pending: summary.ai.pending ?? 0, stoppedBecause: summary.ai.stoppedBecause ?? null },
     listed: summary.counts.listed,
-    companies: v.companies.map((c) => ({ name: c.company, url: c.url, status: c.status, error: c.error ?? null, listed: c.listed, lastReadOk: state.companies?.[c.company]?.lastReadOk ?? null })),
+    companies: v.companies.map((c) => ({ name: c.company, url: c.url, status: c.status, error: c.error ?? null, listed: c.listed, lastReadOk: state.companies?.[c.company]?.lastReadOk ?? null, ...(c.savedOn ? { savedOn: c.savedOn } : {}) })),
     jobs,
     nearMisses: summary.nearMisses ?? null,
     // Your calls on roles. With `api`, the buttons save to your Cloudflare account; otherwise (the demo) only in this browser.

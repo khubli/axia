@@ -1723,7 +1723,7 @@ footer a { color: var(--muted); }
       return { c, matching: mine.length, worth: scored.filter((j) => j.score >= FROM).length, best: scored.length ? Math.max(...scored.map((j) => j.score)) : null, waiting: mine.length - scored.length };
     }).sort((a, b) => (HEAT ? (heatOf(b.c.name) || { points: -99 }).points - (heatOf(a.c.name) || { points: -99 }).points : 0) ||
       (b.best == null ? -1 : b.best) - (a.best == null ? -1 : a.best) || b.matching - a.matching || a.c.name.localeCompare(b.c.name));
-    const state = (c) => c.status === 'ok' ? '<span class="state"><i></i>Read ' + lastRun + '</span>'
+    const state = (c) => c.status === 'ok' ? '<span class="state"><i></i>' + (c.savedOn ? 'Read from your saved list of ' + esc(day(c.savedOn)) : 'Read ' + lastRun) + '</span>'
       : c.status === 'manual' ? '<span class="state manual"><i></i>Check by hand</span>'
       : '<span class="state fail"><i></i>Not read ' + lastRun + '</span>';
     const best = (r) => {

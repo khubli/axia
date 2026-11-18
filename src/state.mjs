@@ -52,8 +52,13 @@ export const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 86
  * @param {Set<string>} okCompanies companies whose boards were all read today
  * @param {Set<string>} watched     every enabled company in companies.yml
  */
-export function closeAndPrune(state, { seenKeys, okCompanies, watched, today }) {
-  for (const name of okCompanies) state.companies[name] = { ...state.companies[name], lastReadOk: today };
+export function closeAndPrune(state, { seenKeys, okCompanies, watched, today, readOn = new Map() }) {
+  // A company read from a list saved on another computer was last read the day that list was saved.
+  for (const name of okCompanies) {
+    const on = readOn.get(name) ?? today;
+    const prev = state.companies[name]?.lastReadOk;
+    state.companies[name] = { ...state.companies[name], lastReadOk: prev && prev > on ? prev : on };
+  }
   for (const name of Object.keys(state.companies)) if (!watched.has(name)) delete state.companies[name];
 
   const close = (job, reason) => {
