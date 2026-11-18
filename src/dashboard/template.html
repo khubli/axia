@@ -753,7 +753,16 @@ footer a { color: var(--muted); }
   // ── things that need attention ──
   (function warnings() {
     const items = [];
-    for (const c of D.companies.filter((c) => c.status === 'failed')) {
+    // One line for every company a site's bot check turned away (they share the cause), one each for the rest.
+    const failed = D.companies.filter((c) => c.status === 'failed');
+    const blocked = failed.filter((c) => /^blocked by the site's bot check/.test(c.error || ''));
+    if (blocked.length) {
+      const names = [...new Set(blocked.map((c) => c.name))];
+      const last = blocked.map((c) => c.lastReadOk).filter(Boolean).sort()[0];
+      items.push('<b>' + names.length + ' compan' + (names.length === 1 ? 'y' : 'ies') + '</b> could not be read ' + lastRun + ': their job site showed a "check you\'re a browser" page, which Axia doesn\'t get past' +
+        (last ? ' (last read ' + esc(day(last)) + ')' : '') + '. Their roles stay listed as they were; they close after 7 days without a read. ' + names.map(esc).join(', ') + '.');
+    }
+    for (const c of failed.filter((c) => !blocked.includes(c))) {
       items.push('<b>' + esc(c.name) + '</b> could not be read ' + lastRun + (c.lastReadOk ? ' (last read ' + esc(day(c.lastReadOk)) + ')' : '') + '. Its roles stay listed as they were; they close after 7 days without a read.');
     }
     if (D.ai.stoppedBecause) items.push('AI scoring stopped early ' + lastRun + ': ' + esc(D.ai.stoppedBecause) + '. Roles it missed show a title estimate for now.');

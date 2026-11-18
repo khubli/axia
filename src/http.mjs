@@ -5,11 +5,12 @@
 const RETRYABLE = new Set([408, 425, 429, 500, 502, 503, 504]);
 
 export class HttpError extends Error {
-  constructor(message, { status, url } = {}) {
+  constructor(message, { status, url, blocked = false } = {}) {
     super(message);
     this.name = 'HttpError';
     this.status = status;
     this.url = url;
+    this.blocked = blocked;
   }
 }
 
@@ -52,14 +53,27 @@ async function request(url, { method = 'GET', body, headers = {}, timeoutMs = 30
     try {
       const res = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
       if (res.ok) return parse(await res.text());
+      // A bot check (Cloudflare marks it cf-mitigated: challenge) only lets a real browser
+      // through. Axia doesn't try to pass one, and asking again won't change the answer.
+      if (res.headers.get('cf-mitigated') === 'challenge') {
+        throw new HttpError(`blocked by the site's bot check at ${shortHost(url)}`, { status: res.status, url, blocked: true });
+      }
       lastError = new HttpError(`HTTP ${res.status} from ${shortUrl(url)}`, { status: res.status, url });
       if (!RETRYABLE.has(res.status)) throw lastError;
     } catch (err) {
-      if (err instanceof HttpError && !RETRYABLE.has(err.status)) throw err;
+      if (err instanceof HttpError && (err.blocked || !RETRYABLE.has(err.status))) throw err;
       lastError = err instanceof HttpError ? err : new HttpError(`${err.name === 'TimeoutError' ? 'timed out' : err.message} (${shortUrl(url)})`, { url });
     }
   }
   throw lastError;
+}
+
+function shortHost(url) {
+  try {
+    return new URL(url).host;
+  } catch {
+    return String(url).slice(0, 80);
+  }
 }
 
 function shortUrl(url) {

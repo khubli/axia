@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { run } from '../src/run.mjs';
 import { tempProject, stubFetch } from './helpers.mjs';
@@ -273,6 +273,42 @@ test('when the kept copy of a twice-posted role is taken down, the role carries 
   assert.equal(jobs['greenhouse:acme:4'].firstSeen, before.firstSeen);
   assert.deepEqual(jobs['greenhouse:acme:4'].score, before.score, 'score kept');
   assert.equal(jobs['greenhouse:acme:4'].url, 'https://job-boards.greenhouse.io/acme/jobs/4');
+});
+
+test('a company moved to another careers site keeps its roles, scores and history where the title and cities match', async () => {
+  const dir = tempProject({ companies: [COMPANIES[1]] });
+  let stub = stubFetch(workdayRoutes());
+  try {
+    await run(['--no-notify'], {}, { dir, now: new Date('2026-10-15T03:00:00Z'), log: quiet });
+  } finally {
+    stub.restore();
+  }
+  const before = JSON.parse(readFileSync(join(dir, 'data/jobs.json'), 'utf8')).jobs['workday:bank:R-100'];
+  assert.ok(before.score, 'scored on day 1');
+
+  // Day 2: Big Bank now points at another site, which lists the same role (cities in another order) and a new one.
+  writeFileSync(join(dir, 'companies.yml'), JSON.stringify([{ name: 'Big Bank', url: 'https://job-boards.greenhouse.io/bigbank' }]));
+  stub = stubFetch([
+    ['boards-api.greenhouse.io/v1/boards/bigbank', () => ({ jobs: [gh(7, 'Enterprise Architect - VP', 'Mumbai, Maharashtra, India; Pune, India'), gh(8, 'Payments Architect', 'Pune')] })],
+    ...workdayRoutes(true), // the old site would fail, but it isn't read any more
+  ]);
+  let out;
+  try {
+    out = await run(['--no-notify'], {}, { dir, now: new Date('2026-10-16T03:00:00Z'), log: quiet });
+  } finally {
+    stub.restore();
+  }
+  assert.ok(!stub.calls.some((c) => c.url.includes('myworkdayjobs')), 'the site it left is not read');
+  assert.equal(out.summary.counts.moved, 1);
+  assert.equal(out.summary.counts.new, 1, 'only the role the old site never had is new');
+  assert.equal(out.summary.counts.closedToday, 0);
+  const jobs = JSON.parse(readFileSync(join(dir, 'data/jobs.json'), 'utf8')).jobs;
+  assert.deepEqual(Object.keys(jobs).sort(), ['greenhouse:bigbank:7', 'greenhouse:bigbank:8']);
+  const moved = jobs['greenhouse:bigbank:7'];
+  assert.deepEqual(moved.was, ['workday:bank:R-100']);
+  assert.deepEqual(moved.score, before.score, 'score kept');
+  assert.equal(moved.firstSeen, '2026-10-15');
+  assert.equal(moved.url, 'https://job-boards.greenhouse.io/acme/jobs/7', 'the new site\'s link');
 });
 
 test('postings with the same title and place but different descriptions are different roles', async () => {

@@ -22,7 +22,7 @@ export function match(url, { platform } = {}) {
 
 /** The search a page shows, from the data-* attributes of its results section. */
 export function searchOf(html) {
-  const section = html.match(/<section\b[^>]*\bid="search-results"[^>]*>/i)?.[0];
+  const section = html.match(/<(?:section|div)\b[^>]*\bid="search-results"[^>]*>/i)?.[0];
   if (!section) return null;
   const attr = (name) => decodeEntities(section.match(new RegExp(`\\bdata-${name}="([^"]*)"`, 'i'))?.[1] ?? '');
   return {
@@ -62,13 +62,19 @@ function resultsUrl(p, search, page) {
 export function parseResults(html, p) {
   const total = Number(html.match(/\bdata-total-results="(\d+)"/i)?.[1] ?? NaN);
   const jobs = [];
-  for (const m of html.matchAll(/<a\b[^>]*href="(\/job\/[^"]*)"[^>]*\bdata-job-id="(\d+)"[^>]*>([\s\S]*?)<\/a>/gi)) {
+  const links = [...html.matchAll(/<a\b[^>]*href="(\/job\/[^"]*)"[^>]*\bdata-job-id="(\d+)"[^>]*>([\s\S]*?)<\/a>/gi)];
+  for (const [i, m] of links.entries()) {
     const [, href, id, inner] = m;
+    // Most sites put the title in an <h2> inside the link; some make the link's text the title.
     const h2 = inner.match(/<h2[^>]*>([\s\S]*?)<\/h2>/i);
     // Some titles start with zero-width spaces pasted from the ATS.
-    const title = htmlToText(h2 ? h2[1] : '').replace(/[​﻿]/g, '').replace(/\s+/g, ' ').trim();
+    const title = htmlToText(h2 ? h2[1] : inner).replace(/[​﻿]/g, '').replace(/\s+/g, ' ').trim();
     if (!title) continue;
-    const loc = inner.match(/class="[^"]*job-location[^"]*"[^>]*>([\s\S]*?)<\/span>/i);
+    // The place is inside the link, or just after it, before the next role.
+    const after = html.slice(m.index + m[0].length, links[i + 1]?.index ?? html.length);
+    const loc =
+      inner.match(/class="[^"]*job-location[^"]*"[^>]*>([\s\S]*?)<\/span>/i) ??
+      after.match(/class="[^"]*job-location[^"]*"[^>]*>([\s\S]*?)<\/(?:span|div)>/i);
     jobs.push({
       id,
       title,

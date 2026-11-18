@@ -145,4 +145,4 @@ AXIA_SCORER=claude-code node src/cli.mjs calibrate --dir ../my-axia   # uses you
 
 ## Responsible use
 
-Axia reads the same public job feeds that each company's careers page loads in your browser, once a day, with a clear user agent. It does not log in anywhere, does not read LinkedIn, and does not apply to anything. Keep the company list to the employers you actually want, and check that a site's terms allow automated reading before you add it.
+Axia reads the same public job feeds that each company's careers page loads in your browser, once a day, with a clear user agent. It does not log in anywhere, does not read LinkedIn, and does not apply to anything. Keep the company list to the employers you actually want, and check that a site's terms allow automated reading before you add it. If a site shows a bot check (the dashboard says its job site showed a "check you're a browser" page), Axia stops there and tells you; it never tries to get past one.

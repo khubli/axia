@@ -94,6 +94,8 @@ Oracle's job list pages only as far as 10,000 postings. On a site listing more, 
 
 Any other address is shown as "check by hand" with a link, so nothing silently drops out. A company whose board fails to load keeps its roles as they were; after 7 days without a successful read they close.
 
+**Moving a company to another careers site.** Many employers list the same roles on two sites: an applicant system such as Workday, and a main careers site on Phenom, Radancy or Eightfold. If one stops working for you, point the company's `url` at the other. On the next run, each open role from the site it left carries on under the new site's link when the new site lists the same title in at least one of the same cities (or both sites list that title only once). It keeps its score, its history and your call on the dashboard, and it isn't announced as new. Roles that can't be matched close, and the new site's other roles arrive as new. This only happens for a site you took out of `companies.yml`; two sites listed side by side are read as two.
+
 ## settings.yml
 
 Every key is optional except `titles.include`. Defaults in brackets.

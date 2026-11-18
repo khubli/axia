@@ -118,13 +118,24 @@ const sameOutcome = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? 
  * their posting text saved, and counts for the log.
  */
 export function applyFeedback(feedback, pulled, state) {
+  // A role that moved to its company's new careers site (`was`: its earlier keys) keeps your call:
+  // the saved call moves to the new key, and a click saved under the old id still finds the role.
   const byId = new Map(Object.values(state.jobs).map((j) => [jobId(j.key), j]));
+  for (const j of Object.values(state.jobs)) {
+    for (const old of j.was ?? []) {
+      if (!byId.has(jobId(old))) byId.set(jobId(old), j);
+      if (feedback.roles[old] && !feedback.roles[j.key]) feedback.roles[j.key] = { ...feedback.roles[old], id: jobId(j.key) };
+      delete feedback.roles[old];
+    }
+  }
   for (const [key, r] of Object.entries(feedback.roles)) if (!byId.has(r.id)) byId.set(r.id, { key, ...r });
   let added = 0;
   let changed = 0;
   let cleared = 0;
   let unmatched = 0;
-  for (const [id, f] of pulled ?? []) {
+  // Oldest click first, so when a role has clicks under two ids (before and after it moved) the latest wins.
+  const clicks = [...(pulled ?? [])].sort((a, b) => String(a[1].at ?? '').localeCompare(String(b[1].at ?? '')));
+  for (const [id, f] of clicks) {
     const job = byId.get(id);
     if (!job) {
       unmatched++;
@@ -143,7 +154,7 @@ export function applyFeedback(feedback, pulled, state) {
     const { outcome: _, ...kept } = prev ?? {};
     feedback.roles[job.key] = {
       ...kept,
-      id,
+      id: jobId(job.key),
       company: job.company,
       title: job.title,
       location: job.location ?? null,

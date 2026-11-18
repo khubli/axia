@@ -205,3 +205,24 @@ test('outcomes are copied into data/feedback.json and back to the page; a call t
   assert.equal(r.verdict, 'shortlist');
   assert.equal(r.outcome, undefined);
 });
+
+test('a role that moved to its company\'s new careers site keeps your call, and the latest click wins', async () => {
+  const { applyFeedback } = await import('../src/feedback.mjs');
+  const state = { jobs: { 'phenom:careers.woodgrove.com:WGB123': { key: 'phenom:careers.woodgrove.com:WGB123', company: 'Woodgrove Bank', title: 'Payments Architect', location: 'Pune, India', status: 'open', was: ['workday:woodgrove:R-123'] } } };
+  const feedback = { version: 1, lastReview: null, roles: { 'workday:woodgrove:R-123': { id: 'workday-woodgrove-R-123', company: 'Woodgrove Bank', title: 'Payments Architect', verdict: 'shortlist', reason: '', at: '2026-11-10T09:00:00Z' } } };
+
+  // The call saved before the move, still in the store under the old id: nothing changes, it just follows the role.
+  let r = applyFeedback(feedback, new Map([['workday-woodgrove-R-123', { verdict: 'shortlist', reason: '', at: '2026-11-10T09:00:00Z', outcome: null }]]), state);
+  assert.deepEqual(Object.keys(feedback.roles), ['phenom:careers.woodgrove.com:WGB123']);
+  assert.equal(feedback.roles['phenom:careers.woodgrove.com:WGB123'].id, 'phenom-careers-woodgrove-com-WGB123', 'the dashboard finds it under the new id');
+  assert.equal(feedback.roles['phenom:careers.woodgrove.com:WGB123'].verdict, 'shortlist');
+  assert.equal(r.unmatched, 0);
+
+  // A later click under the new id beats the old one, whatever order the store lists them in.
+  r = applyFeedback(feedback, new Map([
+    ['phenom-careers-woodgrove-com-WGB123', { verdict: 'applied', reason: '', at: '2026-11-19T09:00:00Z', outcome: null }],
+    ['workday-woodgrove-R-123', { verdict: 'shortlist', reason: '', at: '2026-11-10T09:00:00Z', outcome: null }],
+  ]), state);
+  assert.equal(feedback.roles['phenom:careers.woodgrove.com:WGB123'].verdict, 'applied');
+  assert.equal(Object.keys(feedback.roles).length, 1);
+});
