@@ -35,6 +35,7 @@ import { loadLevels, levelField } from './levels.mjs';
 import { catchUp, catchUpQueue } from './catchup.mjs';
 import { loadPayGuide, payField, dropImplausiblePay } from './pay.mjs';
 import { recordListed, scanSignals, loadSignals, computeHeat } from './heat.mjs';
+import { loadSavedList, usableList } from './lists.mjs';
 
 const KEYWORD_DETAIL_BUDGET = 150; // detail fetches for keyword scoring when AI is off
 const SECOND_LOOK_MAX = 1500; // new titles the second look asks about per run; the rest wait for the next run
@@ -106,6 +107,12 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
       log(`  ✓ ${company.padEnd(32)} ${String(jobs.length).padStart(5)} open roles  (${board.source.type}, ${((Date.now() - t0) / 1000).toFixed(1)}s)`);
       return { company, url: board.url, source: board.source.type, status: 'ok', jobs, board };
     } catch (err) {
+      // A list of this board saved on another computer (`axia fetch`), if it is newer than the last good read.
+      const saved = usableList(loadSavedList(dir, board), { lastReadOk: state.companies[company]?.lastReadOk, today });
+      if (saved) {
+        log(`  ✓ ${company.padEnd(32)} ${String(saved.jobs.length).padStart(5)} open roles  (${board.source.type}, from the list saved on ${saved.fetchedOn}; today's read: ${err.message})`);
+        return { company, url: board.url, source: board.source.type, status: 'ok', savedOn: saved.fetchedOn, jobs: structuredClone(saved.jobs), board };
+      }
       log(`  ✗ ${company.padEnd(32)} could not read: ${err.message}`);
       return { company, url: board.url, source: board.source.type, status: 'failed', error: err.message, jobs: [] };
     }
@@ -113,6 +120,9 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
 
   // A company counts as read only if all its boards were; otherwise its roles are never marked closed today.
   const okCompanies = new Set(selected.map((c) => c.name).filter((name) => reads.filter((r) => r.company === name).every((r) => r.status !== 'failed')));
+  // The day each company was last read: today, or the oldest saved list it was read from.
+  const readOn = new Map();
+  for (const r of reads) if (r.savedOn && (!readOn.has(r.company) || r.savedOn < readOn.get(r.company))) readOn.set(r.company, r.savedOn);
 
   // ── 2. Keep the titles you want (one entry per role, even if on two boards) ─
   const listedKeys = new Set();
@@ -317,7 +327,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   }
   const openBefore = new Set(Object.values(state.jobs).filter((j) => j.status === 'open').map((j) => j.key));
   const watched = new Set(companies.filter((c) => c.enabled).map((c) => c.name));
-  closeAndPrune(state, { seenKeys: listedKeys, okCompanies, watched, today });
+  closeAndPrune(state, { seenKeys: listedKeys, okCompanies, watched, today, readOn });
   // For hiring heat: each company's postings today (all titles), for the four-week trend.
   if (settings.heat.enabled) recordListed(state, reads, today, watched);
   const closedToday = [...openBefore].filter((k) => state.jobs[k]?.status === 'closed');
@@ -467,7 +477,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     today,
     firstRun,
     partial: wanted.size > 0,
-    companies: reads.map(({ company, url, source, status, error, jobs }) => ({ company, url, source: source ?? null, status, error: error ?? null, listed: jobs.length, lastReadOk: state.companies[company]?.lastReadOk ?? null })),
+    companies: reads.map(({ company, url, source, status, error, jobs, savedOn }) => ({ company, url, source: source ?? null, status, error: error ?? null, listed: jobs.length, lastReadOk: state.companies[company]?.lastReadOk ?? null, ...(savedOn ? { savedOn } : {}) })),
     counts: {
       listed: reads.reduce((n, r) => n + r.jobs.length, 0),
       open: open.length,

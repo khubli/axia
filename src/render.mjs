@@ -21,6 +21,7 @@ export function viewModel({ state, summary, settings }) {
     if (!prev) byCompany.set(c.company, { ...c });
     else {
       prev.listed += c.listed;
+      if (c.savedOn && !(prev.savedOn && prev.savedOn <= c.savedOn)) prev.savedOn = c.savedOn;
       if (c.status === 'failed' || prev.status === 'manual') Object.assign(prev, { status: c.status, error: c.error ?? prev.error, url: c.status === 'manual' ? c.url : prev.url });
     }
   }
@@ -108,7 +109,7 @@ export function renderMarkdown(view) {
   lines.push(`## Companies`, '');
   lines.push('| Company | Today | Open roles on board | Matching you |', '|---|---|--:|--:|');
   for (const c of v.companies) {
-    const status = c.status === 'ok' ? '✅ read' : c.status === 'failed' ? `⚠️ failed — ${mdCell(truncate(c.error, 80))}` : `✋ no public feed — [check manually](${c.url})`;
+    const status = c.status === 'ok' ? (c.savedOn ? `✅ read from the list saved on ${c.savedOn}` : '✅ read') : c.status === 'failed' ? `⚠️ failed — ${mdCell(truncate(c.error, 80))}` : `✋ no public feed — [check manually](${c.url})`;
     lines.push(`| ${mdCell(c.company)} | ${status} | ${c.status === 'manual' ? '–' : c.listed} | ${v.matchingByCompany[c.company] ?? 0} |`);
   }
   lines.push('');
