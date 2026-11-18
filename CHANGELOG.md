@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.37.1
+
+- **A site's bot check is named as such, and not asked again.** Since 16 and 17 Nov 2026, Workday (behind Cloudflare) has shown a "check you're a browser" page to most requests from GitHub's servers. Axia reported each one as `HTTP 429` (too many requests) and retried it three times over seven seconds, which can't help: the page only lets a real browser through, and Axia doesn't try to get past one. Now any response Cloudflare marks as a challenge (`cf-mitigated: challenge`) fails at once with "blocked by the site's bot check", and the dashboard groups every blocked company into one line instead of one warning each. Their roles stay listed and close after 7 days without a read, as before ([details](docs/how-it-works.md#1-read)).
+
 ## 1.37.0
 
 - **Two more careers sites.** Each is recognised from its address and read through public JSON, with every role's description in the list, so no posting reads are needed ([details](docs/configuration.md#companiesyml)):
