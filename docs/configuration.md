@@ -112,8 +112,8 @@ Since 17 Nov 2026, Workday shows a "check you're a browser" page to most request
 
 To set it up (about 15 minutes, once):
 
-1. In your **private** repository: **Settings → Actions → Runners → New self-hosted runner**. Pick your computer's system and run the commands GitHub shows. When `config.sh` asks for labels, type `axia`. On Windows you also need [Git for Windows](https://git-scm.com/download/win), for its `bash`.
-2. Install the runner as a service so it starts by itself: `sudo ./svc.sh install && sudo ./svc.sh start` on Linux, `./svc.sh install && ./svc.sh start` on macOS (it runs while you're logged in), or answer yes to "run as service" on Windows.
+1. In your **private** repository: **Settings → Actions → Runners → New self-hosted runner**. Pick your computer's system and run the commands GitHub shows. When `config.sh` asks for labels, type `axia`. On Windows you also need [Git for Windows](https://git-scm.com/download/win), for its `bash`. If WSL is installed, plain `bash` opens WSL's instead, so start the runner with Git's `bin` folder first on its `PATH` (for example `set "PATH=C:\Program Files\Git\bin;%PATH%"` before `run.cmd`).
+2. Install the runner as a service so it starts by itself: `sudo ./svc.sh install && sudo ./svc.sh start` on Linux, `./svc.sh install && ./svc.sh start` on macOS (it runs while you're logged in), or, on Windows, a small `.cmd` in your Startup folder (`shell:startup`) that sets that `PATH` and runs `start "" /min <runner folder>\run.cmd`, so it runs under your own account whenever you are logged in.
 3. Copy [`examples/instance/.github/workflows/axia-lists.yml`](../examples/instance/.github/workflows/axia-lists.yml) into your repository's `.github/workflows/`. It runs at 18:23 and 22:23 India time, before the daily run; change the times to suit you.
 4. **Actions → Axia saved lists → Run workflow** once, and check that it lists each board with "open roles saved".
 
