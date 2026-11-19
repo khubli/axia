@@ -199,7 +199,7 @@ export function loadCompanies(dir = ROOT) {
     const urls = [c.url].flat().filter(Boolean).map(String);
     if (urls.length === 0) throw new ConfigError(`companies.yml: ${c.name} has no url`);
     const platform = c.platform ? String(c.platform).toLowerCase() : undefined;
-    if (platform && !PLATFORMS.includes(platform)) throw new ConfigError(`companies.yml: ${c.name} has platform "${c.platform}"; known platforms: ${PLATFORMS.join(', ')}`);
+    if (platform && platform !== 'manual' && !PLATFORMS.includes(platform)) throw new ConfigError(`companies.yml: ${c.name} has platform "${c.platform}"; known platforms: ${[...PLATFORMS, 'manual'].join(', ')}`);
     if (c.rank != null && !(Number.isInteger(c.rank) && c.rank > 0)) throw new ConfigError(`companies.yml: ${c.name} has rank "${c.rank}"; a rank is a whole number from 1 (your favourite)`);
     return {
       name: String(c.name),
@@ -207,7 +207,9 @@ export function loadCompanies(dir = ROOT) {
       // For hiring heat: your rank (1 = favourite) and the name the news uses, when it differs.
       ...(c.rank != null ? { rank: c.rank } : {}),
       ...(c.news ? { news: String(c.news) } : {}),
-      boards: urls.map((url) => ({ url, ...(detect(url, platform) ?? { source: null, params: null }) })),
+      // `platform: manual` lists the site as "check by hand" even where Axia could read its address
+      // (a site that turns Axia away), so the link on the dashboard can be the site's own search page.
+      boards: urls.map((url) => ({ url, ...((platform !== 'manual' && detect(url, platform)) || { source: null, params: null }) })),
     };
   });
 }
