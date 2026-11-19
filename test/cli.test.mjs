@@ -97,3 +97,15 @@ test('outcomes: reason lists default, can be replaced, and must be short lists',
   assert.throws(() => loadSettings(withOutcomes('\noutcomes:\n  rejected: []\n')), /outcomes\.rejected must be a list with at least one reason/);
   assert.throws(() => loadSettings(withOutcomes(`\noutcomes:\n  stages: ["${'x'.repeat(90)}"]\n`)), /80 characters or fewer/);
 });
+
+test('started through a path that differs from the file itself, the command still runs (Windows paths, symlinks)', async () => {
+  // On a Windows runner process.argv[1] is "D:\…\cli.mjs" and the module's URL "file:///D:/…/cli.mjs": compared
+  // as text they never matched, so `axia fetch` exited at once with nothing done and the job showed green.
+  // A symlink gives the same mismatch on any system.
+  const { mkdtempSync, symlinkSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { execFileSync } = await import('node:child_process');
+  const link = join(mkdtempSync(join(tmpdir(), 'axia-cli-')), 'cli-link.mjs');
+  symlinkSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'cli.mjs'), link);
+  assert.match(execFileSync(process.execPath, [link, 'help'], { encoding: 'utf8' }), /^Usage: axia /);
+});

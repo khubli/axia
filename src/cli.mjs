@@ -13,7 +13,8 @@
 //   tailor-request  one Tailor request as JSON, with the posting text, for a tailoring job   (--id ID, --note TEXT, --out FILE)
 //   alert      tell you a run broke (used by the GitHub Action)                (--link URL)
 
-import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { resolve, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { ConfigError, loadSettings } from './config.mjs';
@@ -138,6 +139,16 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('/axia')) {
+// Run when started as a program (`node src/cli.mjs`, or the `axia` command npm links to it). The path is
+// compared as a real file path, not as text: on Windows `process.argv[1]` is "D:\…\cli.mjs" while the
+// module's URL is "file:///D:/…/cli.mjs", and a symlinked path differs from the file it points to.
+const startedAsProgram = () => {
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+};
+if (startedAsProgram()) {
   main().then((code) => process.exit(code));
 }

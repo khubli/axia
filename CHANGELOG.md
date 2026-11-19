@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.39.2
+
+- **Fixed: on Windows, Axia's commands did nothing and still reported success.** The command line ran only when its own path, written as text, matched the address Node gives the file. On Windows the two are never written the same way (`D:\…\cli.mjs` and `file:///D:/…/cli.mjs`). So on a Windows self-hosted runner, the saved-lists workflow (`fetch-only`) finished green without reading anything. The paths are now compared as real file paths, which also covers a path through a symlink ([details](docs/configuration.md#sites-that-block-githubs-servers)).
+
 ## 1.39.1
 
 - **Fixed: a run could stop with "Cannot read properties of undefined (reading 'copies')".** The carry-over added in 1.38.0 decides whether a role's careers site is still in `companies.yml` from the start of the role's id. On sites whose id itself contains a colon (Oracle Recruiting Cloud, Eightfold and Scout), it read the site as gone. So a second posting with the same title and city on the same site could take over a role that was still listed. If a third posting was a copy of the first, the run stopped. Now a site is matched by its whole id, and only roles that are no longer listed can move. The run that stopped saved nothing, so no role or call was changed ([details](docs/configuration.md#companiesyml)).
