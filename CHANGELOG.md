@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.39.1
+
+- **Fixed: a run could stop with "Cannot read properties of undefined (reading 'copies')".** The carry-over added in 1.38.0 decides whether a role's careers site is still in `companies.yml` from the start of the role's id. On sites whose id itself contains a colon (Oracle Recruiting Cloud, Eightfold and Scout), it read the site as gone. So a second posting with the same title and city on the same site could take over a role that was still listed. If a third posting was a copy of the first, the run stopped. Now a site is matched by its whole id, and only roles that are no longer listed can move. The run that stopped saved nothing, so no role or call was changed ([details](docs/configuration.md#companiesyml)).
+
 ## 1.39.0
 
 - **Workday companies can be read from your own computer.** Workday has blocked GitHub's servers since 17 Nov 2026, and many companies have no other careers site. A second, optional workflow (`axia-lists.yml`, with the action's new `fetch-only: workday` input) runs on a self-hosted runner on your computer. It reads only those boards, saves each one's roles in `data/lists/` with the posting text of the roles in your titles and places, and commits them. It scores, sends and publishes nothing and needs no secrets. The daily run on GitHub is unchanged, except that when it can't read a board it uses that board's saved list, if the list is newer than the last good read and under 7 days old. Those roles are scored and sent as usual, roles missing from the list close, and the Companies tab says which day's list was used. When your computer is off, its job waits and the daily run uses the last list saved ([details](docs/configuration.md#sites-that-block-githubs-servers)).

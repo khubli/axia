@@ -311,6 +311,39 @@ test('a company moved to another careers site keeps its roles, scores and histor
   assert.equal(moved.url, 'https://job-boards.greenhouse.io/acme/jobs/7', 'the new site\'s link');
 });
 
+test('a board whose scope has a colon (Oracle host:site) never hands its own roles over as if the company had moved', async () => {
+  // Axia 1.39.0 on 19 Nov 2026: a role on such a board looked as if its site had been left, so a second
+  // posting with the same title and city took it over and the run stopped with "reading 'copies'".
+  const site = 'https://fabrikam.fa.em2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1/jobs';
+  const dir = tempProject({ companies: [{ name: 'Fabrikam Capital', url: site }] });
+  const req = (Id, Title) => ({ Id, Title, PrimaryLocation: 'Pune, Maharashtra, India', PostedDate: '2026-10-14' });
+  const oracle = (reqs) => [
+    ['recruitingCEJobRequisitions?', () => ({ items: [{ TotalJobsCount: reqs.length, requisitionList: reqs }] })],
+    ['recruitingCEJobRequisitionDetails', (url) => ({ items: [{ ExternalDescriptionStr: /"30[13]"/.test(decodeURIComponent(url)) ? '<p>Own the card issuing platform architecture and its roadmap.</p>' : '<p>Lead the treasury and liquidity engineering team in Pune.</p>' }] })],
+  ];
+  let stub = stubFetch(oracle([req(301, 'Solution Architect')]));
+  try {
+    await run(['--no-notify'], {}, { dir, now: new Date('2026-10-15T03:00:00Z'), log: quiet });
+  } finally {
+    stub.restore();
+  }
+  // Day 2: the same role, a different job with the same title and place, and a copy of the first.
+  stub = stubFetch(oracle([req(301, 'Solution Architect'), req(302, 'Solution Architect'), req(303, 'Solution Architect')]));
+  let out;
+  try {
+    out = await run(['--no-notify'], {}, { dir, now: new Date('2026-10-16T03:00:00Z'), log: quiet });
+  } finally {
+    stub.restore();
+  }
+  assert.equal(out.exitCode, 0);
+  assert.equal(out.summary.counts.moved, 0);
+  assert.equal(out.summary.counts.new, 1);
+  assert.equal(out.summary.counts.duplicates, 1);
+  const jobs = JSON.parse(readFileSync(join(dir, 'data/jobs.json'), 'utf8')).jobs;
+  assert.equal(jobs['oracle:fabrikam.fa.em2.oraclecloud.com:CX_1:301'].firstSeen, '2026-10-15', 'the first posting keeps its place');
+  assert.equal(jobs['oracle:fabrikam.fa.em2.oraclecloud.com:CX_1:301'].was, undefined);
+});
+
 test('postings with the same title and place but different descriptions are different roles', async () => {
   const dir = tempProject({ companies: COMPANIES.slice(0, 1), settings: { titles: { include: ['Engineering Manager'], exclude: [] } } });
   const boilerplate = '<p>About Acme Bank: a bank for everyone, with flexible working, a great culture and equal opportunity for all.</p>';
