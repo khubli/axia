@@ -5,7 +5,7 @@ import { postedOnToDay } from '../src/sources/workday.mjs';
 import { htmlToText } from '../src/text.mjs';
 import { readFileSync } from 'node:fs';
 import { loadCompanies, ConfigError } from '../src/config.mjs';
-import { fixture, fakeHttp, tempProject } from './helpers.mjs';
+import { fixture, fakeHttp, tempProject, stubFetch } from './helpers.mjs';
 
 const ctx = (http) => ({ http, today: '2026-10-15' });
 
@@ -207,13 +207,30 @@ test('oracle: sites on the EU cloud are read too', () => {
   assert.equal(d.params.site, 'CX_1001');
 });
 
+test('companies.yml: platform manual lists a readable address as check by hand, and nothing is read', async () => {
+  const dir = tempProject({ companies: [{ name: 'Woodgrove Bank', url: 'https://woodgrove.wd3.myworkdayjobs.com/en-US/Careers?locations=abc', platform: 'manual' }, { name: 'Contoso Pay', url: 'https://job-boards.greenhouse.io/contoso' }] });
+  const [woodgrove] = loadCompanies(dir);
+  assert.equal(woodgrove.boards[0].source, null);
+  assert.equal(woodgrove.boards[0].url, 'https://woodgrove.wd3.myworkdayjobs.com/en-US/Careers?locations=abc');
+  const { run } = await import('../src/run.mjs');
+  const stub = stubFetch([['boards-api.greenhouse.io/v1/boards/contoso', () => ({ jobs: [] })]]);
+  let out;
+  try {
+    out = await run(['--dry-run'], {}, { dir, now: new Date('2026-11-19T03:00:00Z'), log: () => {} });
+  } finally {
+    stub.restore();
+  }
+  assert.ok(!stub.calls.some((c) => c.url.includes('myworkdayjobs')), 'the site is not asked');
+  assert.equal(out.summary.companies.find((c) => c.company === 'Woodgrove Bank').status, 'manual');
+});
+
 test('companies.yml: platform picks the reader, and an unknown one is a clear error', () => {
   const dir = tempProject({ companies: [{ name: 'Fabrikam', url: 'https://careers.fabrikam.com/search/', platform: 'SuccessFactors' }, { name: 'Contoso', url: 'https://careers.contoso.com/' }] });
   const [fab, contoso] = loadCompanies(dir);
   assert.equal(fab.boards[0].source.type, 'successfactors');
   assert.equal(contoso.boards[0].source, null, 'still "check by hand"');
   const bad = tempProject({ companies: [{ name: 'Fabrikam', url: 'https://careers.fabrikam.com/', platform: 'taleo' }] });
-  assert.throws(() => loadCompanies(bad), (e) => e instanceof ConfigError && /known platforms: successfactors/.test(e.message));
+  assert.throws(() => loadCompanies(bad), (e) => e instanceof ConfigError && /known platforms: successfactors.*, manual$/.test(e.message));
 });
 
 test('amazon: filters on the address carry over; descriptions come with the list', async () => {

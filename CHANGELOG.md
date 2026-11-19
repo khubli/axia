@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.40.0
+
+- **`platform: manual` lists any site as "check by hand".** Until now only an address Axia couldn't read showed as "check by hand". So a Workday company whose site turns Axia away was tried on every run and showed as blocked. With `platform: manual` on its line in `companies.yml`, Axia doesn't read the site at all, and the dashboard's Companies tab shows it as "Check by hand", linking to the address you gave (the site's own search page, say). Its open roles close on the next run, as for any company that isn't read ([details](docs/configuration.md#companiesyml)).
+
 ## 1.39.2
 
 - **Fixed: on Windows, Axia's commands did nothing and still reported success.** The command line ran only when its own path, written as text, matched the address Node gives the file. On Windows the two are never written the same way (`D:\…\cli.mjs` and `file:///D:/…/cli.mjs`). So on a Windows self-hosted runner, the saved-lists workflow (`fetch-only`) finished green without reading anything. The paths are now compared as real file paths, which also covers a path through a symlink ([details](docs/configuration.md#sites-that-block-githubs-servers)).
