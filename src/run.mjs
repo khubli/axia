@@ -204,7 +204,9 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   // A company moved to another careers site (its line in companies.yml now points somewhere else): its
   // open roles from the site it left carry on under the new site's ids, with their scores, history and
   // your calls, when the new site lists the same title in the same cities. The rest close as usual.
-  const boardOf = (key) => key.split(':').slice(0, 2).join(':');
+  // A role's key starts with its board's `${type}:${scope}:`, and some scopes have colons of their own
+  // (Oracle's host:site, Eightfold's host:domain), so a board is matched by that prefix.
+  const onBoardToday = (company, key) => [...boardsToday.get(company)].some((b) => key.startsWith(`${b}:`));
   const boardsToday = new Map();
   for (const { company, board } of boards) {
     if (board.source) boardsToday.set(company, (boardsToday.get(company) ?? new Set()).add(`${board.source.type}:${board.params.scope}`));
@@ -215,7 +217,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   const cities = (location) => citiesOf(location).map(normalize);
   const movable = new Map(); // company|title → keys of open roles on a site the company left
   for (const j of Object.values(state.jobs)) {
-    if (j.status !== 'open' || !boardsToday.has(j.company) || boardsToday.get(j.company).has(boardOf(j.key))) continue;
+    if (j.status !== 'open' || listedKeys.has(j.key) || !boardsToday.has(j.company) || onBoardToday(j.company, j.key)) continue;
     const t = titleOf(j.company, j.title);
     movable.set(t, [...(movable.get(t) ?? []), j.key]);
   }
@@ -297,7 +299,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     }
     let copyOf = null;
     for (const k of lookalikes) {
-      if (listedKeys.has(k) && (await sameJob(candidates.get(k), c))) {
+      if (listedKeys.has(k) && state.jobs[k] && (await sameJob(candidates.get(k), c))) {
         copyOf = k;
         break;
       }
