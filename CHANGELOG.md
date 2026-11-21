@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.40.1
+
+- **Fixed: switching a company to `platform: manual` closed all its open roles the next night.** A "check by hand" board isn't read, but the run counted the company as read with nothing listed, so every open role closed as "no longer listed" and the dashboard stopped showing roles that were still open on the site. Now a company counts as read only when all its boards were read, so a "check by hand" company keeps its roles as they were, like a board that fails to load: they close after 7 days without a successful read. Roles already closed this way come back, with their scores and your calls, the next time the site is read ([details](docs/configuration.md#companiesyml)).
+
 ## 1.40.0
 
 - **`platform: manual` lists any site as "check by hand".** Until now only an address Axia couldn't read showed as "check by hand". So a Workday company whose site turns Axia away was tried on every run and showed as blocked. With `platform: manual` on its line in `companies.yml`, Axia doesn't read the site at all, and the dashboard's Companies tab shows it as "Check by hand", linking to the address you gave (the site's own search page, say). Its open roles close on the next run, as for any company that isn't read ([details](docs/configuration.md#companiesyml)).

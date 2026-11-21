@@ -119,7 +119,8 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   });
 
   // A company counts as read only if all its boards were; otherwise its roles are never marked closed today.
-  const okCompanies = new Set(selected.map((c) => c.name).filter((name) => reads.filter((r) => r.company === name).every((r) => r.status !== 'failed')));
+  // A "check by hand" board isn't read, so it can't show that a role has gone.
+  const okCompanies = new Set(selected.map((c) => c.name).filter((name) => reads.filter((r) => r.company === name).every((r) => r.status === 'ok')));
   // The day each company was last read: today, or the oldest saved list it was read from.
   const readOn = new Map();
   for (const r of reads) if (r.savedOn && (!readOn.has(r.company) || r.savedOn < readOn.get(r.company))) readOn.set(r.company, r.savedOn);

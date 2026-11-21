@@ -167,3 +167,44 @@ test('a saved list older than the last good read, or 7 days old, is not used', a
   assert.match(wg.error, /blocked by the site's bot check/);
   assert.equal(existsSync(join(dir, 'data/lists')), true);
 });
+
+test('a company switched to platform manual keeps its roles until 7 days without a read, and a read brings them back', async () => {
+  const dir = tempProject({ companies: [WOODGROVE, CONTOSO] });
+  const at = async (when, handlers) => {
+    const stub = stubFetch([...handlers, contoso, claude([])]);
+    try {
+      return await run(['--no-notify'], ENV, { dir, now: new Date(when), log: quiet });
+    } finally {
+      stub.restore();
+    }
+  };
+  const open = () => Object.values(JSON.parse(readFileSync(join(dir, 'data/jobs.json'), 'utf8')).jobs).filter((j) => j.status === 'open');
+
+  // Night 1: the board is read and two roles are scored.
+  let out = await at('2026-11-16T21:00:00Z', workday(POSTINGS, []));
+  assert.equal(out.summary.counts.new, 2);
+
+  // Nights 2 and 3: checked by hand. Nothing is asked of the site, and nothing closes.
+  writeFileSync(join(dir, 'companies.yml'), JSON.stringify([{ ...WOODGROVE, platform: 'manual' }, CONTOSO]));
+  for (const when of ['2026-11-17T21:00:00Z', '2026-11-18T21:00:00Z']) {
+    out = await at(when, []);
+    assert.equal(out.summary.counts.closedToday, 0, 'an empty "check by hand" is not a read');
+    assert.equal(open().length, 2);
+  }
+  assert.equal(JSON.parse(readFileSync(join(dir, 'data/jobs.json'), 'utf8')).companies['Woodgrove Bank'].lastReadOk, '2026-11-17');
+
+  // 7 days without a read: they close, as for a board that can't be read.
+  out = await at('2026-11-23T21:00:00Z', []);
+  assert.equal(out.summary.counts.closedToday, 2);
+  assert.equal(open().length, 0);
+  const closed = Object.values(JSON.parse(readFileSync(join(dir, 'data/jobs.json'), 'utf8')).jobs);
+  assert.ok(closed.every((j) => j.closedReason === 'job board unreadable since 2026-11-17'));
+
+  // Read again: the same roles come back with their scores, and nothing is scored twice.
+  writeFileSync(join(dir, 'companies.yml'), JSON.stringify([WOODGROVE, CONTOSO]));
+  out = await at('2026-11-24T21:00:00Z', workday(POSTINGS, []));
+  assert.equal(open().length, 2);
+  assert.equal(out.summary.counts.new, 0);
+  assert.equal(out.summary.ai.scored, 0);
+  assert.ok(open().every((j) => j.score?.value === 72));
+});
