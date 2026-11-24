@@ -134,6 +134,7 @@ titles:
 locations:
   include: [London, Remote]      # whole words, matched against the role's location
   keep_unknown: true             # [true] keep roles listed without a location
+  countries: [India]             # [India] the countries you're looking in: hiring heat looks for hiring news there, and layoffs there weigh more
 
 scoring:
   provider: auto                 # [auto] auto, claude-code, anthropic, openrouter, openai-compatible or keyword
@@ -377,7 +378,7 @@ Fill it from what you can see yourself: offers, recruiters, colleagues, or salar
 
 ## Recent layoffs, and layoffs.yml
 
-A short file you keep by hand that puts a **Layoffs** label on companies that have announced job cuts: on the company's row on the **Companies** tab (with where and when), on each of its roles under the score, and in a role's details with your note and a link to the report. The Companies tab also lists them all under **Recent layoffs**, cuts in India first. The label is a heads-up for you only. It never changes a score, never hides a role and is not in any message.
+A short file you keep by hand that puts a **Layoffs** label on companies that have announced job cuts: on the company's row on the **Companies** tab (with where and when), on each of its roles under the score, and in a role's details with your note and a link to the report. The Companies tab also lists them all under **Recent layoffs**, cuts in your countries first. The label is a heads-up for you only. It never changes a score, never hides a role and is not in any message.
 
 Axia does not add layoffs from the news. (The weekly hiring heat scan may flag layoff news on a company for you to check; only this file lowers its heat.) You add a line when you read a report, so the label costs nothing at run time and no AI request. Each run reads the file again, and a line drops off by itself `layoffs.months` (6) calendar months after the month it was announced: a line for October 2026 shows until the end of March 2027.
 
@@ -385,7 +386,7 @@ Axia does not add layoffs from the news. (The weekly hiring heat scan may flag l
 layoffs:
   - company: Example Bank          # as named in companies.yml (any capitals)
     announced: 2026-10-22          # the date, or just the month: 2026-10
-    where: global                  # india, global, or a place such as UK or US
+    where: global                  # global, or a place such as India, UK or US
     size: about 5,000 jobs (5%)    # optional, in your words
     note: mostly UK retail         # optional
     link: https://news.example.com/example-bank-cuts   # the report you read
@@ -395,7 +396,7 @@ layoffs:
     size: about 200 roles at the Pune centre
 ```
 
-A company can have several lines; the newest leads. When any line says India, the label is filled in rather than outlined and names India first, because cuts where you would work matter more than cuts elsewhere. A line for a company that isn't in `companies.yml`, without a usable date, or dated in the future is skipped with the reason in the run log, and a file that isn't valid YAML only means no labels that run.
+A company can have several lines; the newest leads. When any line's `where` names one of your `locations.countries` (India unless you set them; whole words, so list `UAE` and `United Arab Emirates` if you write both), the label is filled in rather than outlined and names that place first, because cuts where you would work matter more than cuts elsewhere. A line for a company that isn't in `companies.yml`, without a usable date, or dated in the future is skipped with the reason in the run log, and a file that isn't valid YAML only means no labels that run.
 
 ## Hiring heat, and signals.yml
 
@@ -410,7 +411,7 @@ Each company gets points, worked out every run from Axia's own memory at no AI c
 | All the postings on its site against about four weeks ago (once three weeks of history exist) | +5 when up a third, −5 when down a third |
 | Hiring signals from the last `heat.days` (60) days | +5 each, up to +10 |
 | Open roles posted 45 days ago or more | −1 each, down to −3 |
-| Layoffs in your `layoffs.yml` | −5, or −8 when they mention India |
+| Layoffs in your `layoffs.yml` | −5, or −8 when they name one of your `locations.countries` |
 
 **Hot** is 20 points or more, **Warm** 10 to 19, **Cool** 1 to 9 and **Quiet** 0 or less. The **Companies** tab has a Heat column (the table is sorted by it) and a **Hiring heat** list of the hot and warm companies with what earned the points and the signals behind them. The **Roles** tab has **Where to put effort this week**: the five hottest, with your `rank` in `companies.yml` breaking near ties (up to 10 extra points for your favourite), each with a button to show its roles. The weekly message names them too.
 
@@ -429,7 +430,7 @@ signals:
     kind: hiring                   # optional: gcc, hiring, funding or leader (hiring when left out)
 ```
 
-The news and posts go to the model in one small request a week, which keeps only real signals: a new GCC, tech centre or office; a hiring drive; funding; a senior technology leader joining; or job cuts. Product launches, partnerships, results and passing mentions are left out. Layoff news shows as a flag on the company for you to check and add to `layoffs.yml` if it is real; it doesn't change the heat by itself. When the request fails, the posts already read wait for the next run so they are not paid for twice.
+The news and posts go to the model in one small request a week, which keeps only real signals in your `locations.countries` (India unless you set them): a new GCC, tech centre or office; a hiring drive; funding; a senior technology leader joining; or job cuts. Product launches, partnerships, results and passing mentions are left out. Layoff news shows as a flag on the company for you to check and add to `layoffs.yml` if it is real; it doesn't change the heat by itself. When the request fails, the posts already read wait for the next run so they are not paid for twice.
 
 `axia heat --dir <your folder>` (or **Axia preview** with `heat`) runs the weekly scan now and prints every company's heat with its signals. It writes nothing and sends nothing; with an X token it does read up to `heat.x_max_posts` posts.
 

@@ -41,7 +41,7 @@ const MAX_THEMES = 40;
 const MAX_IDS = 12; // open roles listed under a theme on the dashboard
 const MIN_CITY_ROLES = 10; // a city needs this many scored roles to get a row
 const MAX_CITIES = 8;
-const NOT_A_CITY = /^(india|remote|anywhere|multiple locations?|various)$/i;
+const NOT_A_CITY = /^(india|united arab emirates|uae|remote|anywhere|multiple locations?|various)$/i;
 const WEEK_DAYS = 7;
 const MAX_WEEKS = 26; // weekly snapshots kept, for trends
 

@@ -92,7 +92,7 @@ export function jobId(key) {
 const CITIES = [
   [/pune/i, 'Pune'], [/bengaluru|bangalore/i, 'Bengaluru'], [/mumbai/i, 'Mumbai'], [/hyderabad/i, 'Hyderabad'],
   [/gurgaon|gurugram/i, 'Gurugram'], [/chennai/i, 'Chennai'], [/noida/i, 'Noida'], [/new delhi|\bdelhi\b/i, 'Delhi'],
-  [/kolkata/i, 'Kolkata'], [/singapore/i, 'Singapore'], [/london/i, 'London'], [/new york/i, 'New York'], [/dubai/i, 'Dubai'],
+  [/kolkata/i, 'Kolkata'], [/singapore/i, 'Singapore'], [/london/i, 'London'], [/new york/i, 'New York'], [/dubai/i, 'Dubai'], [/abu dhabi/i, 'Abu Dhabi'],
 ];
 
 /** "Bengaluru, Karnataka, India; Hyderabad, India" → ["Bengaluru", "Hyderabad"], for the city filter. */

@@ -15,7 +15,8 @@ export class ConfigError extends Error {}
 export const DEFAULTS = {
   // second_look: titles in your places that your words reject get a look from the model (it can only let roles in).
   titles: { include: [], exclude: [], second_look: true },
-  locations: { include: [], keep_unknown: true },
+  // countries: where you're looking for work, for hiring heat (news about these countries) and layoffs (cuts there weigh more).
+  locations: { include: [], keep_unknown: true, countries: ['India'] },
   scoring: { provider: 'auto', model: 'sonnet', effort: 'medium', base_url: '', max_ai_scores_per_run: 40, rescore_on_edit: 'all', batch_size: 8, weights: { level: 20, domain: 25, core: 35, musts: 20 }, criteria: 'criteria.md', levels: 'levels.md', pay: 'pay.yml', keywords: [] },
   report: { timezone: 'UTC', good_match: 65, show_from: 50 },
   // Messages: new good matches as they are scored, problems once, and a weekly "still running" note.
@@ -181,12 +182,16 @@ export function loadSettings(dir = ROOT) {
     if (long) throw new ConfigError(`settings.yml: outcomes.${key} entries must be 80 characters or fewer: "${String(long).slice(0, 40)}…"`);
     s.outcomes[key] = [...new Set(v.map((x) => String(x).replace(/\s+/g, ' ').trim()).filter(Boolean))];
   }
-  for (const [section, key] of [['titles', 'include'], ['titles', 'exclude'], ['locations', 'include'], ['scoring', 'keywords']]) {
+  for (const [section, key] of [['titles', 'include'], ['titles', 'exclude'], ['locations', 'include'], ['locations', 'countries'], ['scoring', 'keywords']]) {
     const v = s[section][key] ?? [];
     if (!Array.isArray(v)) throw new ConfigError(`settings.yml: ${section}.${key} must be a list`);
     s[section][key] = v.map(String).filter((x) => x.trim());
   }
   if (s.titles.include.length === 0) throw new ConfigError('settings.yml: titles.include is empty — list at least one job title keyword');
+  s.locations.countries = [...new Set(s.locations.countries.map((x) => x.replace(/\s+/g, ' ').trim()))];
+  if (s.locations.countries.length === 0) throw new ConfigError('settings.yml: locations.countries is empty — list the countries you are looking in, such as [India]');
+  const longCountry = s.locations.countries.find((x) => x.length > 60);
+  if (longCountry) throw new ConfigError(`settings.yml: locations.countries entries must be 60 characters or fewer: "${longCountry.slice(0, 40)}…"`);
   return s;
 }
 
