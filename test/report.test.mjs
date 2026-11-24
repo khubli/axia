@@ -113,6 +113,7 @@ test('cities are read from messy location strings', () => {
   assert.deepEqual(citiesOf('Northwind Global Services Pvt. Ltd. - Bengaluru (Tech Park)'), ['Bengaluru']);
   assert.deepEqual(citiesOf('IN - Bengaluru, India'), ['Bengaluru']);
   assert.deepEqual(citiesOf('Singapore; Gurgaon, India'), ['Singapore', 'Gurugram']);
+  assert.deepEqual(citiesOf('Abu Dhabi Global Market, Abu Dhabi, United Arab Emirates; Dubai, UAE'), ['Abu Dhabi', 'Dubai']);
   assert.deepEqual(citiesOf(null), []);
 });
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.41.0
+
+- **Hiring heat and layoffs follow the countries you're looking in, not only India.** A new `locations.countries` setting (India unless you set it) names them. The weekly hiring-news check keeps new offices, tech centres, hiring drives and tech leaders in those countries, where it kept only India's before. Layoffs whose `where` names one of them count −8 heat instead of −5, lead the **Recent layoffs** list and fill in the **Layoffs** label. With the setting left out, nothing changes. Countries are whole words, so list both `UAE` and `United Arab Emirates` if your `layoffs.yml` uses both ([details](docs/configuration.md#settingsyml)).
+- **Abu Dhabi is recognised as a city**, so the dashboard's city filter, messages and Insights name it. A country on its own ("United Arab Emirates", "UAE") no longer gets a row in Insights' "by city" table, the same as "India".
+
 ## 1.40.1
 
 - **Fixed: switching a company to `platform: manual` closed all its open roles the next night.** A "check by hand" board isn't read, but the run counted the company as read with nothing listed, so every open role closed as "no longer listed" and the dashboard stopped showing roles that were still open on the site. Now a company counts as read only when all its boards were read, so a "check by hand" company keeps its roles as they were, like a board that fails to load: they close after 7 days without a successful read. Roles already closed this way come back, with their scores and your calls, the next time the site is read ([details](docs/configuration.md#companiesyml)).

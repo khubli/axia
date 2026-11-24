@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   parseNewsFeed, namesCompany, newsUrl, readNews, xQueries, readX, cleanSignals, normalizeSignals, loadSignals,
-  recordListed, backfillSince, trendOf, computeHeat, scanSignals, scanDue, effortLine, reasonOf, levelOf, itemsText,
+  recordListed, backfillSince, trendOf, computeHeat, scanSignals, scanDue, effortLine, reasonOf, levelOf, itemsText, systemPrompt, placesText,
 } from '../src/heat.mjs';
 import { loadSettings, loadCompanies, ConfigError } from '../src/config.mjs';
 import { siteData, renderSite } from '../src/site.mjs';
@@ -196,7 +196,7 @@ test('heat: points, levels, layoffs offset, first week left out, effort list wit
   const { state, companies, today } = heatFixture();
   const heat = computeHeat({
     state, settings, companies, today,
-    layoffs: { 'Cool Co': [{ announced: '2026-10-02', india: true }] },
+    layoffs: { 'Cool Co': [{ announced: '2026-10-02', where: 'India', local: true }] },
     signals: [{ company: 'Pine Labs', date: '2026-10-29', kind: 'hiring', why: 'tweet', link: null, source: 'you' }],
   });
   const p = heat.companies.PhonePe;
@@ -303,4 +303,35 @@ test('backfillSince dates each company from its oldest role and keeps an earlier
   assert.equal(state.companies['Big Bank'].since, '2026-09-01');
   assert.equal(state.companies['Old Co'].since, '2026-08-01');
   assert.equal(state.companies['Empty Co'].since, '2026-10-29');
+});
+
+test('the weekly hiring-news check asks about your locations.countries, India by default', async () => {
+  assert.equal(placesText(['India']), 'India');
+  assert.equal(placesText(['India', 'Singapore', 'UAE']), 'India, Singapore or UAE');
+  assert.match(systemPrompt(), /looking for work in India see/);
+  const wide = systemPrompt(['India', 'Singapore', 'United Arab Emirates']);
+  assert.match(wide, /technology people in India, Singapore or United Arab Emirates:/);
+  assert.match(wide, /hiring outside India, Singapore or United Arab Emirates/);
+  assert.doesNotMatch(wide.replace(/India, Singapore or United Arab Emirates/g, ''), /India/);
+
+  const dir = mkdtempSync(join(tmpdir(), 'axia-heat-places-'));
+  writeFileSync(join(dir, 'settings.yml'), 'titles: { include: [Architect] }\nlocations: { include: [Pune, Singapore], countries: [India, Singapore] }\n');
+  const s = loadSettings(dir);
+  let asked;
+  const scorer = { ask: async (req) => { asked = req; return { data: { signals: [] }, model: 'm' }; } };
+  const { mapLimit } = await import('../src/http.mjs');
+  const http = { mapLimit, fetchText: async () => '<rss><channel><item><title>Example Bank opens a Singapore tech hub</title><link>https://news.example/1</link><pubDate>Tue, 24 Nov 2026 08:00:00 GMT</pubDate></item></channel></rss>' };
+  await scanSignals({ state: {}, settings: s, companies: [{ name: 'Example Bank', enabled: true }], scorer, http, today: '2026-11-24', now: new Date('2026-11-24T09:00:00Z'), force: true });
+  assert.ok(asked, 'the model was asked');
+  assert.match(asked.system, /in India or Singapore:/);
+});
+
+test('locations.countries must be a list with at least one country', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'axia-countries-'));
+  writeFileSync(join(dir, 'settings.yml'), 'titles: { include: [Architect] }\n');
+  assert.deepEqual(loadSettings(dir).locations.countries, ['India']);
+  writeFileSync(join(dir, 'settings.yml'), 'titles: { include: [Architect] }\nlocations: { countries: [] }\n');
+  assert.throws(() => loadSettings(dir), /locations.countries is empty/);
+  writeFileSync(join(dir, 'settings.yml'), 'titles: { include: [Architect] }\nlocations: { countries: India }\n');
+  assert.throws(() => loadSettings(dir), /locations.countries must be a list/);
 });

@@ -23,6 +23,8 @@ locations:
     - Remote
   # Keep roles whose board gives no location (checked again when the posting is read).
   keep_unknown: true
+  # The countries you're looking in: hiring heat looks for hiring news there, and layoffs there weigh more.
+  countries: [United Kingdom]
 
 # Step 3, AI: Claude reads each remaining posting against your resume and criteria.md.
 scoring:

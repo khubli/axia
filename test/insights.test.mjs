@@ -69,6 +69,14 @@ test('cities need ten scored roles; closed best-fit roles give a median time to 
   assert.deepEqual(v.closing, { closed: 2, of: 13, medianDays: 6, withinWeek: 1, longest: 10 });
 });
 
+test('a country named on its own is not a city', () => {
+  const jobs = [];
+  for (let i = 0; i < 10; i++) jobs.push(role(70, [], { location: 'United Arab Emirates' }));
+  for (let i = 0; i < 10; i++) jobs.push(role(70, [], { location: 'UAE' }));
+  for (let i = 0; i < 10; i++) jobs.push(role(70, [], { location: 'Dubai, United Arab Emirates' }));
+  assert.deepEqual(insightsView(stateOf(jobs), SETTINGS).cities.map((c) => c.city), ['Dubai']);
+});
+
 test('off, or nothing scored yet, means no tab', () => {
   assert.equal(insightsView(stateOf([role(70, [])]), { ...SETTINGS, insights: { enabled: false } }), null);
   assert.equal(insightsView(stateOf([]), SETTINGS), null);

@@ -6,7 +6,7 @@
 //   layoffs:
 //     - company: Example Bank          # as named in companies.yml
 //       announced: 2026-10-22          # or just the month, 2026-10
-//       where: global                  # india, global, or a place such as UK or US
+//       where: global                  # global, or a place such as India, UK or US
 //       size: about 5,000 jobs (5%)    # optional, in your words
 //       note: mostly UK retail         # optional
 //       link: https://news.example/…   # the report you read
@@ -48,14 +48,22 @@ export function announcedOf(v) {
   return { date: dateText(v), month: monthIndex(y, m) };
 }
 
-/** india for cuts in India; elsewhere for global or other places (the page words it as you wrote it). */
-export const scopeOf = (where) => (/india/i.test(String(where ?? '')) ? 'india' : 'elsewhere');
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * local for cuts in one of your countries (settings.yml → locations.countries, whole words);
+ * elsewhere for global or other places. The page words the place as you wrote it.
+ */
+export function scopeOf(where, countries = ['India']) {
+  const w = String(where ?? '');
+  return countries.some((c) => new RegExp(`(^|[^\\p{L}])${escapeRe(String(c).trim())}($|[^\\p{L}])`, 'iu').test(w)) ? 'local' : 'elsewhere';
+}
 
 /**
  * The file's content → { byCompany, dropped, expired }. `companies` are your company names
  * (companies.yml), `today` is YYYY-MM-DD in your time zone, `months` how long a label lasts.
  */
-export function normalizeLayoffs(raw, { companies = [], today, months = 6 }) {
+export function normalizeLayoffs(raw, { companies = [], today, months = 6, countries = ['India'] }) {
   const list = Array.isArray(raw) ? raw : raw?.layoffs;
   if (list == null) return { byCompany: {}, dropped: [], expired: 0 };
   if (!Array.isArray(list)) throw new Error('"layoffs" must be a list');
@@ -89,7 +97,7 @@ export function normalizeLayoffs(raw, { companies = [], today, months = 6 }) {
     (byCompany[company] ??= []).push({
       announced: when.date,
       where,
-      india: scopeOf(where) === 'india',
+      local: scopeOf(where, countries) === 'local',
       size: text(e.size, 120) || null,
       note: text(e.note) || null,
       link: link(e.link),
@@ -109,7 +117,7 @@ export function loadLayoffs(dir, settings, { companies = [], today, log = consol
   const path = resolve(dir, file);
   if (!existsSync(path)) return null;
   try {
-    const r = normalizeLayoffs(parse(readFileSync(path, 'utf8')) ?? {}, { companies, today, months: settings.layoffs.months });
+    const r = normalizeLayoffs(parse(readFileSync(path, 'utf8')) ?? {}, { companies, today, months: settings.layoffs.months, countries: settings.locations?.countries });
     const n = Object.keys(r.byCompany).length;
     log(`Layoffs: ${n} compan${n === 1 ? 'y' : 'ies'} labelled from ${file}` +
       (r.expired ? `, ${r.expired} older than ${settings.layoffs.months} months left off` : '') +

@@ -15,9 +15,20 @@ test('dates take a day or just a month', () => {
   assert.equal(announcedOf(new Date('2026-10-22T00:00:00Z')).date, '2026-10-22');
   assert.equal(announcedOf('22 Oct 2026'), null);
   assert.equal(announcedOf('2026-13'), null);
-  assert.equal(scopeOf('India'), 'india');
-  assert.equal(scopeOf('India and UK'), 'india');
+  assert.equal(scopeOf('India'), 'local');
+  assert.equal(scopeOf('India and UK'), 'local');
   assert.equal(scopeOf('global'), 'elsewhere');
+});
+
+test('cuts count as local in any of your locations.countries, as whole words', () => {
+  const countries = ['India', 'Singapore', 'UAE'];
+  assert.equal(scopeOf('Singapore', countries), 'local');
+  assert.equal(scopeOf('UAE and UK', countries), 'local');
+  assert.equal(scopeOf('UK', countries), 'elsewhere');
+  assert.equal(scopeOf('Singapore'), 'elsewhere', 'India only by default');
+  assert.equal(scopeOf('Indianapolis', countries), 'elsewhere');
+  const r = normalizeLayoffs({ layoffs: [{ company: 'Contoso Pay', announced: '2026-10', where: 'Singapore' }] }, { companies, today: '2026-10-28', countries });
+  assert.equal(r.byCompany['Contoso Pay'][0].local, true);
 });
 
 test('entries are matched to your companies, newest first, and old news drops off', () => {
@@ -37,9 +48,9 @@ test('entries are matched to your companies, newest first, and old news drops of
   assert.deepEqual(Object.keys(r.byCompany), ['Example Bank', 'Contoso Pay']);
   const eb = r.byCompany['Example Bank'];
   assert.deepEqual(eb.map((l) => l.announced), ['2026-10-22', '2026-08']);
-  assert.equal(eb[0].india, true);
+  assert.equal(eb[0].local, true);
   assert.equal(eb[0].link, null);
-  assert.equal(eb[1].india, false);
+  assert.equal(eb[1].local, false);
   assert.equal(eb[1].size, 'about 5,000');
   assert.equal(r.byCompany['Contoso Pay'][0].where, 'US');
   assert.equal(r.dropped.length, 4);
@@ -85,7 +96,7 @@ test('the page carries the labels and never mixes them into scores', () => {
     summary: { runAt: '2026-10-28T00:00:00Z', today: '2026-10-28', ai: { enabled: true }, counts: { listed: 1 }, companies: [{ company: 'Example Bank', url: 'https://x.test', status: 'ok', listed: 1 }] },
     settings,
     feedback: { roles: {} },
-    layoffs: { 'Example Bank': [{ announced: '2026-10-22', where: 'India', india: true, size: null, note: null, link: 'https://news.example/a' }] },
+    layoffs: { 'Example Bank': [{ announced: '2026-10-22', where: 'India', local: true, size: null, note: null, link: 'https://news.example/a' }] },
   };
   const data = siteData(view, { minScore: 65 });
   assert.equal(data.layoffs['Example Bank'][0].announced, '2026-10-22');
@@ -119,5 +130,5 @@ test('a run puts the labels on the page and leaves scores and messages alone', a
   const data = JSON.parse(html.match(/<script id="data" type="application\/json">(.*?)<\/script>/s)[1]);
   assert.deepEqual(Object.keys(data.layoffs), ['Acme Bank']);
   assert.equal(data.layoffs['Acme Bank'].length, 1);
-  assert.equal(data.layoffs['Acme Bank'][0].india, true);
+  assert.equal(data.layoffs['Acme Bank'][0].local, true);
 });
