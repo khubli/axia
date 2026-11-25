@@ -19,6 +19,7 @@ Node 22 or later. No other tools are needed.
 |---|---|
 | `src/sources/` | One file per job site (Workday, Greenhouse, Lever, Ashby, SmartRecruiters, Oracle, SuccessFactors, Eightfold, TurboHire, Amazon, Google, Goldman Sachs) |
 | `src/run.mjs` | The daily pass: read, filter, remember, score, notify, write |
+| `src/alerts.mjs`, `src/mail.mjs` | Job-alert emails: the roles in LinkedIn's alerts, read from your mailbox read-only over IMAP (no library) |
 | `src/lists.mjs` | `axia fetch`: saves a board's list on your own computer, for the daily run to use when it can't read that board |
 | `src/config.mjs` | Reads `companies.yml`, `settings.yml` and the resume, with plain error messages |
 | `src/filter.mjs`, `src/secondlook.mjs` | Title and place filter; the model's second look at titles your words miss |

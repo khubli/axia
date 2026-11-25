@@ -104,3 +104,8 @@ dashboard:
   worker: axia             # Cloudflare Worker name
   feedback: true           # Applied / Shortlist / Not for me buttons on each role, saved to your Cloudflare account
 
+# Optional: roles from LinkedIn's job-alert emails in your own mailbox, scored like the rest
+# (needs the IMAP_USER and IMAP_PASSWORD secrets; docs/configuration.md#job-alert-emails).
+# job_alerts:
+#   linkedin: true
+#   ignore: [Northwind Traders]   # employers you never want roles from, such as your current one

@@ -206,7 +206,11 @@ export function jobText(job, maxChars, extra = '') {
     job.postedAt ? `Posted: ${job.postedAt}` : null,
     '',
     'Job description:',
-    job.description ? truncate(job.description, maxChars) : '(The board did not provide a description. Judge from the title and location only, and say so in the summary.)',
+    job.description
+      ? truncate(job.description, maxChars)
+      : job.via
+        ? '(Known only from a job-alert email: the title, employer and location. There is no posting text. Judge from those only, and say so in the summary.)'
+        : '(The board did not provide a description. Judge from the title and location only, and say so in the summary.)',
     extra ? `\n${extra}` : null,
   ]
     .filter((l) => l !== null)

@@ -94,6 +94,13 @@ for (const title of ['Platform Lead, Payments Hub', 'Engineering Manager, Payout
   jobs[key] = { key, company: 'Contoso Pay', title, location: CITIES[0], url: 'https://careers.example.com/', postedAt: daysAgo(30), firstSeen: daysAgo(20), status: 'closed', closedOn: today, score: { value: 70, scorer: 'ai', summary: '', strengths: [], gaps: [] } };
 }
 
+// A role from a LinkedIn job-alert email (job_alerts): no posting text, so scored from the title, employer and place.
+jobs['linkedin:alert:4000000001'] = {
+  key: 'linkedin:alert:4000000001', company: 'Wingtip Trust Services India', title: 'Director – Head of IT, Trade Finance', location: CITIES[0],
+  url: 'https://www.linkedin.com/jobs/view/4000000001/', postedAt: null, firstSeen: today, status: 'open', via: 'linkedin-alert',
+  score: { value: 71, scorer: 'ai', summary: 'Known only from a job-alert email: a department head role at a mid-size bank centre, in your domain. Read the posting to confirm scope.', strengths: ['trade finance and payments platforms', 'head-of-department level'], gaps: ['no posting text to check the must-haves'], model: 'claude-sonnet-5-5', resumeHash: 'a1b2c3d4e5f6', scoredOn: today },
+};
+
 const byTitle = (t) => Object.values(jobs).find((j) => j.title === t);
 
 // The posting's own must-haves, on the roles a visitor is likely to open first.

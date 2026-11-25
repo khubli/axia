@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.42.0
+
+- **Roles from LinkedIn's job-alert emails are scored with the rest.** Turn on `job_alerts: { linkedin: true }` in `settings.yml` and add the `IMAP_USER` and `IMAP_PASSWORD` secrets (for Gmail, an app password), passed as the action's new `imap-user` and `imap-password` inputs. Each run then reads LinkedIn's job-alert, "jobs similar to" and application emails from your mailbox, read-only, and their roles go through your title and place filters, scoring, messages and dashboard, with a **LinkedIn alert** label. That brings in employers whose careers sites turn Axia away (Workday's, since November 2026) and ones you didn't know to list. An email gives a role's title, employer and place but no posting text, so it is scored from those. An employer that is one of your companies takes its name and is left out on days its careers site was read, and a role carries over to the site's posting, scored again with the text, once the site lists it. A role stays listed until no email has named it for `job_alerts.days` (30) days. Employers in `job_alerts.ignore` are left out. Axia never opens LinkedIn itself, and nothing in the mailbox is changed. With `job_alerts` left out, nothing changes ([details](docs/configuration.md#job-alert-emails)).
+
 ## 1.41.0
 
 - **Hiring heat and layoffs follow the countries you're looking in, not only India.** A new `locations.countries` setting (India unless you set it) names them. The weekly hiring-news check keeps new offices, tech centres, hiring drives and tech leaders in those countries, where it kept only India's before. Layoffs whose `where` names one of them count −8 heat instead of −5, lead the **Recent layoffs** list and fill in the **Layoffs** label. With the setting left out, nothing changes. Countries are whole words, so list both `UAE` and `United Arab Emirates` if your `layoffs.yml` uses both ([details](docs/configuration.md#settingsyml)).

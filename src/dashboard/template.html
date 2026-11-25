@@ -988,6 +988,7 @@ footer a { color: var(--muted); }
     if (j.pay) meta.push('<span class="pay" title="' + esc(PAY_FROM[j.pay.source] || '') + '">' + esc(payShort(j.pay)) + '</span>');
     const pills = levelPill(j) + (isNew(j) ? '<span class="pill new">New</span>' : '') + (longOpen(j) ? '<span class="pill old" title="Posted ' + LONG_OPEN_DAYS + '+ days ago; check it is still being filled">Long open</span>' : '') +
       (j.secondLook ? '<span class="pill second" title="Your title words missed this title; the second look let it through">Second look</span>' : '') +
+      (j.via === 'linkedin-alert' ? '<span class="pill second" title="From a LinkedIn job-alert email in your mailbox">LinkedIn alert</span>' : '') +
       layPill(j.company) +
       (callOf(j) ? '<span class="pill ' + CALL_PILL[callOf(j)] + '">' + CALL[callOf(j)] + '</span>' : '');
     return '<li data-id="' + j.id + '"' + (j.id === sel ? ' class="sel"' : '') + '>' +
@@ -1003,7 +1004,7 @@ footer a { color: var(--muted); }
     const facts = [
       ['Location', esc(j.location || 'Not stated on the posting')],
       ['Posted', j.postedAt ? esc(day(j.postedAt)) + ' <span class="muted">(' + age(j.postedAt) + ')</span>' +
-        (longOpen(j) ? '<br><span class="muted">Open a while. It may already be filled, so check with the recruiter or a contact before you put time into it.</span>' : '') : 'Not shown on the posting'],
+        (longOpen(j) ? '<br><span class="muted">Open a while. It may already be filled, so check with the recruiter or a contact before you put time into it.</span>' : '') : j.via ? 'Not given in the alert email' : 'Not shown on the posting'],
     ];
     if (j.pay) facts.push(['Pay', payFact(j.pay)]);
     if (j.firstSeen) facts.push(['First seen', esc(day(j.firstSeen))]);
@@ -1011,6 +1012,7 @@ footer a { color: var(--muted); }
     if (j.level && LEVEL[j.level.vs]) facts.push(['Level', '<b>' + LEVEL[levelOf(j)] + '</b> against yours' + (j.level.note ? ' <span class="muted">· ' + esc(j.level.note) + '</span>' : '')]);
     if (LAY[j.company]) facts.push(['Layoffs', LAY[j.company].map((l) => layLine(j.company, l)).join('<br>') + '<br><span class="muted">A heads-up from your layoffs.yml. It does not change the score.</span>']);
     if (j.secondLook) facts.push(['Found by', 'The second look: your title words missed this title. <span class="muted">' + esc(j.secondLook) + '</span>']);
+    if (j.via === 'linkedin-alert') facts.push(['Found in', 'A LinkedIn job-alert email. An alert has no posting text, so the score is from the title, employer and place only. Read the posting before you put time into it.']);
     const pos = Math.min(100, Math.max(0, j.score));
     const gauge = j.score == null ? '' :
       '<div class="gauge ' + t + '"><div class="head"><span class="big">' + (t === 'wait' ? '≈' : '') + j.score + '</span>' +
