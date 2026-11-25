@@ -51,6 +51,12 @@ inputs:
   email-to:
     description: Where email goes (defaults to smtp-user).
     default: ''
+  imap-user:
+    description: "With job_alerts in settings.yml: the mailbox that gets your job-alert emails (for example a Gmail address). Empty uses smtp-user."
+    default: ''
+  imap-password:
+    description: "An app password for imap-user. The mailbox is opened read-only, and only the job-alert senders' emails are read. Empty uses smtp-password."
+    default: ''
   cloudflare-api-token:
     description: Publishes the dashboard to Cloudflare. Leave empty to skip publishing.
     default: ''
@@ -120,6 +126,8 @@ runs:
         SMTP_USER: ${{ inputs.smtp-user }}
         SMTP_PASSWORD: ${{ inputs.smtp-password }}
         EMAIL_TO: ${{ inputs.email-to }}
+        IMAP_USER: ${{ inputs.imap-user }}
+        IMAP_PASSWORD: ${{ inputs.imap-password }}
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
         X_BEARER_TOKEN: ${{ inputs.x-bearer-token }}

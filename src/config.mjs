@@ -48,6 +48,12 @@ export const DEFAULTS = {
   // top-ranked companies, at most x_max_posts a week. signals is your own file; days is how long a
   // signal counts. false turns it all off.
   heat: { news: true, signals: 'signals.yml', days: 60, x_handles: [], x_companies: 10, x_max_posts: 40 },
+  // Job-alert emails (alerts.mjs): roles a job site emails you, read from your own mailbox (read-only,
+  // over IMAP, with the IMAP_USER and IMAP_PASSWORD secrets), scored like roles from careers sites.
+  // Off until you name a site: `linkedin: true` reads LinkedIn's job alerts. days: how long a role stays
+  // listed after the last email that named it. mailbox: empty reads Gmail's All Mail (else INBOX).
+  // ignore: employers whose roles you never want, such as your current one.
+  job_alerts: { linkedin: false, days: 30, host: 'imap.gmail.com', port: 993, mailbox: '', ignore: [] },
   // Tailor buttons: queue a role or moonshot for a tailored resume and cover letter, made by your own
   // tool outside Axia. Off by default; `tailor: true` turns it on. `done` is the file that tool writes.
   // dispatch: owner/repo whose tailoring workflow (workflow, on branch ref) a click starts at once.
@@ -90,6 +96,22 @@ export function loadSettings(dir = ROOT) {
   if (s.tailor.dispatch && !/^[\w.-]+\/[\w.-]+$/.test(s.tailor.dispatch)) throw new ConfigError(`settings.yml: tailor.dispatch must be owner/repository, not "${s.tailor.dispatch}"`);
   if (!/^[\w.-]+\.ya?ml$/.test(String(s.tailor.workflow))) throw new ConfigError(`settings.yml: tailor.workflow must be a workflow file name such as tailor.yml, not "${s.tailor.workflow}"`);
   if (!/^[\w./-]+$/.test(String(s.tailor.ref))) throw new ConfigError(`settings.yml: tailor.ref must be a branch name, not "${s.tailor.ref}"`);
+  {
+    const a = s.job_alerts;
+    if (raw.job_alerts === false) a.linkedin = false;
+    if (typeof a.linkedin !== 'boolean') throw new ConfigError(`settings.yml: job_alerts.linkedin must be true or false without quotes, not "${a.linkedin}"`);
+    for (const [key, min, max] of [['days', 1, 90], ['port', 1, 65535]]) {
+      const n = Number(a[key]);
+      if (!Number.isInteger(n) || n < min || n > max) throw new ConfigError(`settings.yml: job_alerts.${key} must be a whole number from ${min} to ${max}, not "${a[key]}"`);
+      a[key] = n;
+    }
+    a.host = String(a.host ?? '').trim();
+    if (!/^[\w.-]+$/.test(a.host)) throw new ConfigError(`settings.yml: job_alerts.host must be your mail server's IMAP name, such as imap.gmail.com, not "${a.host}"`);
+    a.mailbox = String(a.mailbox ?? '').trim();
+    if (!Array.isArray(a.ignore)) throw new ConfigError('settings.yml: job_alerts.ignore must be a list of employer names, such as [Woodgrove Bank]');
+    a.ignore = a.ignore.map((x) => String(x).trim()).filter(Boolean);
+    a.enabled = a.linkedin;
+  }
   if (raw.moonshots === false || s.moonshots.file === false) s.moonshots = { file: '' };
   s.gaps.enabled = raw.gaps !== false;
   for (const key of ['min_score', 'max_score']) {

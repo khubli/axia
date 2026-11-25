@@ -36,6 +36,7 @@ import { catchUp, catchUpQueue } from './catchup.mjs';
 import { loadPayGuide, payField, dropImplausiblePay } from './pay.mjs';
 import { recordListed, scanSignals, loadSignals, computeHeat } from './heat.mjs';
 import { loadSavedList, usableList } from './lists.mjs';
+import { readAlerts, ALERT_BOARD, alertKey, trackedCompany, ignored, VIA } from './alerts.mjs';
 
 const KEYWORD_DETAIL_BUDGET = 150; // detail fetches for keyword scoring when AI is off
 const SECOND_LOOK_MAX = 1500; // new titles the second look asks about per run; the rest wait for the next run
@@ -44,8 +45,8 @@ const NEAR_MISS_TITLES = 3000; // titles left out, listed on the Companies tab (
 const NEAR_MISS_PLACES = 40; // places outside your list, most roles first
 const SAME_JOB = 0.9; // description similarity above which two lookalike postings are one job (copies measure ~1, different jobs ~0.2-0.5)
 
-// `scorerOverrides` lets tests stand in for the Claude API client or the `claude` CLI.
-export async function run(argv = process.argv.slice(2), env = process.env, { dir = ROOT, now = new Date(), log = console.log, scorerOverrides = {} } = {}) {
+// `scorerOverrides` lets tests stand in for the Claude API client or the `claude` CLI, and `readMail` for your mailbox.
+export async function run(argv = process.argv.slice(2), env = process.env, { dir = ROOT, now = new Date(), log = console.log, scorerOverrides = {}, readMail } = {}) {
   const { values: args } = parseArgs({
     args: argv,
     options: {
@@ -125,23 +126,37 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   const readOn = new Map();
   for (const r of reads) if (r.savedOn && (!readOn.has(r.company) || r.savedOn < readOn.get(r.company))) readOn.set(r.company, r.savedOn);
 
+  // ── 1b. Job-alert emails (settings.yml → job_alerts), read-only from your own mailbox ──
+  // A run limited to some companies (--company) leaves them alone.
+  const alerts = wanted.size ? { on: false, roles: [] } : await readAlerts({ settings, env, state, today, log, ...(readMail ? { readMail } : {}) });
+
   // ── 2. Keep the titles you want (one entry per role, even if on two boards) ─
   const listedKeys = new Set();
   const candidates = new Map();
   const rejected = new Map(); // in your places (or place not listed), title has none of your words
   const excluded = new Map(); // in your places, title has one of your excluded words (kept only for the near-misses list)
-  for (const read of reads) {
-    for (const job of read.jobs) {
-      const key = `${read.board.source.type}:${read.board.params.scope}:${job.id}`;
-      listedKeys.add(key);
-      if (candidates.has(key) || rejected.has(key) || excluded.has(key)) continue;
-      const t = filters.title(job.title);
-      if (t.ok) candidates.set(key, { key, company: read.company, board: read.board, job, titleMatch: t.matched, listedLocation: job.location });
-      else if (!job.location || filters.location(job.location).ok) {
-        if (t.excluded) excluded.set(key, { key, company: read.company, job, word: t.word });
-        else rejected.set(key, { key, company: read.company, board: read.board, job });
-      }
+  const consider = (company, board, job, extra = {}) => {
+    const key = `${board.source.type}:${board.params.scope}:${job.id}`;
+    listedKeys.add(key);
+    if (candidates.has(key) || rejected.has(key) || excluded.has(key)) return;
+    const t = filters.title(job.title);
+    if (t.ok) candidates.set(key, { key, company, board, job, titleMatch: t.matched, listedLocation: job.location, ...extra });
+    else if (!job.location || filters.location(job.location).ok) {
+      if (t.excluded) excluded.set(key, { key, company, job, word: t.word });
+      else rejected.set(key, { key, company, board, job, ...extra });
     }
+  };
+  for (const read of reads) for (const job of read.jobs) consider(read.company, read.board, job);
+  // A role from an alert email at one of your companies goes under that company's name. When its
+  // careers site was read today, the site already lists it (with the posting text), so the email is
+  // left out. Paused companies and employers in job_alerts.ignore are left out too.
+  let alertRoles = 0;
+  for (const r of alerts.roles) {
+    const tracked = trackedCompany(companies, r.company);
+    if (tracked && (!tracked.enabled || okCompanies.has(tracked.name))) continue;
+    if (ignored(settings, r.company)) continue;
+    consider(tracked?.name ?? r.company, ALERT_BOARD, { id: r.id, title: r.title, location: r.location, url: r.url, postedAt: null, description: null }, { via: VIA });
+    alertRoles++;
   }
 
   // ── 2b. Second look: titles your words missed, judged by the model ─────────
@@ -168,7 +183,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     for (const r of rejected.values()) {
       const v = state.titleChecks[titleKey(r.company, r.job.title)];
       if (!v?.keep) continue;
-      candidates.set(r.key, { key: r.key, company: r.company, board: r.board, job: r.job, titleMatch: null, secondLook: v.why ?? 'judged in scope', listedLocation: r.job.location });
+      candidates.set(r.key, { key: r.key, company: r.company, board: r.board, job: r.job, titleMatch: null, secondLook: v.why ?? 'judged in scope', listedLocation: r.job.location, ...(r.via ? { via: r.via } : {}) });
       second.roles++;
     }
     second.letThrough = [...titles.keys()].filter((id) => state.titleChecks[id]?.keep).length;
@@ -275,6 +290,11 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
       state.jobs[c.key] = Object.assign(job, { key: c.key, title: c.job.title, url: c.job.url, location, status: 'open', titleMatch: c.titleMatch, was: [...(job.was ?? []), from] });
       delete job.copies; // they were postings on the site it left
       if (c.job.postedAt) job.postedAt = c.job.postedAt;
+      // From an alert email to the company's own site: scored again, now with the posting text.
+      if (job.via && !c.via) {
+        delete job.via;
+        job.score = null;
+      }
       moved++;
       continue;
     }
@@ -324,6 +344,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
       status: 'open',
       titleMatch: c.titleMatch,
       ...(c.secondLook ? { secondLook: c.secondLook } : {}),
+      ...(c.via ? { via: c.via } : {}),
       score: null,
     };
     newKeys.add(c.key);
@@ -490,6 +511,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
       moved,
     },
     secondLook: second,
+    alerts: alerts.on ? { emails: alerts.emails, roles: alerts.roles.length, listed: alertRoles, error: alerts.error ?? null } : null,
     ai,
     feedback: { judged: Object.keys(feedback.roles).length, read: pulled !== null },
     tailor: tailor ? { waiting: Object.values(tailor.requests).filter((r) => r.status === 'requested').length } : null,

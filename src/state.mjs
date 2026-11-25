@@ -19,7 +19,8 @@ export function emptyState() {
   // gaps: the weekly themes of gaps that keep coming up (gaps.mjs).
   // history: one line per recent run, newest first (changes.mjs).
   // insights: weekly snapshots of what your best-fit roles ask for (insights.mjs).
-  return { version: STATE_VERSION, lastRun: null, jobs: {}, skipped: {}, companies: {}, problems: {}, lastWeekly: null, titleChecks: {}, gaps: null, history: [], insights: null };
+  // alerts: the roles in your recent job-alert emails and when the mailbox was last read (alerts.mjs).
+  return { version: STATE_VERSION, lastRun: null, jobs: {}, skipped: {}, companies: {}, problems: {}, lastWeekly: null, titleChecks: {}, gaps: null, history: [], insights: null, alerts: null };
 }
 
 export function loadState(path) {
@@ -45,7 +46,8 @@ export const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 86
  * Decide which open roles are no longer open. A role closes when:
  *   - its company's board was read today and the role is no longer listed;
  *   - its company could not be read for UNREAD_CLOSE_DAYS days in a row;
- *   - its company was removed from companies.yml or paused (enabled: false).
+ *   - its company was removed from companies.yml or paused (enabled: false);
+ *   - it came from a job-alert email (job.via) and no recent email lists it.
  * Closed roles leave the dashboard and are forgotten after CLOSED_KEEP_DAYS.
  *
  * @param {Set<string>} seenKeys    every role key listed today (before any filter)
@@ -69,7 +71,10 @@ export function closeAndPrune(state, { seenKeys, okCompanies, watched, today, re
   for (const job of Object.values(state.jobs)) {
     if (job.status === 'open') {
       const lastOk = state.companies[job.company]?.lastReadOk;
-      if (!watched.has(job.company)) close(job, 'company removed or paused in companies.yml');
+      // A role from a job-alert email is listed while a recent email names it (alerts.mjs), at any employer.
+      if (job.via) {
+        if (!seenKeys.has(job.key)) close(job, 'no recent job-alert email lists it, or its company’s own site is read now');
+      } else if (!watched.has(job.company)) close(job, 'company removed or paused in companies.yml');
       else if (okCompanies.has(job.company) && !seenKeys.has(job.key)) close(job, 'no longer listed');
       else if (lastOk && daysBetween(lastOk, today) >= UNREAD_CLOSE_DAYS) close(job, `job board unreadable since ${lastOk}`);
     }

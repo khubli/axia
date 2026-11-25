@@ -119,6 +119,27 @@ To set it up (about 15 minutes, once):
 
 Use a self-hosted runner only on a private repository: on a public one, anyone's pull request could run code on your computer. The fetch reads each board once, at the same pace and with the same user agent as the daily run. If a site shows your own connection its bot check too, the fetch stops there and says so.
 
+## Job-alert emails
+
+Some employers can only be read on a site that turns Axia away, and some you have never heard of. Job sites already email you about both. With `job_alerts` on, each run also reads those emails from your own mailbox, and their roles go through the same title and place filters, scoring, messages and dashboard as roles from careers sites. Today Axia reads LinkedIn's job alerts (`jobalerts-noreply@linkedin.com`) and its "jobs similar to" and application emails (`jobs-noreply@linkedin.com`). Axia never opens LinkedIn itself: it reads only the emails LinkedIn already sent you.
+
+```yaml
+job_alerts:
+  linkedin: true                 # [false] read LinkedIn's job-alert emails
+  days: 30                       # [30] a role stays listed this many days after the last email that named it
+  ignore: [Northwind Traders]    # [[]] employers you never want roles from, such as your current one
+  mailbox: ''                    # [''] the folder to read; empty reads Gmail's All Mail (any language), else INBOX
+  host: imap.gmail.com           # [imap.gmail.com] your mail server's IMAP address
+  port: 993                      # [993]
+```
+
+- **What a role from an email has.** An alert gives a role's title, employer, place and link, but no posting text, so it is scored from those three and the summary says so. It carries a **LinkedIn alert** label on the dashboard, and its link opens the role on LinkedIn.
+- **Your companies.** An employer that is one of your companies, by its whole name ("Contoso Pay India" is Contoso Pay), takes that company's name. If its careers site was read that day, the site already lists the role with its posting text, so the email is left out. When the site is read again after a few days without, a role from an email carries over to the site's posting with the same title in the same city, keeping your call, and is scored again with the posting text. A paused company (`enabled: false`) and an employer in `ignore` are left out.
+- **When a role closes.** An email doesn't say when a role is taken down. So a role from an email stays listed until no email has named it for `days` days, and then closes.
+- **What is read.** The mailbox is opened read-only over IMAP: nothing is marked read, moved or deleted. Only emails from those senders are fetched, from two days before the last run (the last `days` days on the first run), at most 200 a run. Each role's title, employer, place, link and the days it was first and last emailed are kept in `data/jobs.json`. Nothing else from your mailbox is kept or sent anywhere.
+- **Signing in.** Add the `IMAP_USER` (your address) and `IMAP_PASSWORD` secrets and pass them as the action's `imap-user` and `imap-password`. For Gmail, `IMAP_PASSWORD` is an [app password](https://myaccount.google.com/apppasswords) (it needs 2-Step Verification), the same kind as `SMTP_PASSWORD`; spaces in it are ignored. If you already send messages by email, leave both empty and Axia uses `SMTP_USER` and `SMTP_PASSWORD`. If the mailbox can't be read, the run carries on, roles from earlier emails stay listed, and after three runs in a row you get one message.
+- **Getting more roles in.** On LinkedIn, set up job alerts for the titles and cities you want (a search, then **Set alert**), daily, by email. Each alert email lists up to about ten roles.
+
 ## settings.yml
 
 Every key is optional except `titles.include`. Defaults in brackets.
@@ -185,6 +206,11 @@ heat:                            # hiring heat per company (below); false turns 
   x_handles: []                  # [[]] recruiters on X whose hiring posts to read weekly (needs X_BEARER_TOKEN)
   x_companies: 10                # [10] also read X posts naming your top companies by rank with hiring words
   x_max_posts: 40                # [40] posts read from X a week at most (X bills per post read)
+
+job_alerts:                      # roles from job-alert emails in your mailbox (above); off unless you name a site
+  linkedin: false                # [false] read LinkedIn's job-alert emails
+  days: 30                       # [30] a role stays listed this many days after the last email that named it
+  ignore: []                     # [[]] employers you never want roles from
 
 tailor:                          # true is short for enabled: true
   enabled: false                 # [false] a Tailor for this role button on each role and moonshot, queued for your own tailoring tool
@@ -538,6 +564,7 @@ Roles you have judged yourself, so you can measure how often the model agrees wi
 | `LLM_API_KEY` | secret | AI scoring with another OpenAI-compatible API (`scoring.provider: openai-compatible`) |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | secrets | messages on Telegram |
 | `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_TO` | secrets | messages by email |
+| `IMAP_USER`, `IMAP_PASSWORD` | secrets | optional, with `job_alerts`: reads your job-alert emails, read-only (passed as the action's `imap-user` and `imap-password`; empty uses the `SMTP_` ones) |
 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | secrets | publishing the dashboard |
 | `AXIA_TAILOR_TOKEN` | secret | optional, with `tailor.dispatch`: lets a Tailor click start your tailoring workflow at once (passed as the action's `tailor-dispatch-token`) |
 | `X_BEARER_TOKEN` | secret | optional, for hiring heat: reads recruiters' hiring posts on X once a week (passed as the action's `x-bearer-token`) |
@@ -547,7 +574,7 @@ Roles you have judged yourself, so you can measure how often the model agrees wi
 
 | File | Committed | What it is |
 |---|---|---|
-| `data/jobs.json` | yes | every matching role, open or recently closed, with its score and when you were told about it |
+| `data/jobs.json` | yes | every matching role, open or recently closed, with its score and when you were told about it; with `job_alerts`, the roles in your recent alert emails (title, employer, place, link and dates) |
 | `data/feedback.json` | yes | your calls from the dashboard, with each posting's text and its latest score, and the date of the last weekly review |
 | `data/lists/` | yes | with the optional `axia-lists.yml`: each board's roles as your own computer last read them, for the daily run to use when it can't read that board itself |
 | `data/tailor.json` | yes | with `tailor` on: your Tailor requests, each with its posting or moonshot details, and whether your tool has done it |

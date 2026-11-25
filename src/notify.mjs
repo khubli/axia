@@ -52,6 +52,7 @@ export function trackProblems(state, summary, today) {
     if (!byCompany.has(c.company)) byCompany.set(c.company, c);
   }
   for (const [company, c] of byCompany) current[`read:${company}`] = { kind: 'read', company, detail: truncate(c.error ?? 'unknown error', 120) };
+  if (summary.alerts?.error) current.alerts = { kind: 'alerts', detail: truncate(summary.alerts.error, 200) };
   if (summary.ai.stoppedBecause) current.ai = { kind: 'ai', detail: truncate(summary.ai.stoppedBecause, 200) };
   if (summary.partial) {
     // A run limited to some companies says nothing about the others: only add, never clear.
@@ -124,12 +125,14 @@ export function planMessages({ state, summary, settings, minScore, today, heat =
   const due = Object.entries(state.problems).filter(([, p]) => !p.notifiedOn && daysBetween(p.since, today) >= (p.kind === 'ai' ? AI_ALERT_DAYS : UNREAD_ALERT_DAYS));
   const unreadable = due.filter(([, p]) => p.kind === 'read').map(([, p]) => p);
   const aiProblem = due.find(([, p]) => p.kind === 'ai')?.[1];
+  const mailProblem = due.find(([, p]) => p.kind === 'alerts')?.[1];
   // Bounded whatever happens: beyond a few companies, one line names them all, so the
   // section always fits in the message and every problem marked as sent was really shown.
   const problemLines = [
     ...(unreadable.length <= 3
       ? unreadable.map((p) => `⚠️ <b>${escapeHtml(p.company)}</b> unreadable for ${daysBetween(p.since, today) + 1} days (${escapeHtml(truncate(p.detail, 90))}). Its roles stay listed; they close after 7 days without a read.`)
       : [`⚠️ <b>${unreadable.length} companies</b> unreadable for 3 days or more: ${escapeHtml(clip(unreadable.map((p) => p.company).join(', '), 700))}. Their roles stay listed; they close after 7 days without a read.`]),
+    ...(mailProblem ? [`⚠️ <b>Job-alert emails</b> unreadable for ${daysBetween(mailProblem.since, today) + 1} days (${escapeHtml(truncate(mailProblem.detail, 120))}). Roles from earlier emails stay listed until ${settings.job_alerts?.days ?? 30} days after their last email. Check the <code>IMAP_USER</code> and <code>IMAP_PASSWORD</code> secrets (an app password for your mailbox).`] : []),
     ...(aiProblem ? [`⚠️ <b>AI scoring</b> failed on two runs in a row (${escapeHtml(truncate(aiProblem.detail, 120))}). New roles show title estimates meanwhile. Check your AI provider's key or credit; for a Claude subscription, an expired token is renewed with <code>claude setup-token</code> and the <code>CLAUDE_CODE_OAUTH_TOKEN</code> secret.`] : []),
   ];
 
