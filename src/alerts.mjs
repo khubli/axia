@@ -115,7 +115,7 @@ export async function readAlerts({ settings, env, state, today, log = () => {}, 
 }
 
 /** A name compared loosely: no accents, case or punctuation ("Société Générale" is "societe generale"). */
-const fold = (s) => normalize(String(s ?? '').normalize('NFD').replace(/\p{M}+/gu, '')).replace(/[^\p{L}\p{N}& ]+/gu, ' ').replace(/\s+/g, ' ').trim();
+export const fold = (s) => normalize(String(s ?? '').normalize('NFD').replace(/\p{M}+/gu, '')).replace(/[^\p{L}\p{N}& ]+/gu, ' ').replace(/\s+/g, ' ').trim();
 
 /**
  * Which company in companies.yml an alert's employer is, if any. Either name may carry more words than
@@ -148,30 +148,19 @@ export function ignored(settings, employer) {
 export const sameTitle = (a, b) => fold(a) === fold(b);
 
 /**
- * One role per employer, title and city. Job sites repost a role under a new id every few days, and
- * an email has no posting text to tell two openings apart, so alerts that agree on all three are one
- * role. Of each group, `prefer(entry)` (higher first) picks the one kept, so a role keeps its id, score
- * and your call; it takes the link of the newest email. A role you made a call on is never folded away.
+ * One role per employer and title. Job sites repost a role under a new id every few days, and list one
+ * opening once per city, and an email has no posting text to tell two openings apart, so alerts that
+ * agree on employer and title are one role, listed in all their cities. Of each group, `prefer(entry)`
+ * (higher first) picks the one kept, so a role keeps its id, score and your call; it takes the link of
+ * the newest email. A role you made a call on is never folded away.
  * @param {Array<{company: string, role: object}>} entries
  * @returns {{ keep: Array<{company, role}>, copies: Map<string, string> }} copies: folded id → kept id
  */
 export function collapseAlertRoles(entries, { prefer = () => 0, called = () => false } = {}) {
-  const place = (loc) => citiesOf(loc).map(fold).sort().join('+') || fold(loc);
   const groups = new Map();
   for (const e of entries) {
-    const id = `${fold(e.company)}|${fold(e.role.title)}|${place(e.role.location)}`;
+    const id = `${fold(e.company)}|${fold(e.role.title)}`;
     groups.set(id, [...(groups.get(id) ?? []), e]);
-  }
-  // A repost that names only the country ("India") is the same role as the one that names a city
-  // in it ("Bengaluru, Karnataka, India"), when there is just one such city.
-  for (const [id, group] of [...groups]) {
-    const loc = String(group[0].role.location ?? '').trim();
-    if (!loc || loc.includes(',')) continue;
-    const head = id.slice(0, id.lastIndexOf('|') + 1);
-    const inCountry = [...groups].filter(([other, g]) => other !== id && other.startsWith(head) && g.some((e) => fold(String(e.role.location ?? '').split(',').at(-1)) === fold(loc)));
-    if (inCountry.length !== 1) continue;
-    inCountry[0][1].push(...group);
-    groups.delete(id);
   }
   const keep = [];
   const copies = new Map();
@@ -179,12 +168,30 @@ export function collapseAlertRoles(entries, { prefer = () => 0, called = () => f
     const ranked = [...group].sort((a, b) => prefer(b.role) - prefer(a.role) || String(a.role.firstSeen ?? '').localeCompare(String(b.role.firstSeen ?? '')) || String(a.role.id).localeCompare(String(b.role.id)));
     const newest = [...group].sort((a, b) => String(b.role.lastSeen ?? '').localeCompare(String(a.role.lastSeen ?? '')) || String(b.role.id).localeCompare(String(a.role.id)))[0];
     const [first, ...rest] = ranked;
-    const located = [first, newest, ...group].find((e) => String(e.role.location ?? '').includes(','));
-    keep.push({ ...first, role: { ...first.role, url: newest.role.url, location: (located ?? first).role.location ?? newest.role.location } });
+    const folded = [first, ...rest.filter((e) => !called(e.role))];
+    keep.push({ ...first, role: { ...first.role, url: newest.role.url, location: placesOf(folded.map((e) => e.role.location)) } });
     for (const e of rest) {
       if (called(e.role)) keep.push(e);
       else copies.set(e.role.id, first.role.id);
     }
   }
   return { keep, copies };
+}
+
+/**
+ * Several places as one location ("Pune, Maharashtra, India; Bengaluru, Karnataka, India"): one per
+ * city, in the order given. A place that is only a country ("India") is left out when a city in it is listed.
+ */
+export function placesOf(locations) {
+  const parts = locations.flatMap((l) => String(l ?? '').split(';')).map((p) => p.trim()).filter(Boolean);
+  const seen = new Set();
+  const out = [];
+  for (const p of parts) {
+    const where = citiesOf(p).map(fold).join('+') || fold(p);
+    if (seen.has(where)) continue;
+    if (!p.includes(',') && parts.some((o) => o.includes(',') && fold(o.split(',').at(-1)) === fold(p))) continue;
+    seen.add(where);
+    out.push(p);
+  }
+  return out.join('; ') || null;
 }

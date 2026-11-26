@@ -36,7 +36,7 @@ import { catchUp, catchUpQueue } from './catchup.mjs';
 import { loadPayGuide, payField, dropImplausiblePay } from './pay.mjs';
 import { recordListed, scanSignals, loadSignals, computeHeat } from './heat.mjs';
 import { loadSavedList, usableList } from './lists.mjs';
-import { readAlerts, ALERT_BOARD, alertKey, trackedCompany, ignored, sameTitle, collapseAlertRoles, VIA } from './alerts.mjs';
+import { readAlerts, ALERT_BOARD, alertKey, trackedCompany, ignored, sameTitle, collapseAlertRoles, fold, VIA } from './alerts.mjs';
 
 const KEYWORD_DETAIL_BUDGET = 150; // detail fetches for keyword scoring when AI is off
 const SECOND_LOOK_MAX = 1500; // new titles the second look asks about per run; the rest wait for the next run
@@ -154,17 +154,48 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   // job_alerts.ignore are left out too.
   const titlesToday = new Map();
   for (const read of reads) if (read.status === 'ok') titlesToday.set(read.company, [...(titlesToday.get(read.company) ?? []), ...read.jobs.map((j) => j.title)]);
+  // A title already among your roles from the company's own site (open, or closed lately) is that
+  // role: the email keeps it listed, or lists it again, with its score, posting text and your call.
+  // A copy from an email remembered before is let go, unless you made a call on it.
+  const alertCalls = loadFeedback(dir).roles ?? {};
+  const siteRoles = new Map();
+  for (const j of Object.values(state.jobs)) {
+    if (j.via) continue;
+    const id = `${fold(j.company)}|${fold(j.title)}`;
+    siteRoles.set(id, [...(siteRoles.get(id) ?? []), j]);
+  }
+  const alertOnSite = new Set();
   const alertEntries = [];
   for (const r of alerts.roles) {
     const tracked = trackedCompany(companies, r.company);
     if (tracked && !tracked.enabled) continue;
     if (tracked && okCompanies.has(tracked.name) && (titlesToday.get(tracked.name) ?? []).some((t) => sameTitle(t, r.title))) continue;
     if (ignored(settings, r.company)) continue;
+    const onSite = tracked && !alertCalls[alertKey(r.id)] ? siteRoles.get(`${fold(tracked.name)}|${fold(r.title)}`) : null;
+    if (onSite?.length) {
+      const here = citiesOf(r.location).map(fold);
+      const inCity = (j) => citiesOf(j.location).some((c) => here.includes(fold(c)));
+      const open = (j) => j.status === 'open';
+      const job = onSite.find((j) => open(j) && inCity(j)) ?? onSite.find(open) ?? onSite.find(inCity) ??
+        [...onSite].sort((a, b) => String(b.closedOn ?? '').localeCompare(String(a.closedOn ?? '')))[0];
+      alertOnSite.add(job.key);
+      if (state.jobs[alertKey(r.id)]?.via) delete state.jobs[alertKey(r.id)];
+      continue;
+    }
     alertEntries.push({ company: tracked?.name ?? r.company, role: r });
   }
-  // Reposts of one role (same employer, title and city under new ids) are one role: the one already
-  // scored is kept, with the newest email's link. Copies remembered from before are let go quietly.
-  const alertCalls = loadFeedback(dir).roles ?? {};
+  for (const key of alertOnSite) {
+    listedKeys.add(key);
+    const job = state.jobs[key];
+    if (job.status === 'closed') {
+      job.status = 'open';
+      delete job.closedOn;
+      delete job.closedReason;
+    }
+  }
+  // Reposts of one role (same employer and title under new ids, or one per city) are one role, listed
+  // in all its cities: the one already scored is kept, with the newest email's link. Copies remembered
+  // from before are let go quietly.
   const { keep: alertKept, copies: alertCopies } = collapseAlertRoles(alertEntries, {
     prefer: (r) => {
       const j = state.jobs[alertKey(r.id)];
@@ -531,7 +562,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
       moved,
     },
     secondLook: second,
-    alerts: alerts.on ? { emails: alerts.emails, roles: alerts.roles.length, listed: alertRoles, reposts: alertCopies.size, error: alerts.error ?? null } : null,
+    alerts: alerts.on ? { emails: alerts.emails, roles: alerts.roles.length, listed: alertRoles, reposts: alertCopies.size, onSite: alertOnSite.size, error: alerts.error ?? null } : null,
     ai,
     feedback: { judged: Object.keys(feedback.roles).length, read: pulled !== null },
     tailor: tailor ? { waiting: Object.values(tailor.requests).filter((r) => r.status === 'requested').length } : null,

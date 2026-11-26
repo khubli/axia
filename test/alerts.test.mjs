@@ -8,7 +8,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EventEmitter } from 'node:events';
 import { parseEmail, readMailbox, internalDate, MailError } from '../src/mail.mjs';
-import { parseLinkedIn, readAlerts, trackedCompany, ignored, alertKey, collapseAlertRoles } from '../src/alerts.mjs';
+import { parseLinkedIn, readAlerts, trackedCompany, ignored, alertKey, collapseAlertRoles, placesOf } from '../src/alerts.mjs';
 import { loadSettings, ConfigError } from '../src/config.mjs';
 import { jobText } from '../src/score.mjs';
 import { trackProblems, planMessages } from '../src/notify.mjs';
@@ -247,7 +247,7 @@ test('a run: alert roles join the roles from careers sites, under your company n
     assert.equal(jobs[alertKey('4000000004')], undefined); // ignored employer
     assert.equal(jobs[alertKey('4000000005')], undefined); // outside your places
     assert.ok(jobs['greenhouse:contoso:9']);
-    assert.deepEqual(first.summary.alerts, { emails: 1, roles: 6, listed: 4, reposts: 0, error: null });
+    assert.deepEqual(first.summary.alerts, { emails: 1, roles: 6, listed: 4, reposts: 0, onSite: 0, error: null });
     const site = readFileSync(join(dir, '.axia/site/index.html'), 'utf8');
     assert.match(site, /"via":"linkedin-alert"/);
 
@@ -290,27 +290,33 @@ test("once a company's own site lists an alert role, the role carries over there
   }
 });
 
-test('reposts of one role under new ids are one role: the scored one is kept, with the newest link', () => {
+test('reposts of one role, under new ids or one per city, are one role in all its cities: the scored one is kept, with the newest link', () => {
   const role = (id, location, firstSeen, lastSeen, title = 'VP Engineering (Core Platform)') => ({ company: 'Contoso Pay', role: { id, title, company: 'Contoso Pay', location, url: `https://www.linkedin.com/jobs/view/${id}/`, firstSeen, lastSeen } });
   const entries = [
     role('101', 'Bengaluru, Karnataka, India', '2026-11-10', '2026-11-12'),
     role('102', 'Bengaluru East, Karnataka, India', '2026-11-14', '2026-11-16'),
     role('103', 'Bengaluru, Karnataka, India', '2026-11-20', '2026-11-25'),
-    role('104', 'India', '2026-11-22', '2026-11-22'), // only the country: the same role
-    role('105', 'Singapore, Singapore', '2026-11-20', '2026-11-25'), // another city: another opening
+    role('104', 'India', '2026-11-22', '2026-11-22'), // only the country, which its cities already say
+    role('105', 'Pune, Maharashtra, India', '2026-11-20', '2026-11-24'), // the same posting, listed for another city
     role('106', 'Bengaluru, Karnataka, India', '2026-11-21', '2026-11-21', 'Head of Payments'),
     role('107', 'Bengaluru, Karnataka, India', '2026-11-23', '2026-11-23'), // you made a call on it
   ];
   const { keep, copies } = collapseAlertRoles(entries, { prefer: (r) => (r.id === '102' ? 1 : 0), called: (r) => r.id === '107' });
-  assert.deepEqual(keep.map((e) => e.role.id).sort(), ['102', '105', '106', '107']);
+  assert.deepEqual(keep.map((e) => e.role.id).sort(), ['102', '106', '107']);
   const kept = keep.find((e) => e.role.id === '102').role;
   assert.equal(kept.url, 'https://www.linkedin.com/jobs/view/103/'); // the newest email's link
   assert.equal(kept.firstSeen, '2026-11-14'); // ...but its own history
-  assert.deepEqual([...copies].sort(), [['101', '102'], ['103', '102'], ['104', '102']]);
+  assert.equal(kept.location, 'Bengaluru East, Karnataka, India; Pune, Maharashtra, India'); // one place per city
+  assert.equal(keep.find((e) => e.role.id === '107').role.location, 'Bengaluru, Karnataka, India');
+  assert.deepEqual([...copies].sort(), [['101', '102'], ['103', '102'], ['104', '102'], ['105', '102']]);
   // Nothing scored yet: the earliest one is kept.
   assert.equal(collapseAlertRoles(entries.slice(0, 3)).keep[0].role.id, '101');
-  // With only the country and two cities, there is no telling which one it is.
-  assert.equal(collapseAlertRoles([entries[0], entries[3], role('108', 'Pune, Maharashtra, India', '2026-11-20', '2026-11-25')]).keep.length, 3);
+});
+
+test('places of one role: one per city, and a country only when no city in it is named', () => {
+  assert.equal(placesOf(['Pune, Maharashtra, India', 'India', 'Bangalore Urban, Karnataka, India', 'Bengaluru, Karnataka, India']), 'Pune, Maharashtra, India; Bangalore Urban, Karnataka, India');
+  assert.equal(placesOf(['Singapore, Singapore', 'India']), 'Singapore, Singapore; India');
+  assert.equal(placesOf([null, '']), null);
 });
 
 test('a run: a role reposted under a new id stays one role, with its score', async () => {
@@ -331,4 +337,42 @@ test('a run: a role reposted under a new id stays one role, with its score', asy
   assert.equal(jobs[alertKey('4100000001')].status, 'open');
   assert.equal(second.summary.alerts.reposts, 2);
   assert.equal(second.summary.alerts.listed, 1);
+});
+
+test("an alert for a role you already have from the company's own site is that role: it stays listed, or is listed again", async () => {
+  const dir = tempProject({
+    companies: [{ name: 'Contoso Pay', url: 'https://job-boards.greenhouse.io/contoso' }],
+    settings: { titles: { include: ['Director'], exclude: [] }, job_alerts: { linkedin: true } },
+  });
+  const mail = [{ from: 'jobalerts-noreply@linkedin.com', date: '2026-11-25T05:00:00Z', text: parseEmail(EML).text }];
+  const env = { IMAP_USER: 'candidate@example.com', IMAP_PASSWORD: 'app-pass' };
+  let site = 'up';
+  const posting = { id: 77, title: 'Director, Payments Architecture', location: { name: 'Pune, India' }, absolute_url: 'https://job-boards.greenhouse.io/contoso/jobs/77', first_published: '2026-11-10T10:00:00Z', content: 'Own the payments architecture.' };
+  const stub = stubFetch([['boards-api.greenhouse.io', () => (site === 'up' ? { jobs: [posting] } : site === 'empty' ? { jobs: [] } : new Response('down', { status: 500 }))]]);
+  const day = async (iso, readMail) => {
+    const out = await run(['--no-notify'], env, { dir, now: new Date(`${iso}T03:00:00Z`), log: () => {}, readMail });
+    return { summary: out.summary, jobs: JSON.parse(readFileSync(join(dir, 'data/jobs.json'), 'utf8')).jobs };
+  };
+  try {
+    await day('2026-11-15', async () => []);
+    // The site can't be read for over a week, but emails still name the role: it stays open, once.
+    site = 'down';
+    let { summary, jobs } = await day('2026-11-25', async () => mail);
+    assert.equal(jobs[alertKey('4000000002')], undefined);
+    assert.equal(summary.alerts.onSite, 1);
+    assert.equal(jobs['greenhouse:contoso:77'].status, 'open');
+    // The site no longer lists it, so it closes; a later email lists it again, with its history.
+    site = 'empty';
+    ({ jobs } = await day('2026-11-26', async () => []));
+    assert.equal(jobs['greenhouse:contoso:77'].status, 'open'); // the email from the day before still names it
+    ({ jobs } = await day('2026-12-27', async () => []));
+    assert.equal(jobs['greenhouse:contoso:77'].status, 'closed');
+    ({ jobs } = await day('2026-12-28', async () => [{ ...mail[0], date: '2026-12-28T05:00:00Z' }]));
+    assert.equal(jobs['greenhouse:contoso:77'].status, 'open');
+    assert.equal(jobs['greenhouse:contoso:77'].firstSeen, '2026-11-15');
+    assert.equal(jobs['greenhouse:contoso:77'].closedReason, undefined);
+    assert.equal(Object.keys(jobs).filter((k) => k.startsWith('linkedin:')).includes(alertKey('4000000002')), false);
+  } finally {
+    stub.restore();
+  }
 });

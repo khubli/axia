@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.42.3
+
+- **Fixed: one posting listed for several cities showed up once per city.** Job sites list one opening once for each city, and LinkedIn emails each as its own role, so a role open in five cities was listed and scored five times. Roles from emails with the same employer and title are now one role, listed in all their cities ("Pune, Maharashtra, India; Bengaluru, Karnataka, India"). As before, the one already scored, or that you made a call on, is kept, with the newest email's link.
+- **Fixed: an alert role you already had from the company's own site showed up twice.** An email was left out only on days the site was read and listed the same title. On other days, or once the site's posting had closed, the email added a second copy of the role. Now an email for a title you already have from the company's site (open, or closed in the last 45 days) is that role: it keeps it listed, or lists it again, with its score, posting text and your call. A role from a site that can't be read stays listed while emails name it. Copies listed before go away on the next run, except ones you made a call on ([details](docs/configuration.md#job-alert-emails)).
+
 ## 1.42.2
 
 - **Fixed: a role reposted on LinkedIn showed up once for every repost.** Some employers and agencies repost the same role under a new LinkedIn id every few days, and each alert email named a new id, so the dashboard listed one role several times and each copy was scored on its own. An email has no posting text to tell two openings apart, so roles from emails that agree on employer, title and city are now one role. The one already scored, or that you made a call on, is kept with its score and history, and takes the link from the newest email. A repost that gives only the country ("India") joins the role in that country's one city. Copies listed before go away on the next run, except ones you made a call on, which stay as they are ([details](docs/configuration.md#job-alert-emails)).
