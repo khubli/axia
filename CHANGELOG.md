@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.44.0
+
+- **The dashboard uses more of a wide screen, and you can make a role's details as wide as you like.** On a computer the page now grows to 1600px instead of stopping at 1240px, and the details beside the list start at 40% of the width (430px to 680px). Drag the line between the list and the details to resize them, or focus it and use the arrow keys (Shift for bigger steps). Your width is remembered on that device; double-click the line, or press Enter on it, to go back to the default. The list always keeps at least 420px and the details 360px, so a saved width still fits a smaller window. The details are also easier to read: larger text for the facts, the score parts, the summary and the fits and gaps, and labels in a stronger grey. Phones keep the one-column layout ([details](docs/how-it-works.md#6-publish)).
+
 ## 1.43.0
 
 - **Every role says where it was found, and you can filter by it.** Each row on the dashboard now ends with **Careers site** or **LinkedIn alert**, and a role's details say "Found in" the company's careers site (scored from the posting) or a LinkedIn job-alert email (scored from the title, employer and place only). A new **Source** filter beside the level filter shows only careers-site roles or only LinkedIn alert roles, with a count for each. It appears once some roles come from alert emails, and the dashboard remembers your choice like the other filters. Searching "linkedin" or "careers site" works too ([details](docs/configuration.md#job-alert-emails)).

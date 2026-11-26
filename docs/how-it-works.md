@@ -74,7 +74,7 @@ At most **one message per run**, with up to three parts:
 
 `axia deploy` uploads `.axia/site/` to Cloudflare as a static Worker on your domain. Version preview URLs and the `workers.dev` address are switched off, so your domain is the only way in. Then it requests the page as a stranger. A redirect to Cloudflare Access (or a 401/403) means private. Anything else, whether the page itself or no clear answer within about two minutes, and Axia immediately publishes a page with no data in its place and fails the run with instructions.
 
-The dashboard is a single page with your data embedded: no server, no database, no third-party requests (fonts are served from your domain). Your filters and the last tab you used are remembered in your browser only.
+The dashboard is a single page with your data embedded: no server, no database, no third-party requests (fonts are served from your domain). On a computer, roles are listed beside the details of the one you picked; drag the line between them (or focus it and use the arrow keys) to make the details wider or narrower, and double-click it to go back to the default. Your filters, the last tab you used and that width are remembered in your browser only.
 
 It is also an installable app (PWA): add it to your phone's home screen or install it on a computer. A service worker keeps the last results you loaded on your device, so the app opens instantly and works offline. Online, the page is always fetched fresh, and when newer results are published while the app is open it offers a refresh.
 
