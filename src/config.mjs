@@ -52,8 +52,9 @@ export const DEFAULTS = {
   // over IMAP, with the IMAP_USER and IMAP_PASSWORD secrets), scored like roles from careers sites.
   // Off until you name a site: `linkedin: true` reads LinkedIn's job alerts. days: how long a role stays
   // listed after the last email that named it. mailbox: empty reads Gmail's All Mail (else INBOX).
-  // ignore: employers whose roles you never want, such as your current one.
-  job_alerts: { linkedin: false, days: 30, host: 'imap.gmail.com', port: 993, mailbox: '', ignore: [] },
+  // ignore: employers whose roles you never want, such as your current one. max_age: a role posted
+  // longer ago than this (dated from its LinkedIn job number) has most likely closed, so it is left out.
+  job_alerts: { linkedin: false, days: 30, max_age: 25, host: 'imap.gmail.com', port: 993, mailbox: '', ignore: [] },
   // Tailor buttons: queue a role or moonshot for a tailored resume and cover letter, made by your own
   // tool outside Axia. Off by default; `tailor: true` turns it on. `done` is the file that tool writes.
   // dispatch: owner/repo whose tailoring workflow (workflow, on branch ref) a click starts at once.
@@ -100,7 +101,7 @@ export function loadSettings(dir = ROOT) {
     const a = s.job_alerts;
     if (raw.job_alerts === false) a.linkedin = false;
     if (typeof a.linkedin !== 'boolean') throw new ConfigError(`settings.yml: job_alerts.linkedin must be true or false without quotes, not "${a.linkedin}"`);
-    for (const [key, min, max] of [['days', 1, 90], ['port', 1, 65535]]) {
+    for (const [key, min, max] of [['days', 1, 90], ['max_age', 7, 365], ['port', 1, 65535]]) {
       const n = Number(a[key]);
       if (!Number.isInteger(n) || n < min || n > max) throw new ConfigError(`settings.yml: job_alerts.${key} must be a whole number from ${min} to ${max}, not "${a[key]}"`);
       a[key] = n;

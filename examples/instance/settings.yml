@@ -109,3 +109,4 @@ dashboard:
 # job_alerts:
 #   linkedin: true
 #   ignore: [Northwind Traders]   # employers you never want roles from, such as your current one
+#   max_age: 25                   # roles posted longer ago than this have most likely closed, so they are left out

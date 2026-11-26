@@ -8,7 +8,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EventEmitter } from 'node:events';
 import { parseEmail, readMailbox, internalDate, MailError } from '../src/mail.mjs';
-import { parseLinkedIn, readAlerts, trackedCompany, ignored, alertKey, collapseAlertRoles, placesOf } from '../src/alerts.mjs';
+import { parseLinkedIn, readAlerts, trackedCompany, ignored, alertKey, collapseAlertRoles, placesOf, postingDater } from '../src/alerts.mjs';
 import { loadSettings, ConfigError } from '../src/config.mjs';
 import { jobText } from '../src/score.mjs';
 import { trackProblems, planMessages } from '../src/notify.mjs';
@@ -247,7 +247,7 @@ test('a run: alert roles join the roles from careers sites, under your company n
     assert.equal(jobs[alertKey('4000000004')], undefined); // ignored employer
     assert.equal(jobs[alertKey('4000000005')], undefined); // outside your places
     assert.ok(jobs['greenhouse:contoso:9']);
-    assert.deepEqual(first.summary.alerts, { emails: 1, roles: 6, listed: 4, reposts: 0, onSite: 0, error: null });
+    assert.deepEqual(first.summary.alerts, { emails: 1, roles: 6, listed: 4, reposts: 0, onSite: 0, tooOld: 0, error: null });
     const site = readFileSync(join(dir, '.axia/site/index.html'), 'utf8');
     assert.match(site, /"via":"linkedin-alert"/);
     assert.match(site, /<select id="source" aria-label="Where the role was found"/); // the Source filter: careers sites or LinkedIn alerts
@@ -377,4 +377,62 @@ test("an alert for a role you already have from the company's own site is that r
   } finally {
     stub.restore();
   }
+});
+
+test("a LinkedIn job's posting day, worked out from its number and the newest numbers seen each day", () => {
+  const clock = {};
+  for (let d = 0; d <= 20; d++) clock[`2026-11-${String(d + 1).padStart(2, '0')}`] = 4400000000 + d * 300000;
+  clock['2026-11-04'] = 4390000000; // that day's emails held only older roles
+  const dated = postingDater(clock);
+  assert.equal(dated(4406000000), '2026-11-21'); // the newest number on the last day
+  assert.equal(dated(4403000000), '2026-11-11');
+  assert.equal(dated(4400000000 - 30 * 300000), '2026-10-02');
+  assert.equal(dated(4407000000), '2026-11-21'); // never after the last email
+  assert.equal(dated('not a number'), null);
+  // Notes that span less than a week date nothing.
+  assert.equal(postingDater({ '2026-11-20': 4405700000, '2026-11-21': 4406000000, '2026-11-22': 4406300000 })(4400000000), null);
+  assert.equal(postingDater(undefined)(4400000000), null);
+});
+
+test('a run: alert roles posted longer ago than max_age are left out and not scored; the rest carry their posting day', async () => {
+  const dir = tempProject({ companies: [{ name: 'Woodgrove Bank', url: 'https://careers.example.com/', platform: 'manual' }], settings: { titles: { include: ['Director'], exclude: [] }, job_alerts: { linkedin: true } } });
+  const card = (id, title, employer) => ['---------------------------------------------------------', title, employer, 'Pune, Maharashtra, India', `View job: https://www.linkedin.com/comm/jobs/view/${id}/?x=1`].join('\n');
+  const at = (d) => 4400000000 + d * 300000; // numbers rise 300,000 a day from 1 Nov
+  const email = (d, cards) => ({ from: 'jobalerts-noreply@linkedin.com', date: `2026-11-${String(d + 1).padStart(2, '0')}T05:00:00Z`, text: cards.join('\n') });
+  const mail = [];
+  for (let d = 0; d <= 20; d++) mail.push(email(d, [card(at(d), `Director, Filler ${d}`, 'Tailspin Bank')]));
+  mail.push(email(20, [
+    card(at(18), 'Director, Payments Platform', 'Fabrikam Capital'), // posted 19 Nov
+    card(at(-40), 'Director, Core Banking', 'Contoso Pay'), // posted about 22 Sep
+    card(at(-50), 'Director, Cards', 'Litware Bank'), // first posted in September...
+    card(at(19), 'Director, Cards', 'Litware Bank'), // ...and reposted on 20 Nov
+  ]));
+  const env = { IMAP_USER: 'candidate@example.com', IMAP_PASSWORD: 'app-pass' };
+  const { summary } = await run(['--no-notify'], env, { dir, now: new Date('2026-11-21T03:00:00Z'), log: () => {}, readMail: async () => mail });
+  const jobs = JSON.parse(readFileSync(join(dir, 'data/jobs.json'), 'utf8')).jobs;
+  assert.equal(jobs[alertKey(String(at(18)))].postedAt, '2026-11-19');
+  assert.equal(jobs[alertKey(String(at(-40)))], undefined);
+  const cards = Object.values(jobs).filter((j) => j.title === 'Director, Cards');
+  assert.equal(cards.length, 1);
+  assert.equal(cards[0].postedAt, '2026-11-20'); // dated by its newest repost
+  assert.equal(summary.alerts.tooOld, 1);
+});
+
+test('an alert role already listed closes once its posting is older than max_age', async () => {
+  const dir = tempProject({ companies: [{ name: 'Woodgrove Bank', url: 'https://careers.example.com/', platform: 'manual' }], settings: { titles: { include: ['Director'], exclude: [] }, job_alerts: { linkedin: true, max_age: 14 } } });
+  const card = (id, title) => ['---------------------------------------------------------', title, 'Fabrikam Capital', 'Pune, Maharashtra, India', `View job: https://www.linkedin.com/comm/jobs/view/${id}/?x=1`].join('\n');
+  const at = (d) => 4400000000 + d * 300000;
+  const email = (d, cards) => ({ from: 'jobalerts-noreply@linkedin.com', date: `2026-11-${String(d + 1).padStart(2, '0')}T05:00:00Z`, text: cards.join('\n') });
+  const mail = [];
+  for (let d = 0; d <= 10; d++) mail.push(email(d, [card(at(d), `Director, Filler ${d}`)]));
+  mail.push(email(10, [card(at(5), 'Director, Payments Platform')])); // posted 6 Nov
+  const env = { IMAP_USER: 'candidate@example.com', IMAP_PASSWORD: 'app-pass' };
+  await run(['--no-notify'], env, { dir, now: new Date('2026-11-11T03:00:00Z'), log: () => {}, readMail: async () => mail });
+  let jobs = JSON.parse(readFileSync(join(dir, 'data/jobs.json'), 'utf8')).jobs;
+  assert.equal(jobs[alertKey(String(at(5)))].status, 'open');
+  const later = [email(20, [card(at(20), 'Director, Filler 20'), card(at(5), 'Director, Payments Platform')])];
+  await run(['--no-notify'], env, { dir, now: new Date('2026-11-21T03:00:00Z'), log: () => {}, readMail: async () => later });
+  jobs = JSON.parse(readFileSync(join(dir, 'data/jobs.json'), 'utf8')).jobs;
+  assert.equal(jobs[alertKey(String(at(5)))].status, 'closed');
+  assert.match(jobs[alertKey(String(at(5)))].closedReason, /posted about 2026-11-06, over 14 days ago/);
 });

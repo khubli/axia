@@ -36,7 +36,7 @@ import { catchUp, catchUpQueue } from './catchup.mjs';
 import { loadPayGuide, payField, dropImplausiblePay } from './pay.mjs';
 import { recordListed, scanSignals, loadSignals, computeHeat } from './heat.mjs';
 import { loadSavedList, usableList } from './lists.mjs';
-import { readAlerts, ALERT_BOARD, alertKey, trackedCompany, ignored, sameTitle, collapseAlertRoles, fold, VIA } from './alerts.mjs';
+import { readAlerts, ALERT_BOARD, alertKey, trackedCompany, ignored, sameTitle, collapseAlertRoles, fold, postingDater, VIA } from './alerts.mjs';
 
 const KEYWORD_DETAIL_BUDGET = 150; // detail fetches for keyword scoring when AI is off
 const SECOND_LOOK_MAX = 1500; // new titles the second look asks about per run; the rest wait for the next run
@@ -165,13 +165,16 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
     siteRoles.set(id, [...(siteRoles.get(id) ?? []), j]);
   }
   const alertOnSite = new Set();
+  // When each role was posted, from its LinkedIn job number (alerts.mjs). Older than max_age: most likely closed.
+  const postedOn = postingDater(state.alerts?.clock);
+  const tooOld = (on) => Boolean(on) && daysBetween(on, today) > settings.job_alerts.max_age;
   const alertEntries = [];
   for (const r of alerts.roles) {
     const tracked = trackedCompany(companies, r.company);
     if (tracked && !tracked.enabled) continue;
     if (tracked && okCompanies.has(tracked.name) && (titlesToday.get(tracked.name) ?? []).some((t) => sameTitle(t, r.title))) continue;
     if (ignored(settings, r.company)) continue;
-    const onSite = tracked && !alertCalls[alertKey(r.id)] ? siteRoles.get(`${fold(tracked.name)}|${fold(r.title)}`) : null;
+    const onSite = tracked && !alertCalls[alertKey(r.id)] && !tooOld(postedOn(r.id)) ? siteRoles.get(`${fold(tracked.name)}|${fold(r.title)}`) : null;
     if (onSite?.length) {
       const here = citiesOf(r.location).map(fold);
       const inCity = (j) => citiesOf(j.location).some((c) => here.includes(fold(c)));
@@ -205,8 +208,17 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   });
   for (const id of alertCopies.keys()) if (state.jobs[alertKey(id)]?.via) delete state.jobs[alertKey(id)];
   let alertRoles = 0;
-  for (const { company, role: r } of alertKept) {
-    consider(company, ALERT_BOARD, { id: r.id, title: r.title, location: r.location, url: r.url, postedAt: null, description: null }, { via: VIA });
+  let alertsTooOld = 0;
+  for (const { company, role: r, newest } of alertKept) {
+    // A repost under a new number is the role posted again, so the newest number dates it.
+    const on = postedOn(newest ?? r.id);
+    if (tooOld(on) && !alertCalls[alertKey(r.id)]) { // a role you made a call on stays as it is
+      alertsTooOld++;
+      const job = state.jobs[alertKey(r.id)];
+      if (job?.via && job.status === 'open') Object.assign(job, { status: 'closed', closedOn: today, closedReason: `posted about ${on}, over ${settings.job_alerts.max_age} days ago, so it has most likely stopped taking applications` });
+      continue;
+    }
+    consider(company, ALERT_BOARD, { id: r.id, title: r.title, location: r.location, url: r.url, postedAt: on, description: null }, { via: VIA });
     alertRoles++;
   }
 
@@ -329,7 +341,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
       Object.assign(existing, { title: c.job.title, url: c.job.url, location, status: 'open', titleMatch: c.titleMatch });
       if (c.secondLook) existing.secondLook = c.secondLook;
       else delete existing.secondLook;
-      if (!existing.postedAt && c.job.postedAt) existing.postedAt = c.job.postedAt;
+      if ((!existing.postedAt || c.via) && c.job.postedAt) existing.postedAt = c.job.postedAt; // an alert role's date moves with its newest repost
       delete existing.closedOn;
       delete existing.closedReason;
       continue;
@@ -562,7 +574,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
       moved,
     },
     secondLook: second,
-    alerts: alerts.on ? { emails: alerts.emails, roles: alerts.roles.length, listed: alertRoles, reposts: alertCopies.size, onSite: alertOnSite.size, error: alerts.error ?? null } : null,
+    alerts: alerts.on ? { emails: alerts.emails, roles: alerts.roles.length, listed: alertRoles, reposts: alertCopies.size, onSite: alertOnSite.size, tooOld: alertsTooOld, error: alerts.error ?? null } : null,
     ai,
     feedback: { judged: Object.keys(feedback.roles).length, read: pulled !== null },
     tailor: tailor ? { waiting: Object.values(tailor.requests).filter((r) => r.status === 'requested').length } : null,

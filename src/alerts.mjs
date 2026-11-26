@@ -6,6 +6,13 @@
 // data/jobs.json (`alerts`). A role then counts as listed, like a role on a careers site,
 // until no email has named it for `job_alerts.days` days. An alert has no posting text, so
 // the role is scored from its title, employer and place.
+//
+// An email doesn't say when a role was posted or whether it still takes applications, and Axia
+// never opens LinkedIn to ask. But LinkedIn numbers its job posts in order, a few hundred thousand
+// a day, so a role's number says roughly when it was posted. Each run notes the newest number in
+// each day's emails (`alerts.clock`), reads the pace from those notes, and dates every role from
+// its number. A role posted more than `job_alerts.max_age` days ago has most likely stopped taking
+// applications, so it is left out and isn't scored.
 
 import { readMailbox } from './mail.mjs';
 import { normalize, citiesOf } from './text.mjs';
@@ -17,6 +24,8 @@ export const VIA = 'linkedin-alert';
 export const ALERT_BOARD = { url: 'https://www.linkedin.com/jobs/', source: { type: 'linkedin' }, params: { scope: 'alert' } };
 export const alertKey = (id) => `${ALERT_BOARD.source.type}:${ALERT_BOARD.params.scope}:${id}`;
 
+const CLOCK_KEEP_DAYS = 120; // days of newest-number notes kept to date roles by
+const CLOCK_MIN_SPAN = 7; // days the notes must span before roles are dated
 const OVERLAP_DAYS = 2; // re-read the last two days each run, so a late or slow email is never missed
 
 // Lines in a LinkedIn email that are never a role's title, employer or place.
@@ -82,13 +91,15 @@ export async function readAlerts({ settings, env, state, today, log = () => {}, 
   if (!cfg) return { on: false, emails: 0, found: 0, roles: [], error: null };
   const store = (state.alerts ??= { readOn: null, roles: {} });
   store.roles ??= {};
+  store.clock ??= {};
   let emails = 0;
   let found = 0;
   let error = null;
   if (!cfg.user || !cfg.pass) {
     error = 'no mailbox sign-in: add the IMAP_USER and IMAP_PASSWORD secrets (docs/configuration.md#job-alert-emails)';
   } else {
-    const since = store.readOn ? minusDays(store.readOn, OVERLAP_DAYS) : minusDays(today, cfg.days);
+    // The first run, and the first one that dates roles (no clock yet), reads the whole `days` window.
+    const since = store.readOn && Object.keys(store.clock).length ? minusDays(store.readOn, OVERLAP_DAYS) : minusDays(today, cfg.days);
     try {
       const mail = await readMail({ host: cfg.host, port: cfg.port, user: cfg.user, pass: cfg.pass, mailbox: cfg.mailbox, senders: cfg.senders, since });
       for (const m of mail) {
@@ -96,7 +107,10 @@ export async function readAlerts({ settings, env, state, today, log = () => {}, 
         if (!parse) continue;
         emails++;
         const day = isoDay(m.date) || today;
-        for (const r of parse(m.text)) {
+        const roles = parse(m.text);
+        const newest = Math.max(0, ...roles.map((r) => Number(r.id)).filter(Number.isFinite));
+        if (newest && newest > (store.clock[day] ?? 0)) store.clock[day] = newest;
+        for (const r of roles) {
           found++;
           const prev = store.roles[r.id];
           store.roles[r.id] = { ...prev, ...r, firstSeen: prev?.firstSeen && prev.firstSeen < day ? prev.firstSeen : day, lastSeen: prev?.lastSeen && prev.lastSeen > day ? prev.lastSeen : day };
@@ -108,6 +122,7 @@ export async function readAlerts({ settings, env, state, today, log = () => {}, 
     }
   }
   for (const [id, r] of Object.entries(store.roles)) if (daysBetween(r.lastSeen, today) > cfg.days) delete store.roles[id];
+  for (const day of Object.keys(store.clock)) if (daysBetween(day, today) > CLOCK_KEEP_DAYS) delete store.clock[day];
   const roles = Object.values(store.roles);
   if (error) log(`  ✗ ${'Job-alert emails'.padEnd(32)} could not read: ${error}${roles.length ? ` (keeping the ${roles.length} role(s) from earlier emails)` : ''}`);
   else log(`  ✓ ${'Job-alert emails'.padEnd(32)} ${String(roles.length).padStart(5)} roles from the last ${cfg.days} days  (${emails} new email(s) read)`);
@@ -154,7 +169,7 @@ export const sameTitle = (a, b) => fold(a) === fold(b);
  * (higher first) picks the one kept, so a role keeps its id, score and your call; it takes the link of
  * the newest email. A role you made a call on is never folded away.
  * @param {Array<{company: string, role: object}>} entries
- * @returns {{ keep: Array<{company, role}>, copies: Map<string, string> }} copies: folded id → kept id
+ * @returns {{ keep: Array<{company, role, newest}>, copies: Map<string, string> }} newest: the group's newest id; copies: folded id → kept id
  */
 export function collapseAlertRoles(entries, { prefer = () => 0, called = () => false } = {}) {
   const groups = new Map();
@@ -169,9 +184,9 @@ export function collapseAlertRoles(entries, { prefer = () => 0, called = () => f
     const newest = [...group].sort((a, b) => String(b.role.lastSeen ?? '').localeCompare(String(a.role.lastSeen ?? '')) || String(b.role.id).localeCompare(String(a.role.id)))[0];
     const [first, ...rest] = ranked;
     const folded = [first, ...rest.filter((e) => !called(e.role))];
-    keep.push({ ...first, role: { ...first.role, url: newest.role.url, location: placesOf(folded.map((e) => e.role.location)) } });
+    keep.push({ ...first, newest: newest.role.id, role: { ...first.role, url: newest.role.url, location: placesOf(folded.map((e) => e.role.location)) } });
     for (const e of rest) {
-      if (called(e.role)) keep.push(e);
+      if (called(e.role)) keep.push({ ...e, newest: e.role.id });
       else copies.set(e.role.id, first.role.id);
     }
   }
@@ -194,4 +209,31 @@ export function placesOf(locations) {
     out.push(p);
   }
   return out.join('; ') || null;
+}
+
+/**
+ * A dater for LinkedIn jobs: (number) → the day it was posted (YYYY-MM-DD), or null until the notes span a week.
+ * `clock` holds the newest number seen in each day's emails. Numbers rise at a steady pace, but a
+ * day whose emails hold only older roles notes a low number, so the pace is the middle of the rises
+ * between pairs of days at least three days apart, and today's number the middle of where each day
+ * puts it.
+ */
+export function postingDater(clock) {
+  const days = Object.keys(clock ?? {}).sort();
+  if (days.length < 3 || daysBetween(days[0], days.at(-1)) < CLOCK_MIN_SPAN) return () => null;
+  let top = 0;
+  const marks = days.map((day) => [daysBetween(days[0], day), (top = Math.max(top, Number(clock[day]) || 0))]);
+  const middle = (xs) => xs.sort((a, b) => a - b)[Math.floor(xs.length / 2)];
+  const rises = [];
+  for (let i = 0; i < marks.length; i++) for (let j = i + 1; j < marks.length; j++) if (marks[j][0] - marks[i][0] >= 3) rises.push((marks[j][1] - marks[i][1]) / (marks[j][0] - marks[i][0]));
+  const perDay = rises.length ? middle(rises) : 0;
+  if (!(perDay > 0)) return () => null;
+  const last = marks.at(-1)[0];
+  const now = middle(marks.map(([d, m]) => m + perDay * (last - d)));
+  return (id) => {
+    const n = Number(id);
+    if (!Number.isFinite(n)) return null;
+    const back = Math.max(0, Math.round((now - n) / perDay));
+    return minusDays(days.at(-1), back);
+  };
 }
