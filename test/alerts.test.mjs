@@ -8,7 +8,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EventEmitter } from 'node:events';
 import { parseEmail, readMailbox, internalDate, MailError } from '../src/mail.mjs';
-import { parseLinkedIn, readAlerts, trackedCompany, ignored, alertKey } from '../src/alerts.mjs';
+import { parseLinkedIn, readAlerts, trackedCompany, ignored, alertKey, collapseAlertRoles } from '../src/alerts.mjs';
 import { loadSettings, ConfigError } from '../src/config.mjs';
 import { jobText } from '../src/score.mjs';
 import { trackProblems, planMessages } from '../src/notify.mjs';
@@ -247,7 +247,7 @@ test('a run: alert roles join the roles from careers sites, under your company n
     assert.equal(jobs[alertKey('4000000004')], undefined); // ignored employer
     assert.equal(jobs[alertKey('4000000005')], undefined); // outside your places
     assert.ok(jobs['greenhouse:contoso:9']);
-    assert.deepEqual(first.summary.alerts, { emails: 1, roles: 6, listed: 4, error: null });
+    assert.deepEqual(first.summary.alerts, { emails: 1, roles: 6, listed: 4, reposts: 0, error: null });
     const site = readFileSync(join(dir, '.axia/site/index.html'), 'utf8');
     assert.match(site, /"via":"linkedin-alert"/);
 
@@ -288,4 +288,47 @@ test("once a company's own site lists an alert role, the role carries over there
   } finally {
     stub.restore();
   }
+});
+
+test('reposts of one role under new ids are one role: the scored one is kept, with the newest link', () => {
+  const role = (id, location, firstSeen, lastSeen, title = 'VP Engineering (Core Platform)') => ({ company: 'Contoso Pay', role: { id, title, company: 'Contoso Pay', location, url: `https://www.linkedin.com/jobs/view/${id}/`, firstSeen, lastSeen } });
+  const entries = [
+    role('101', 'Bengaluru, Karnataka, India', '2026-11-10', '2026-11-12'),
+    role('102', 'Bengaluru East, Karnataka, India', '2026-11-14', '2026-11-16'),
+    role('103', 'Bengaluru, Karnataka, India', '2026-11-20', '2026-11-25'),
+    role('104', 'India', '2026-11-22', '2026-11-22'), // only the country: the same role
+    role('105', 'Singapore, Singapore', '2026-11-20', '2026-11-25'), // another city: another opening
+    role('106', 'Bengaluru, Karnataka, India', '2026-11-21', '2026-11-21', 'Head of Payments'),
+    role('107', 'Bengaluru, Karnataka, India', '2026-11-23', '2026-11-23'), // you made a call on it
+  ];
+  const { keep, copies } = collapseAlertRoles(entries, { prefer: (r) => (r.id === '102' ? 1 : 0), called: (r) => r.id === '107' });
+  assert.deepEqual(keep.map((e) => e.role.id).sort(), ['102', '105', '106', '107']);
+  const kept = keep.find((e) => e.role.id === '102').role;
+  assert.equal(kept.url, 'https://www.linkedin.com/jobs/view/103/'); // the newest email's link
+  assert.equal(kept.firstSeen, '2026-11-14'); // ...but its own history
+  assert.deepEqual([...copies].sort(), [['101', '102'], ['103', '102'], ['104', '102']]);
+  // Nothing scored yet: the earliest one is kept.
+  assert.equal(collapseAlertRoles(entries.slice(0, 3)).keep[0].role.id, '101');
+  // With only the country and two cities, there is no telling which one it is.
+  assert.equal(collapseAlertRoles([entries[0], entries[3], role('108', 'Pune, Maharashtra, India', '2026-11-20', '2026-11-25')]).keep.length, 3);
+});
+
+test('a run: a role reposted under a new id stays one role, with its score', async () => {
+  const dir = tempProject({ companies: [{ name: 'Woodgrove Bank', url: 'https://careers.example.com/', platform: 'manual' }], settings: { titles: { include: ['VP'], exclude: [] }, job_alerts: { linkedin: true } } });
+  const card = (id, place) => ['---------------------------------------------------------', 'VP Engineering (Core Platform)', 'Contoso Pay', place, `View job: https://www.linkedin.com/comm/jobs/view/${id}/?x=1`].join('\n');
+  const env = { IMAP_USER: 'candidate@example.com', IMAP_PASSWORD: 'app-pass' };
+  const mail = [{ from: 'jobalerts-noreply@linkedin.com', date: '2026-11-24T05:00:00Z', text: card('4100000001', 'Bengaluru, Karnataka, India') }];
+  await run(['--no-notify'], env, { dir, now: new Date('2026-11-24T03:00:00Z'), log: () => {}, readMail: async () => mail });
+  let jobs = JSON.parse(readFileSync(join(dir, 'data/jobs.json'), 'utf8')).jobs;
+  const score = jobs[alertKey('4100000001')].score;
+  assert.ok(score);
+  const repost = [{ from: 'jobalerts-noreply@linkedin.com', date: '2026-11-25T05:00:00Z', text: [card('4100000002', 'Bengaluru, Karnataka, India'), card('4100000003', 'India')].join('\n') }];
+  const second = await run(['--no-notify'], env, { dir, now: new Date('2026-11-25T03:00:00Z'), log: () => {}, readMail: async () => repost });
+  jobs = JSON.parse(readFileSync(join(dir, 'data/jobs.json'), 'utf8')).jobs;
+  assert.deepEqual(Object.keys(jobs).filter((k) => k.startsWith('linkedin:')), [alertKey('4100000001')]);
+  assert.equal(jobs[alertKey('4100000001')].url, 'https://www.linkedin.com/jobs/view/4100000003/'); // the newest repost's link
+  assert.deepEqual(jobs[alertKey('4100000001')].score, score);
+  assert.equal(jobs[alertKey('4100000001')].status, 'open');
+  assert.equal(second.summary.alerts.reposts, 2);
+  assert.equal(second.summary.alerts.listed, 1);
 });

@@ -36,7 +36,7 @@ import { catchUp, catchUpQueue } from './catchup.mjs';
 import { loadPayGuide, payField, dropImplausiblePay } from './pay.mjs';
 import { recordListed, scanSignals, loadSignals, computeHeat } from './heat.mjs';
 import { loadSavedList, usableList } from './lists.mjs';
-import { readAlerts, ALERT_BOARD, alertKey, trackedCompany, ignored, sameTitle, VIA } from './alerts.mjs';
+import { readAlerts, ALERT_BOARD, alertKey, trackedCompany, ignored, sameTitle, collapseAlertRoles, VIA } from './alerts.mjs';
 
 const KEYWORD_DETAIL_BUDGET = 150; // detail fetches for keyword scoring when AI is off
 const SECOND_LOOK_MAX = 1500; // new titles the second look asks about per run; the rest wait for the next run
@@ -154,13 +154,28 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   // job_alerts.ignore are left out too.
   const titlesToday = new Map();
   for (const read of reads) if (read.status === 'ok') titlesToday.set(read.company, [...(titlesToday.get(read.company) ?? []), ...read.jobs.map((j) => j.title)]);
-  let alertRoles = 0;
+  const alertEntries = [];
   for (const r of alerts.roles) {
     const tracked = trackedCompany(companies, r.company);
     if (tracked && !tracked.enabled) continue;
     if (tracked && okCompanies.has(tracked.name) && (titlesToday.get(tracked.name) ?? []).some((t) => sameTitle(t, r.title))) continue;
     if (ignored(settings, r.company)) continue;
-    consider(tracked?.name ?? r.company, ALERT_BOARD, { id: r.id, title: r.title, location: r.location, url: r.url, postedAt: null, description: null }, { via: VIA });
+    alertEntries.push({ company: tracked?.name ?? r.company, role: r });
+  }
+  // Reposts of one role (same employer, title and city under new ids) are one role: the one already
+  // scored is kept, with the newest email's link. Copies remembered from before are let go quietly.
+  const alertCalls = loadFeedback(dir).roles ?? {};
+  const { keep: alertKept, copies: alertCopies } = collapseAlertRoles(alertEntries, {
+    prefer: (r) => {
+      const j = state.jobs[alertKey(r.id)];
+      return (alertCalls[alertKey(r.id)] ? 4 : 0) + (j?.score?.scorer === 'ai' ? 2 : 0) + (j ? 1 : 0);
+    },
+    called: (r) => Boolean(alertCalls[alertKey(r.id)]),
+  });
+  for (const id of alertCopies.keys()) if (state.jobs[alertKey(id)]?.via) delete state.jobs[alertKey(id)];
+  let alertRoles = 0;
+  for (const { company, role: r } of alertKept) {
+    consider(company, ALERT_BOARD, { id: r.id, title: r.title, location: r.location, url: r.url, postedAt: null, description: null }, { via: VIA });
     alertRoles++;
   }
 
@@ -516,7 +531,7 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
       moved,
     },
     secondLook: second,
-    alerts: alerts.on ? { emails: alerts.emails, roles: alerts.roles.length, listed: alertRoles, error: alerts.error ?? null } : null,
+    alerts: alerts.on ? { emails: alerts.emails, roles: alerts.roles.length, listed: alertRoles, reposts: alertCopies.size, error: alerts.error ?? null } : null,
     ai,
     feedback: { judged: Object.keys(feedback.roles).length, read: pulled !== null },
     tailor: tailor ? { waiting: Object.values(tailor.requests).filter((r) => r.status === 'requested').length } : null,

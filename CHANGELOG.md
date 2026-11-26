@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.42.2
+
+- **Fixed: a role reposted on LinkedIn showed up once for every repost.** Some employers and agencies repost the same role under a new LinkedIn id every few days, and each alert email named a new id, so the dashboard listed one role several times and each copy was scored on its own. An email has no posting text to tell two openings apart, so roles from emails that agree on employer, title and city are now one role. The one already scored, or that you made a call on, is kept with its score and history, and takes the link from the newest email. A repost that gives only the country ("India") joins the role in that country's one city. Copies listed before go away on the next run, except ones you made a call on, which stay as they are ([details](docs/configuration.md#job-alert-emails)).
+
 ## 1.42.1
 
 - **Fixed: a role from a job alert was dropped whenever its company's careers site was read, even if the site didn't list it.** A site may not carry every role: another entity of the group posts elsewhere, or the address is filtered to one country. Now the email is left out only when the site lists the same title that day, and the rest are kept under the company's name.
