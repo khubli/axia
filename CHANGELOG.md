@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.45.0
+
+- **LinkedIn alert roles that have most likely closed are left out, before they are scored.** Many roles in LinkedIn's "jobs similar to" and application emails were posted months ago and show "No longer accepting applications". An email doesn't say when a role was posted, and Axia never opens LinkedIn to check. But LinkedIn numbers its job posts in order, a few hundred thousand a day, so each run now notes the newest number in each day's emails and dates every alert role from its number, to within a few days. A role posted more than `job_alerts.max_age` days ago (25 unless you set it, from 7 to 365; LinkedIn posts usually run about 30 days) is left out and isn't scored, and one already listed closes, unless you made a call on it. A role reposted under a new number counts from its newest post. The dashboard shows the rest as "posted about" that day, so sorting by newest posting and the Long open label work for alert roles too. The first run with this reads the last `job_alerts.days` days of emails again to learn the pace ([details](docs/configuration.md#job-alert-emails)).
+
 ## 1.44.0
 
 - **The dashboard uses more of a wide screen, and you can make a role's details as wide as you like.** On a computer the page now grows to 1600px instead of stopping at 1240px, and the details beside the list start at 40% of the width (430px to 680px). Drag the line between the list and the details to resize them, or focus it and use the arrow keys (Shift for bigger steps). Your width is remembered on that device; double-click the line, or press Enter on it, to go back to the default. The list always keeps at least 420px and the details 360px, so a saved width still fits a smaller window. The details are also easier to read: larger text for the facts, the score parts, the summary and the fits and gaps, and labels in a stronger grey. Phones keep the one-column layout ([details](docs/how-it-works.md#6-publish)).

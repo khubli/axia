@@ -1012,7 +1012,7 @@ footer a { color: var(--muted); }
     return '<span class="sc ' + t + '"><b>' + j.score + '</b><span class="meter"><i style="width:' + j.score + '%"></i></span>' + tags + '</span>';
   }
   function rowHtml(j) {
-    const meta = [esc(j.company), esc(place(j)), j.postedAt ? 'posted ' + esc(day(j.postedAt)) : 'no posting date'];
+    const meta = [esc(j.company), esc(place(j)), j.postedAt ? 'posted ' + (j.via ? 'about ' : '') + esc(day(j.postedAt)) : 'no posting date'];
     if (j.pay) meta.push('<span class="pay" title="' + esc(PAY_FROM[j.pay.source] || '') + '">' + esc(payShort(j.pay)) + '</span>');
     meta.push(srcTag(j));
     const pills = levelPill(j) + (isNew(j) ? '<span class="pill new">New</span>' : '') + (longOpen(j) ? '<span class="pill old" title="Posted ' + LONG_OPEN_DAYS + '+ days ago; check it is still being filled">Long open</span>' : '') +
@@ -1031,7 +1031,7 @@ footer a { color: var(--muted); }
     const t = tierOf(j);
     const facts = [
       ['Location', esc(j.location || 'Not stated on the posting')],
-      ['Posted', j.postedAt ? esc(day(j.postedAt)) + ' <span class="muted">(' + age(j.postedAt) + ')</span>' +
+      ['Posted', j.postedAt ? (j.via ? 'About ' : '') + esc(day(j.postedAt)) + ' <span class="muted">(' + age(j.postedAt) + (j.via ? ', worked out from its LinkedIn job number' : '') + ')</span>' +
         (longOpen(j) ? '<br><span class="muted">Open a while. It may already be filled, so check with the recruiter or a contact before you put time into it.</span>' : '') : j.via ? 'Not given in the alert email' : 'Not shown on the posting'],
     ];
     if (j.pay) facts.push(['Pay', payFact(j.pay)]);
