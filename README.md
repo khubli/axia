@@ -10,14 +10,14 @@ You list the employers you want to work for. Every morning Axia reads their own 
 
 **[Live demo](https://khubli.github.io/axia/)** (made-up companies, roles and candidate) · **[Set it up](docs/setup.md)** in about 30 minutes
 
-<img src="docs/screenshots/desktop.png" alt="The Axia dashboard: a one-line verdict, what changed in the last run, where the AI scores fall, the gaps that keep coming up, filters, and a ranked list where each role shows its score, a step up, same level or step down label and a pay range, with the full reasons beside it" width="100%">
+<img src="docs/screenshots/desktop.png" alt="The Axia dashboard: a one-line verdict, what changed in the last run, where the AI scores fall, the gaps that keep coming up, filters, and a ranked list where each role shows its score, a step up, same level or step down label, a pay range and where it was found (careers site or LinkedIn alert), with the full reasons beside it" width="100%">
 
 ## Why Axia
 
 Most job-search tools start from a job board and a keyword search, then give you a generic match percentage. Axia starts from you: the employers you'd join, and how you judge a role.
 
 - **You choose the companies.** No job-board firehose. Axia reads each employer's own careers system directly (Workday, Greenhouse, Lever, Ashby, SmartRecruiters, Oracle Recruiting Cloud, SAP SuccessFactors, Eightfold, TurboHire, Phenom, iCIMS, Avature, Talentsoft, RippleHire, Radancy, Kula, Cornerstone, Keka, Trakstar Hire, plus Amazon, Google, Goldman Sachs, D. E. Shaw, Groupe BPCE, Société Générale, Deutsche Bank, M2P Fintech, Zerodha, Dezerv's Scout and sites on the CWS jobs plugin) through the same public feeds their careers pages use. A site it can't read is listed as "check by hand", never silently dropped. Adding a company is one line, and moving one to another of its careers sites keeps its roles, scores and your calls. For a site that blocks GitHub's servers (Workday, since November 2026), your own computer can save its list for the daily run.
-- **Job-alert emails too (optional).** Turn on `job_alerts` and the roles in LinkedIn's job-alert emails in your own mailbox are scored with the rest: employers whose sites Axia can't read, and ones you didn't know to list. The mailbox is read-only, and Axia never opens LinkedIn itself.
+- **Job-alert emails too (optional).** Turn on `job_alerts` and the roles in LinkedIn's job-alert emails in your own mailbox are scored with the rest: employers whose sites Axia can't read, and ones you didn't know to list. Each role says where it was found, careers site or LinkedIn alert, and a Source filter shows either. The mailbox is read-only, and Axia never opens LinkedIn itself.
 - **Your title words, plus a second look.** Exact title words and places do the cheap first cut. Titles your words miss, like an employer's "Executive Manager" or "Chief Engineer", get a second look from the model, which can only let roles in, never keep one out.
 - **Scored the way you would score it.** The model reads the full posting against your resume and `criteria.md`, where you write your hard stops, the gaps you'd accept, and the titles that fool you. It rates level, domain, core work and must-haves separately and Axia adds them up, so scores spread out and you can see where each one comes from. `axia calibrate` measures how often it agrees with roles you have already judged, so you tune the wording until it scores like you. In the author's own use, that took agreement from 1 in 8 judged roles to 10 or 11 in 12.
 - **Every gap is checkable.** Each score lists what the posting itself requires, quoted in its own words, and whether your resume shows it; a requirement it can't quote is dropped. Once a week the gaps that keep coming up across your close calls are grouped into a few themes, so you decide once whether to add the evidence to your resume or accept the gap.
@@ -98,7 +98,7 @@ npm test        # offline; job boards, AI models and Telegram are answered by re
 
 ## Responsible use
 
-Axia reads public job feeds once a day with a clear user agent. It does not sign in anywhere, does not read LinkedIn, and does not apply for you. Check that a site's terms allow automated reading before you add it.
+Axia reads public job feeds once a day with a clear user agent. It does not sign in anywhere, does not open LinkedIn (it reads only the job-alert emails LinkedIn sends you, if you turn that on), and does not apply for you. Check that a site's terms allow automated reading before you add it.
 
 ## Contributing
 
