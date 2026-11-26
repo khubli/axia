@@ -76,7 +76,8 @@ export function closeAndPrune(state, { seenKeys, okCompanies, watched, today, re
         if (!seenKeys.has(job.key)) close(job, 'no recent job-alert email lists it, or its company’s own site is read now');
       } else if (!watched.has(job.company)) close(job, 'company removed or paused in companies.yml');
       else if (okCompanies.has(job.company) && !seenKeys.has(job.key)) close(job, 'no longer listed');
-      else if (lastOk && daysBetween(lastOk, today) >= UNREAD_CLOSE_DAYS) close(job, `job board unreadable since ${lastOk}`);
+      // A recent job-alert email for the same role keeps it listed while the site can't be read (run.mjs).
+      else if (lastOk && daysBetween(lastOk, today) >= UNREAD_CLOSE_DAYS && !seenKeys.has(job.key)) close(job, `job board unreadable since ${lastOk}`);
     }
     if (job.status === 'closed' && job.closedOn && daysBetween(job.closedOn, today) > CLOSED_KEEP_DAYS) delete state.jobs[job.key];
   }
