@@ -64,7 +64,7 @@ button, input, select { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
 
-.wrap { max-width: 1240px; margin: 0 auto; padding-block: calc(18px + env(safe-area-inset-top, 0px)) calc(56px + env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 22px; }
+.wrap { max-width: 1600px; margin: 0 auto; padding-block: calc(18px + env(safe-area-inset-top, 0px)) calc(56px + env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 22px; }
 
 /* header */
 .brand img { width: 26px; height: 26px; align-self: center; }
@@ -176,9 +176,18 @@ a.brand { color: inherit; text-decoration: none; border-radius: 6px; }
 .controls input { flex: 1 1 240px; }
 .controls select { flex: 0 1 auto; }
 
-/* list + detail */
+/* list + detail: drag the line between them to size the details pane (remembered on this device) */
 .split { display: grid; gap: 24px; align-items: start; }
-@media (min-width: 1080px) { .split { grid-template-columns: minmax(0, 1fr) 430px; } }
+.grip { display: none; }
+@media (min-width: 1080px) {
+  .split { --pane-w: clamp(430px, 40%, 680px); grid-template-columns: minmax(0, 1fr) 24px max(360px, min(var(--pane-w), 100% - 444px)); gap: 0; }
+  .grip { display: block; align-self: stretch; position: relative; cursor: col-resize; touch-action: none; outline: none; }
+  .grip::before { content: ""; position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; margin-left: -1px; border-radius: 1px; background: transparent; transition: background .12s ease; }
+  .grip:hover::before, .grip:focus-visible::before, .grip.drag::before { background: var(--accent); }
+  .grip span { position: sticky; top: calc(50vh - 20px); display: block; width: 6px; height: 40px; margin: 0 auto; border-radius: 3px; background: var(--line); }
+  .grip:hover span, .grip:focus-visible span, .grip.drag span { background: var(--accent); }
+  body.resizing { cursor: col-resize; user-select: none; -webkit-user-select: none; }
+}
 .list { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; min-width: 0; }
 .list > li + li { border-top: 1px solid var(--line); }
 .row { width: 100%; display: grid; grid-template-columns: 66px minmax(0, 1fr); gap: 12px; padding: 14px 16px; background: none; border: 0; text-align: left; cursor: pointer; }
@@ -252,16 +261,16 @@ td.heat .pill { margin-left: 0; }
 li.sel > .inline { display: block; }
 
 .d { padding: 20px 22px 22px; display: grid; gap: 16px; }
-.d .eyebrow { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.d .eyebrow { font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
 .d h2 { margin: 2px 0 0; font: 600 21px/1.25 var(--f-display); letter-spacing: -0.01em; text-wrap: balance; }
-.facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; margin: 0; font-size: 13px; }
-.facts dt { color: var(--faint); }
+.facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 14px; margin: 0; font-size: 14px; line-height: 1.5; }
+.facts dt { color: var(--muted); }
 .facts dd { margin: 0; color: var(--ink); }
 .gauge { display: grid; gap: 10px; padding: 14px; border-radius: 10px; background: var(--bg); }
 .gauge .head { display: flex; align-items: baseline; gap: 12px; }
 .gauge .big { font: 500 40px/1 var(--f-mono); font-variant-numeric: tabular-nums; }
 .gauge.good .big { color: var(--good); } .gauge.look .big { color: var(--look); } .gauge.low .big { color: var(--low); } .gauge.wait .big { color: var(--faint); }
-.gauge .lab { display: grid; font-size: 13px; color: var(--muted); }
+.gauge .lab { display: grid; font-size: 14px; color: var(--muted); }
 .gauge .lab b { color: var(--ink); font-size: 15px; font-weight: 600; }
 .track { position: relative; height: 8px; margin-top: 2px; }
 .track .seg { position: absolute; top: 0; bottom: 0; }
@@ -275,24 +284,24 @@ li.sel > .inline { display: block; }
 .ticks { position: relative; height: 14px; font: 11px/14px var(--f-mono); color: var(--faint); }
 .ticks span { position: absolute; transform: translateX(-50%); }
 .ticks span:first-child { transform: none; } .ticks span:last-child { transform: translateX(-100%); }
-.parts { display: grid; grid-template-columns: max-content minmax(0, 1fr) 2.5em; gap: 6px 10px; align-items: center; font-size: 13px; color: var(--muted); padding-top: 4px; border-top: 1px solid var(--line); }
+.parts { display: grid; grid-template-columns: max-content minmax(0, 1fr) 2.5em; gap: 6px 10px; align-items: center; font-size: 14px; color: var(--muted); padding-top: 4px; border-top: 1px solid var(--line); }
 .parts .bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
 .parts .bar i { display: block; height: 100%; border-radius: 3px; background: var(--faint); }
 .gauge.good .parts .bar i { background: var(--good); } .gauge.look .parts .bar i { background: var(--look); }
-.parts b { font: 500 13px var(--f-mono); color: var(--ink); text-align: right; }
-.parts .note { grid-column: 1 / -1; font-size: 12px; color: var(--faint); }
-.d .summary { margin: 0; }
-.d h3 { margin: 0 0 6px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
-.d ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 14px; }
+.parts b { font: 500 14px var(--f-mono); color: var(--ink); text-align: right; }
+.parts .note { grid-column: 1 / -1; font-size: 13px; color: var(--muted); }
+.d .summary { margin: 0; font-size: 16px; line-height: 1.6; }
+.d h3 { margin: 0 0 8px; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.d ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 15px; line-height: 1.55; }
 .d li { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 8px; }
-.d li::before { font: 500 14px/1.5 var(--f-mono); }
+.d li::before { font: 500 15px/1.55 var(--f-mono); }
 .fits li::before { content: "+"; color: var(--good); }
 .gaps li::before { content: "\2212"; color: var(--look); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .musts li::before { content: "\2713"; color: var(--good); }
 .musts li.partly::before { content: "~"; color: var(--look); }
 .musts li.no::before { content: "\2715"; color: var(--bad); }
-.musts q { display: block; color: var(--muted); font-size: 13px; quotes: "\201C" "\201D"; }
+.musts q { display: block; color: var(--muted); font-size: 14px; quotes: "\201C" "\201D"; }
 /* what the last run changed: one line, the lists behind it on Show */
 .brief > summary { flex-wrap: nowrap; align-items: flex-start; }
 .brief > summary > span { display: grid; gap: 2px; min-width: 0; }
@@ -570,6 +579,7 @@ footer a { color: var(--muted); }
     </div>
     <div class="split">
       <ol class="list" id="list" aria-label="Roles"></ol>
+      <div class="grip" id="grip" role="separator" tabindex="0" aria-orientation="vertical" aria-controls="pane" aria-label="Width of the details. Drag it or use the arrow keys; double-click or Enter resets it" title="Drag to resize. Double-click to reset"><span></span></div>
       <aside class="pane" id="pane" aria-live="polite"></aside>
     </div>
   </section>
@@ -1323,6 +1333,48 @@ footer a { color: var(--muted); }
     const next = e.key === 'ArrowDown' ? li.nextElementSibling : li.previousElementSibling;
     if (next && next.dataset.id) { e.preventDefault(); next.querySelector('.row').focus(); if (wide()) select(next.dataset.id, false); }
   });
+
+  // ── details width: drag the line between the list and the details, or use the arrow keys on it; remembered on this device ──
+  // The CSS keeps the list at least 420px wide and the details at least 360px, whatever is saved.
+  (function () {
+    const split = $('.split'), grip = $('#grip'), pane = $('#pane');
+    const MIN = 360, LIST = 420;
+    const max = () => Math.max(MIN, split.clientWidth - grip.offsetWidth - LIST);
+    const set = (w, save) => {
+      if (w == null) { split.style.removeProperty('--pane-w'); store.set('paneWidth', null); return; }
+      w = Math.round(Math.min(Math.max(w, MIN), max()));
+      split.style.setProperty('--pane-w', w + 'px');
+      if (save) store.set('paneWidth', w);
+    };
+    const aria = () => { grip.setAttribute('aria-valuemin', MIN); grip.setAttribute('aria-valuemax', max()); grip.setAttribute('aria-valuenow', pane.offsetWidth); };
+    const saved = store.get('paneWidth', null);
+    if (typeof saved === 'number' && saved > 0) split.style.setProperty('--pane-w', saved + 'px');
+    let drag = null;
+    grip.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault(); grip.setPointerCapture(e.pointerId);
+      drag = { x: e.clientX, w: pane.offsetWidth };
+      grip.classList.add('drag'); document.body.classList.add('resizing');
+    });
+    grip.addEventListener('pointermove', (e) => { if (drag) set(drag.w + drag.x - e.clientX, false); });
+    const end = () => {
+      if (!drag) return;
+      drag = null; grip.classList.remove('drag'); document.body.classList.remove('resizing');
+      set(pane.offsetWidth, true); aria();
+    };
+    grip.addEventListener('pointerup', end);
+    grip.addEventListener('pointercancel', end);
+    grip.addEventListener('dblclick', () => { set(null); aria(); });
+    grip.addEventListener('keydown', (e) => {
+      const step = e.shiftKey ? 120 : 40;
+      const w = e.key === 'ArrowLeft' ? pane.offsetWidth + step : e.key === 'ArrowRight' ? pane.offsetWidth - step
+        : e.key === 'Home' ? max() : e.key === 'End' ? MIN : null;
+      if (e.key === 'Enter') { e.preventDefault(); set(null); aria(); return; }
+      if (w == null) return;
+      e.preventDefault(); set(w, true); aria();
+    });
+    grip.addEventListener('focus', aria);
+  })();
 
   // ── where to put effort this week: the hottest of your companies, your rank breaking near ties ──
   (function effortView() {

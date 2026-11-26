@@ -64,6 +64,17 @@ test('with AI scoring on, keyword estimates are listed apart, never as matches',
   assert.match(renderMarkdown(v), /## Good matches — 70\+ \(2\)/, 'without AI the estimate is all there is');
 });
 
+test('dashboard uses wide screens and lets you size the details pane', () => {
+  const html = renderSite(siteData(view([job(1, 91)]), { minScore: 70 }));
+  assert.match(html, /\.wrap \{ max-width: 1600px;/, 'wide screens get more than the old 1240px column');
+  assert.match(html, /<ol class="list" id="list"[^>]*><\/ol>\s*<div class="grip" id="grip" role="separator" tabindex="0" aria-orientation="vertical" aria-controls="pane"/,
+    'a keyboard-reachable handle sits between the list and the details');
+  assert.match(html, /grid-template-columns: minmax\(0, 1fr\) 24px max\(360px, min\(var\(--pane-w\), 100% - 444px\)\)/,
+    'the details take the chosen width, but never squeeze the list below 420px');
+  assert.match(html, /store\.get\('paneWidth', null\)/, 'the chosen width is remembered on this device');
+  assert.match(html, /\.facts dt \{ color: var\(--muted\); \}/, 'detail labels use the readable grey, not the faint one');
+});
+
 test('dashboard page embeds its data safely and carries the privacy marker', () => {
   const html = renderSite(siteData(view([job(1, 91)]), { minScore: 70 }));
   assert.doesNotMatch(html, /<script>alert/);
