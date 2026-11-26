@@ -250,6 +250,8 @@ test('a run: alert roles join the roles from careers sites, under your company n
     assert.deepEqual(first.summary.alerts, { emails: 1, roles: 6, listed: 4, reposts: 0, onSite: 0, error: null });
     const site = readFileSync(join(dir, '.axia/site/index.html'), 'utf8');
     assert.match(site, /"via":"linkedin-alert"/);
+    assert.match(site, /<select id="source" aria-label="Where the role was found"/); // the Source filter: careers sites or LinkedIn alerts
+    assert.match(site, /alert: \{ one: 'LinkedIn alert', many: 'LinkedIn alerts'/);
 
     // 31 days on, no email has named them: they close. The careers-site role is untouched by this.
     await run(['--no-notify'], env, { dir, now: new Date('2026-12-26T03:00:00Z'), log: () => {}, readMail: async () => [] });

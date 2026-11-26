@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.43.0
+
+- **Every role says where it was found, and you can filter by it.** Each row on the dashboard now ends with **Careers site** or **LinkedIn alert**, and a role's details say "Found in" the company's careers site (scored from the posting) or a LinkedIn job-alert email (scored from the title, employer and place only). A new **Source** filter beside the level filter shows only careers-site roles or only LinkedIn alert roles, with a count for each. It appears once some roles come from alert emails, and the dashboard remembers your choice like the other filters. Searching "linkedin" or "careers site" works too ([details](docs/configuration.md#job-alert-emails)).
+
 ## 1.42.3
 
 - **Fixed: one posting listed for several cities showed up once per city.** Job sites list one opening once for each city, and LinkedIn emails each as its own role, so a role open in five cities was listed and scored five times. Roles from emails with the same employer and title are now one role, listed in all their cities ("Pune, Maharashtra, India; Bengaluru, Karnataka, India"). As before, the one already scored, or that you made a call on, is kept, with the newest email's link.
