@@ -114,21 +114,35 @@ export async function readAlerts({ settings, env, state, today, log = () => {}, 
   return { on: true, emails, found, roles, error };
 }
 
+/** A name compared loosely: no accents, case or punctuation ("Société Générale" is "societe generale"). */
+const fold = (s) => normalize(String(s ?? '').normalize('NFD').replace(/\p{M}+/gu, '')).replace(/[^\p{L}\p{N}& ]+/gu, ' ').replace(/\s+/g, ' ').trim();
+
 /**
- * Which company in companies.yml an alert's employer is, if any: the same name, or the name
- * followed by more words ("Contoso Pay India" is Contoso Pay). The longest name wins.
+ * Which company in companies.yml an alert's employer is, if any. Either name may carry more words than
+ * the other ("Contoso Pay India" and "Contoso Pay"; "Woodgrove" and "Woodgrove Bank"), and spaces may
+ * differ ("FabrikamCapital"), as long as the shorter name is 6 letters or more, so "Cred" is never
+ * "CreditX". The longest match wins. `strict` allows only the alert's name to be longer (for ignore).
  */
-export function trackedCompany(companies, employer) {
-  const e = normalize(employer).replace(/[^\p{L}\p{N}& ]+/gu, ' ').replace(/\s+/g, ' ').trim();
+export function trackedCompany(companies, employer, { strict = false } = {}) {
+  const e = fold(employer);
+  const eTight = e.replace(/ /g, '');
   let best = null;
+  let bestLen = 0;
   for (const c of companies) {
-    const n = normalize(c.name).replace(/[^\p{L}\p{N}& ]+/gu, ' ').replace(/\s+/g, ' ').trim();
-    if (n && (e === n || e.startsWith(`${n} `)) && (!best || n.length > normalize(best.name).length)) best = c;
+    const n = fold(c.name);
+    if (!n) continue;
+    const nTight = n.replace(/ /g, '');
+    const longEnough = Math.min(eTight.length, nTight.length) >= 6;
+    const hit = e === n || e.startsWith(`${n} `) || (!strict && longEnough && (n.startsWith(`${e} `) || eTight.startsWith(nTight) || nTight.startsWith(eTight)));
+    if (hit && n.length > bestLen) [best, bestLen] = [c, n.length];
   }
   return best;
 }
 
-/** Employers you never want roles from (job_alerts.ignore): the same whole-name rule as above. */
+/** Employers you never want roles from (job_alerts.ignore): the same name, or the name followed by more words. */
 export function ignored(settings, employer) {
-  return trackedCompany((settings.job_alerts?.ignore ?? []).map((name) => ({ name })), employer) !== null;
+  return trackedCompany((settings.job_alerts?.ignore ?? []).map((name) => ({ name })), employer, { strict: true }) !== null;
 }
+
+/** A title compared loosely, to spot the same role on a company's own site. */
+export const sameTitle = (a, b) => fold(a) === fold(b);

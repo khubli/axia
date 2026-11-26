@@ -36,7 +36,7 @@ import { catchUp, catchUpQueue } from './catchup.mjs';
 import { loadPayGuide, payField, dropImplausiblePay } from './pay.mjs';
 import { recordListed, scanSignals, loadSignals, computeHeat } from './heat.mjs';
 import { loadSavedList, usableList } from './lists.mjs';
-import { readAlerts, ALERT_BOARD, alertKey, trackedCompany, ignored, VIA } from './alerts.mjs';
+import { readAlerts, ALERT_BOARD, alertKey, trackedCompany, ignored, sameTitle, VIA } from './alerts.mjs';
 
 const KEYWORD_DETAIL_BUDGET = 150; // detail fetches for keyword scoring when AI is off
 const SECOND_LOOK_MAX = 1500; // new titles the second look asks about per run; the rest wait for the next run
@@ -148,12 +148,17 @@ export async function run(argv = process.argv.slice(2), env = process.env, { dir
   };
   for (const read of reads) for (const job of read.jobs) consider(read.company, read.board, job);
   // A role from an alert email at one of your companies goes under that company's name. When its
-  // careers site was read today, the site already lists it (with the posting text), so the email is
-  // left out. Paused companies and employers in job_alerts.ignore are left out too.
+  // careers site was read today and lists the same title, the site's posting is the role (with its
+  // text), so the email is left out. A site may not list every role (another entity, or an address
+  // filtered to one country), so a title it doesn't list is kept. Paused companies and employers in
+  // job_alerts.ignore are left out too.
+  const titlesToday = new Map();
+  for (const read of reads) if (read.status === 'ok') titlesToday.set(read.company, [...(titlesToday.get(read.company) ?? []), ...read.jobs.map((j) => j.title)]);
   let alertRoles = 0;
   for (const r of alerts.roles) {
     const tracked = trackedCompany(companies, r.company);
-    if (tracked && (!tracked.enabled || okCompanies.has(tracked.name))) continue;
+    if (tracked && !tracked.enabled) continue;
+    if (tracked && okCompanies.has(tracked.name) && (titlesToday.get(tracked.name) ?? []).some((t) => sameTitle(t, r.title))) continue;
     if (ignored(settings, r.company)) continue;
     consider(tracked?.name ?? r.company, ALERT_BOARD, { id: r.id, title: r.title, location: r.location, url: r.url, postedAt: null, description: null }, { via: VIA });
     alertRoles++;

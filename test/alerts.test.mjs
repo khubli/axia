@@ -8,7 +8,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EventEmitter } from 'node:events';
 import { parseEmail, readMailbox, internalDate, MailError } from '../src/mail.mjs';
-import { parseLinkedIn, readAlerts, trackedCompany, alertKey } from '../src/alerts.mjs';
+import { parseLinkedIn, readAlerts, trackedCompany, ignored, alertKey } from '../src/alerts.mjs';
 import { loadSettings, ConfigError } from '../src/config.mjs';
 import { jobText } from '../src/score.mjs';
 import { trackProblems, planMessages } from '../src/notify.mjs';
@@ -143,12 +143,19 @@ test('a refused sign-in is a plain error that never repeats the password', async
   });
 });
 
-test('employers in alerts match your companies by whole name', () => {
-  const companies = [{ name: 'Woodgrove Bank' }, { name: 'Woodgrove' }, { name: 'Contoso Pay' }];
+test('employers in alerts match your companies by name, however the alert writes it', () => {
+  const companies = [{ name: 'Woodgrove Bank' }, { name: 'Woodgrove' }, { name: 'Contoso Pay' }, { name: 'Société Lumière' }, { name: 'Fabrikam Capital of Asia' }, { name: 'Tailspin Toys' }, { name: 'Cred' }];
   assert.equal(trackedCompany(companies, 'Woodgrove Bank Services in India').name, 'Woodgrove Bank');
   assert.equal(trackedCompany(companies, 'contoso pay').name, 'Contoso Pay');
-  assert.equal(trackedCompany(companies, 'Contoso Payments'), null);
-  assert.equal(trackedCompany(companies, 'Fabrikam Capital'), null);
+  assert.equal(trackedCompany(companies, 'Societe Lumiere Global Solution Centre').name, 'Société Lumière'); // accents
+  assert.equal(trackedCompany(companies, 'Fabrikam Capital').name, 'Fabrikam Capital of Asia'); // the alert's name is shorter
+  assert.equal(trackedCompany(companies, 'TailspinToys').name, 'Tailspin Toys'); // written without a space
+  assert.equal(trackedCompany(companies, 'CreditX'), null); // a short name is never a prefix
+  assert.equal(trackedCompany(companies, 'Northwind Traders'), null);
+  // job_alerts.ignore takes only the name itself, or the name followed by more words.
+  const settings = { job_alerts: { ignore: ['Woodgrove Bank Finance'] } };
+  assert.equal(ignored(settings, 'Woodgrove Bank Finance India'), true);
+  assert.equal(ignored(settings, 'Woodgrove Bank'), false);
 });
 
 test('job_alerts settings: off by default; plain errors for bad values', () => {
@@ -209,11 +216,17 @@ test('a run: alert roles join the roles from careers sites, under your company n
       job_alerts: { linkedin: true, ignore: ['Northwind Traders'] },
     },
   });
-  const contoso = [{ id: 9, title: 'Lead Architect', location: { name: 'Pune' }, absolute_url: 'https://job-boards.greenhouse.io/contoso/jobs/9', first_published: '2026-11-20T10:00:00Z', content: 'Payments platform.' }];
+  const contoso = [
+    { id: 9, title: 'Lead Architect', location: { name: 'Pune' }, absolute_url: 'https://job-boards.greenhouse.io/contoso/jobs/9', first_published: '2026-11-20T10:00:00Z', content: 'Payments platform.' },
+    { id: 10, title: 'Director - Payments Architecture', location: { name: 'Pune' }, absolute_url: 'https://job-boards.greenhouse.io/contoso/jobs/10', first_published: '2026-11-20T10:00:00Z', content: 'Payments platform.' },
+  ];
   const extra = [
     '---------------------------------------------------------',
     'Head of Engineering', 'Northwind Traders', 'Bengaluru',
     'View job: https://www.linkedin.com/comm/jobs/view/4000000004/?x=1',
+    '---------------------------------------------------------',
+    'Head of Trade Finance Technology', 'Contoso Pay India', 'Pune',
+    'View job: https://www.linkedin.com/comm/jobs/view/4000000006/?x=1',
     '---------------------------------------------------------',
     'Director, Core Banking', 'Tailspin Bank', 'New York',
     'View job: https://www.linkedin.com/comm/jobs/view/4000000005/?x=1',
@@ -229,11 +242,12 @@ test('a run: alert roles join the roles from careers sites, under your company n
     assert.equal(woodgrove.via, 'linkedin-alert');
     assert.equal(woodgrove.url, 'https://www.linkedin.com/jobs/view/4000000001/');
     assert.equal(jobs[alertKey('4000000003')].company, 'Fabrikam Capital'); // not one of your companies: kept under its own name
-    assert.equal(jobs[alertKey('4000000002')], undefined); // Contoso Pay's own site was read today
+    assert.equal(jobs[alertKey('4000000002')], undefined); // Contoso Pay's own site lists the same title today
+    assert.equal(jobs[alertKey('4000000006')].company, 'Contoso Pay'); // ...but not this one, so the alert keeps it
     assert.equal(jobs[alertKey('4000000004')], undefined); // ignored employer
     assert.equal(jobs[alertKey('4000000005')], undefined); // outside your places
     assert.ok(jobs['greenhouse:contoso:9']);
-    assert.deepEqual(first.summary.alerts, { emails: 1, roles: 5, listed: 3, error: null });
+    assert.deepEqual(first.summary.alerts, { emails: 1, roles: 6, listed: 4, error: null });
     const site = readFileSync(join(dir, '.axia/site/index.html'), 'utf8');
     assert.match(site, /"via":"linkedin-alert"/);
 
